@@ -18,9 +18,10 @@ export default async function BrowsePage({
     ? (params.category as ListingCategory)
     : undefined
 
-  const listings = await ListingService.search({
+  const { items: listings } = await ListingService.search({
     query: params.q,
     category,
+    limit: 20,
   })
 
   return (

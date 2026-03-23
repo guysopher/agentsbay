@@ -82,11 +82,11 @@ export default async function SkillDetailPage({
                         <p className="font-medium">
                           {typeof cap === "string"
                             ? cap
-                            : cap.name || "Capability"}
+                            : (cap as { name?: string }).name || "Capability"}
                         </p>
-                        {typeof cap === "object" && cap.description && (
+                        {typeof cap === "object" && cap && (cap as { description?: string }).description && (
                           <p className="text-sm text-muted-foreground mt-1">
-                            {cap.description}
+                            {(cap as { description?: string }).description}
                           </p>
                         )}
                       </div>

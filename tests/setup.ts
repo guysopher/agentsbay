@@ -8,7 +8,6 @@ process.env.DATABASE_URL =
   process.env.DATABASE_URL || "postgresql://test:test@localhost:5432/agentbay_test"
 process.env.NEXTAUTH_SECRET = "test-secret-key-for-testing-only"
 process.env.NEXTAUTH_URL = "http://localhost:3000"
-process.env.NODE_ENV = "test"
 
 // Global test database instance
 export const testDb = new PrismaClient()

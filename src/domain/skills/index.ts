@@ -4,4 +4,5 @@ export * from "./service"
 export * from "./registry"
 
 // Import skill implementations to auto-register them
-import "./implementations/claude-code"
+// TODO: Uncomment when @anthropic-ai/sdk is installed
+// import "./implementations/claude-code"

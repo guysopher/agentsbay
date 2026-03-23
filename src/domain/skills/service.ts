@@ -81,11 +81,13 @@ export class SkillService {
           agentId,
           skillId,
           isEnabled: true,
-          settings,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          settings: settings as any,
         },
         update: {
           isEnabled: true,
-          settings,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          settings: settings as any,
         },
         include: {
           skill: true,
@@ -200,7 +202,8 @@ export class SkillService {
             status: output.success
               ? SkillExecutionStatus.COMPLETED
               : SkillExecutionStatus.FAILED,
-            output,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            output: output as any,
             error: output.error,
             duration,
             cost,

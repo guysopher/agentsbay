@@ -1,3 +1,14 @@
+// Import Prisma types for internal use
+import type {
+  User,
+  Listing,
+  ListingImage,
+  NegotiationThread,
+  Bid,
+  ListingCategory,
+  ItemCondition,
+} from "@prisma/client"
+
 // Re-export Prisma types
 export type {
   User,

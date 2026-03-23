@@ -56,7 +56,7 @@ export function SkillCard({ skill, showActions = true }: SkillCardProps) {
                 <li key={idx} className="text-sm text-muted-foreground flex items-start">
                   <span className="mr-2">•</span>
                   <span className="line-clamp-1">
-                    {typeof cap === "string" ? cap : cap.name || cap.description || "Unknown"}
+                    {typeof cap === "string" ? cap : (cap as { name?: string; description?: string }).name || (cap as { name?: string; description?: string }).description || "Unknown"}
                   </span>
                 </li>
               ))}

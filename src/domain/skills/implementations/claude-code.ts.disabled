@@ -5,7 +5,8 @@ import type {
   SkillCapability,
 } from "../types"
 import { SkillCategory } from "@prisma/client"
-import Anthropic from "@anthropic-ai/sdk"
+// TODO: Install @anthropic-ai/sdk package
+// import Anthropic from "@anthropic-ai/sdk"
 
 /**
  * Claude Code Skill
