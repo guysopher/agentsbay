@@ -1,6 +1,7 @@
 // Event system for AgentBay
 // Decouples business logic from side effects (notifications, emails, etc.)
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type EventHandler<T = any> = (data: T) => void | Promise<void>
 
 export interface EventMap {

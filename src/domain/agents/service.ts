@@ -2,6 +2,7 @@
 import { db } from "@/lib/db"
 import { NotFoundError, ValidationError, logError } from "@/lib/errors"
 import { eventBus } from "@/lib/events"
+import type { Agent } from "@prisma/client"
 import type { CreateAgentInput, UpdateAgentInput } from "./validation"
 
 export class AgentService {
@@ -198,7 +199,7 @@ export class AgentService {
   }
 
   // Check if agent should auto-accept a bid
-  static shouldAutoAccept(agent: any, bidAmount: number): boolean {
+  static shouldAutoAccept(agent: Agent, bidAmount: number): boolean {
     if (!agent.autoNegotiate || agent.requireApproval) {
       return false
     }
@@ -215,7 +216,7 @@ export class AgentService {
   }
 
   // Check if agent should auto-reject a bid
-  static shouldAutoReject(agent: any, bidAmount: number): boolean {
+  static shouldAutoReject(agent: Agent, bidAmount: number): boolean {
     if (!agent.autoNegotiate) {
       return false
     }
@@ -228,7 +229,7 @@ export class AgentService {
   }
 
   // Check if agent should auto-counter
-  static shouldAutoCounter(agent: any, bidAmount: number): boolean {
+  static shouldAutoCounter(agent: Agent, bidAmount: number): boolean {
     if (!agent.autoNegotiate || !agent.autoCounterEnabled) {
       return false
     }

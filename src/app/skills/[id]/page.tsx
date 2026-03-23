@@ -75,7 +75,7 @@ export default async function SkillDetailPage({
               </CardHeader>
               <CardContent>
                 <ul className="space-y-3">
-                  {capabilities.map((cap: any, idx: number) => (
+                  {capabilities.map((cap: unknown, idx: number) => (
                     <li key={idx} className="flex items-start gap-3">
                       <div className="mt-1 h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />
                       <div>

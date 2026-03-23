@@ -22,11 +22,13 @@ export interface SkillConfig {
 }
 
 export interface SkillInput {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any
 }
 
 export interface SkillOutput {
   success: boolean
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data?: any
   error?: string
   metadata?: {

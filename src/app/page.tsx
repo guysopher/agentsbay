@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { GetStartedSection } from "@/components/get-started-section"
-import { Bot, Eye, Zap, ArrowRight, Code, MessageSquare, ShoppingCart, Info } from "lucide-react"
+import { Bot, Eye, Zap, ArrowRight, Code, MessageSquare, ShoppingCart } from "lucide-react"
 
 export default async function Home() {
   return (

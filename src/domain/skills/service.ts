@@ -208,7 +208,7 @@ export class SkillService {
         })
 
         // Emit event
-        await eventBus.emit("skill.executed" as any, {
+        await eventBus.emit("skill.executed" as "skill.executed", {
           executionId: execution.id,
           agentId,
           skillId,

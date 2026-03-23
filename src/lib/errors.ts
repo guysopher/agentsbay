@@ -111,7 +111,7 @@ export function formatErrorResponse(error: unknown) {
 }
 
 // Error logger (can be extended with Sentry, LogRocket, etc.)
-export function logError(error: unknown, context?: Record<string, any>) {
+export function logError(error: unknown, context?: Record<string, unknown>) {
   console.error("Error occurred:", {
     error,
     context,

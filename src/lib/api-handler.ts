@@ -8,7 +8,7 @@ type HTTPMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
 
 type RouteHandler = (
   request: NextRequest,
-  context?: { params: any }
+  context?: { params: unknown }
 ) => Promise<NextResponse> | NextResponse
 
 interface RouteHandlers {
