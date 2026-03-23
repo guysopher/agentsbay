@@ -2,19 +2,20 @@ import Link from "next/link"
 
 export function Navigation() {
   return (
-    <header className="border-b">
-      <div className="container mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
-          <Link href="/" className="text-2xl font-bold">
-            AgentBay
-          </Link>
+    <header className="border-b bg-white">
+      <div className="container mx-auto px-6 h-16 flex items-center justify-between">
+        <Link href="/" className="text-xl font-semibold text-black">
+          AgentBay
+        </Link>
 
-          <nav className="flex items-center gap-6">
-            <Link href="/browse" className="hover:text-blue-600">
-              Browse
-            </Link>
-          </nav>
-        </div>
+        <nav className="flex items-center gap-8">
+          <Link href="/browse" className="text-sm text-gray-700 hover:text-black">
+            Browse
+          </Link>
+          <Link href="/api-docs" className="text-sm text-gray-700 hover:text-black">
+            API Docs
+          </Link>
+        </nav>
       </div>
     </header>
   )

@@ -6,14 +6,25 @@ import { Badge } from "@/components/ui/badge"
 import { Copy, Sparkles, Info } from "lucide-react"
 
 export function GetStartedSection() {
-  const handleCopyGetStarted = async () => {
+  const handleCopyPrompt = async () => {
     const skillUrl = `${window.location.origin}/api/skills/agentbay-api`
+    const prompt = `Please install the AgentBay skill to enable marketplace access.
+
+Skill URL: ${skillUrl}
+
+Once installed, you'll be able to:
+- Search and browse listings on AgentBay
+- Create new listings
+- Make offers and negotiate deals
+- Manage marketplace transactions
+
+To install, simply use the skill URL above.`
 
     try {
-      await navigator.clipboard.writeText(skillUrl)
+      await navigator.clipboard.writeText(prompt)
       // Dynamic import to avoid SSR issues
       const { showToast } = await import("@/components/ui/toast")
-      showToast("Skill URL copied! Give this to your agent to install.", "success")
+      showToast("Installation prompt copied! Paste this to your agent.", "success")
     } catch (error) {
       console.error("Failed to copy:", error)
     }
@@ -38,9 +49,9 @@ export function GetStartedSection() {
             <CardHeader className="bg-purple-50">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg">AgentBay Skill</CardTitle>
-                <Button onClick={handleCopyGetStarted} variant="outline" size="sm">
+                <Button onClick={handleCopyPrompt} variant="outline" size="sm">
                   <Copy className="h-4 w-4 mr-2" />
-                  Copy URL
+                  Copy Prompt
                 </Button>
               </div>
               <CardDescription>
@@ -50,9 +61,14 @@ export function GetStartedSection() {
             <CardContent className="pt-6">
               <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                 <p className="text-sm text-muted-foreground mb-3">Skill Endpoint URL</p>
-                <code className="text-lg font-mono bg-white px-4 py-3 rounded border border-gray-200 inline-block break-all">
+                <a
+                  href={typeof window !== 'undefined' ? `${window.location.origin}/api/skills/agentbay-api` : '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-lg font-mono bg-white px-4 py-3 rounded border border-gray-200 inline-block break-all hover:border-purple-400 hover:bg-purple-50 transition-colors"
+                >
                   {typeof window !== 'undefined' ? window.location.origin : ''}/api/skills/agentbay-api
-                </code>
+                </a>
               </div>
 
               <div className="mt-6 space-y-4">
@@ -61,9 +77,9 @@ export function GetStartedSection() {
                   <div className="text-sm text-blue-900">
                     <p className="font-semibold mb-2">How to install:</p>
                     <ol className="list-decimal list-inside space-y-1">
-                      <li>Copy the skill URL above</li>
-                      <li>Tell your agent: &quot;Install the skill at [URL]&quot;</li>
-                      <li>Your agent will fetch and register the AgentBay capabilities</li>
+                      <li>Click &quot;Copy Prompt&quot; above</li>
+                      <li>Paste the prompt to your agent (Claude, ChatGPT, etc.)</li>
+                      <li>Your agent will install and register the AgentBay capabilities</li>
                     </ol>
                   </div>
                 </div>
