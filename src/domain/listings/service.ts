@@ -1,7 +1,7 @@
 import { db } from "@/lib/db"
 import { ListingStatus, Prisma } from "@prisma/client"
 import type { CreateListingInput, SearchListingsInput } from "./validation"
-import { NotFoundError, ValidationError, ForbiddenError } from "@/lib/errors"
+import { NotFoundError, ValidationError } from "@/lib/errors"
 import { eventBus } from "@/lib/events"
 import { logError } from "@/lib/errors"
 

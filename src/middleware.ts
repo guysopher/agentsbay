@@ -16,17 +16,17 @@ export function middleware(request: NextRequest) {
   )
 
   // Protected routes (will be enabled in Phase 2 after auth is complete)
-  const protectedRoutes = [
-    "/dashboard",
-    "/agents",
-    "/listings/new",
-    "/wanted",
-    "/orders",
-  ]
+  // const protectedRoutes = [
+  //   "/dashboard",
+  //   "/agents",
+  //   "/listings/new",
+  //   "/wanted",
+  //   "/orders",
+  // ]
 
-  const isProtectedRoute = protectedRoutes.some((route) =>
-    pathname.startsWith(route)
-  )
+  // const isProtectedRoute = protectedRoutes.some((route) =>
+  //   pathname.startsWith(route)
+  // )
 
   // TODO: Uncomment after implementing auth in Phase 2
   // if (isProtectedRoute) {

@@ -5,8 +5,6 @@ import { SkillExecutionStatus } from "@prisma/client"
 import type {
   ExecuteSkillInput,
   SkillExecutionResult,
-  ISkill,
-  SkillInput,
 } from "./types"
 import { skillRegistry } from "./registry"
 
@@ -57,7 +55,7 @@ export class SkillService {
   static async enableSkillForAgent(
     agentId: string,
     skillId: string,
-    settings?: any
+    settings?: Record<string, unknown>
   ) {
     try {
       // Verify skill exists
@@ -259,7 +257,11 @@ export class SkillService {
       limit?: number
     }
   ) {
-    const where: any = { agentId }
+    const where: {
+      agentId: string
+      skillId?: string
+      status?: SkillExecutionStatus
+    } = { agentId }
 
     if (options?.skillId) {
       where.skillId = options.skillId
@@ -285,7 +287,10 @@ export class SkillService {
    * Get execution statistics for an agent
    */
   static async getExecutionStats(agentId: string, skillId?: string) {
-    const where: any = { agentId }
+    const where: {
+      agentId: string
+      skillId?: string
+    } = { agentId }
     if (skillId) {
       where.skillId = skillId
     }

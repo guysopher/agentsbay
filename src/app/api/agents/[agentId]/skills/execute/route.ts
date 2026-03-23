@@ -2,12 +2,12 @@ import { SkillService } from "@/domain/skills/service"
 import { createApiHandler, successResponse } from "@/lib/api-handler"
 import { auth } from "@/lib/auth"
 import { UnauthorizedError } from "@/lib/errors"
-import { rateLimiter, RATE_LIMITS } from "@/lib/rate-limit"
+import { rateLimiter } from "@/lib/rate-limit"
 import { z } from "zod"
 
 const executeSkillSchema = z.object({
   skillId: z.string(),
-  input: z.any(),
+  input: z.unknown(),
 })
 
 export const { POST } = createApiHandler({
@@ -17,7 +17,6 @@ export const { POST } = createApiHandler({
       throw new UnauthorizedError()
     }
 
-    const userId = session.user.id
     const agentId = context?.params?.agentId
 
     // Rate limiting - max 30 skill executions per hour

@@ -14,7 +14,11 @@ export const { GET } = createApiHandler({
     const agentId = context?.params?.agentId
     const { searchParams } = request.nextUrl
 
-    const options: any = {}
+    const options: {
+      skillId?: string
+      status?: SkillExecutionStatus
+      limit?: number
+    } = {}
 
     const skillId = searchParams.get("skillId")
     if (skillId) {
@@ -22,7 +26,7 @@ export const { GET } = createApiHandler({
     }
 
     const status = searchParams.get("status")
-    if (status && Object.values(SkillExecutionStatus).includes(status as any)) {
+    if (status && Object.values(SkillExecutionStatus).includes(status as SkillExecutionStatus)) {
       options.status = status as SkillExecutionStatus
     }
 

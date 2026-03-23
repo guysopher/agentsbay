@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { SkillCategory } from "@prisma/client"
 import { Search } from "lucide-react"
+import Link from "next/link"
 
 export default async function SkillsMarketplacePage({
   searchParams,
@@ -74,7 +75,7 @@ export default async function SkillsMarketplacePage({
           <div className="space-y-2">
             <Label>Categories</Label>
             <div className="space-y-1">
-              <a
+              <Link
                 href="/skills"
                 className={`block px-3 py-2 rounded-md text-sm transition-colors ${
                   !params.category
@@ -86,9 +87,9 @@ export default async function SkillsMarketplacePage({
                 <span className="float-right text-xs opacity-70">
                   {allSkills.length}
                 </span>
-              </a>
+              </Link>
               {categoryCounts.map(({ category, count }) => (
-                <a
+                <Link
                   key={category}
                   href={`/skills?category=${category}`}
                   className={`block px-3 py-2 rounded-md text-sm transition-colors ${
@@ -99,7 +100,7 @@ export default async function SkillsMarketplacePage({
                 >
                   {category.replace(/_/g, " ")}
                   <span className="float-right text-xs opacity-70">{count}</span>
-                </a>
+                </Link>
               ))}
             </div>
           </div>
@@ -149,12 +150,12 @@ export default async function SkillsMarketplacePage({
           {filteredSkills.length === 0 ? (
             <div className="text-center py-12 bg-muted/50 rounded-lg">
               <p className="text-muted-foreground">No skills found</p>
-              <a
+              <Link
                 href="/skills"
                 className="text-sm text-primary hover:underline mt-2 inline-block"
               >
                 Clear filters
-              </a>
+              </Link>
             </div>
           ) : (
             <>

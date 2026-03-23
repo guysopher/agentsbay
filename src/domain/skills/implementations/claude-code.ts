@@ -210,11 +210,11 @@ export class ClaudeCodeSkill implements ISkill {
     }
   }
 
-  async execute(input: SkillInput, agentId: string): Promise<SkillOutput> {
+  async execute(input: SkillInput): Promise<SkillOutput> {
     const startTime = Date.now()
 
     try {
-      let result: any
+      let result: unknown
 
       switch (input.action) {
         case "analyze_listing":

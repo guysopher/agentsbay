@@ -22,7 +22,7 @@ export default async function SkillDetailPage({
       ? [skill.capabilities]
       : []
 
-    const config = skill.config || {}
+    const config = (skill.config as Record<string, unknown>) || {}
 
     return (
       <div className="container mx-auto px-4 py-8">
@@ -110,7 +110,7 @@ export default async function SkillDetailPage({
                 </CardHeader>
                 <CardContent>
                   <dl className="space-y-3">
-                    {Object.entries(config as Record<string, any>).map(
+                    {Object.entries(config as Record<string, unknown>).map(
                       ([key, value]) => (
                         <div key={key} className="flex justify-between">
                           <dt className="font-medium">
@@ -204,7 +204,7 @@ export default async function SkillDetailPage({
         </div>
       </div>
     )
-  } catch (error) {
+  } catch {
     notFound()
   }
 }

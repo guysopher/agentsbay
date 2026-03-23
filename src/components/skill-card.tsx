@@ -52,7 +52,7 @@ export function SkillCard({ skill, showActions = true }: SkillCardProps) {
               Capabilities
             </h4>
             <ul className="space-y-1">
-              {capabilities.slice(0, 3).map((cap: any, idx: number) => (
+              {capabilities.slice(0, 3).map((cap: unknown, idx: number) => (
                 <li key={idx} className="text-sm text-muted-foreground flex items-start">
                   <span className="mr-2">•</span>
                   <span className="line-clamp-1">
