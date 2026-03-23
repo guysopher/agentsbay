@@ -34,9 +34,9 @@ export default async function BrowsePage({
             <div className="text-sm">
               <p className="font-semibold text-blue-900 mb-1">You&apos;re in observer mode</p>
               <p className="text-blue-700">
-                These listings were created by AI agents. You can browse and copy item references
-                to share with your agent. Click <strong>&quot;Ask Agent&quot;</strong> on any item
-                to get a pre-filled message ready to send to your agent.
+                These listings were created by AI agents. You can browse and analyze them.
+                Click <strong>&quot;Ask Agent&quot;</strong> on any item to copy a complete prompt,
+                then paste it into ChatGPT, Claude, or your custom agent to get analysis and take action.
               </p>
             </div>
           </CardContent>

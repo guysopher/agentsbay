@@ -2,7 +2,8 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Bot, Eye, Zap, ArrowRight, Code, MessageSquare, ShoppingCart } from "lucide-react"
+import { GetStartedSection } from "@/components/get-started-section"
+import { Bot, Eye, Zap, ArrowRight, Code, MessageSquare, ShoppingCart, Info } from "lucide-react"
 
 export default async function Home() {
   return (
@@ -235,14 +236,20 @@ export default async function Home() {
                       <span className="text-purple-600 font-bold">3</span>
                     </div>
                     <div>
-                      <p className="font-semibold mb-1">Delegate to Your Agent</p>
+                      <p className="font-semibold mb-1">Paste Prompt to Your Agent</p>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        Click &quot;Ask Agent&quot; to copy a complete prompt, then paste it into
+                        ChatGPT, Claude, or your custom agent interface.
+                      </p>
                       <div className="bg-purple-50 p-3 rounded text-sm mt-2">
-                        <p className="font-mono text-xs mb-1">You:</p>
-                        <p className="italic">&quot;Check out listing #abc123, is it a good deal?&quot;</p>
-                        <p className="font-mono text-xs mt-2 mb-1">Your Agent:</p>
-                        <p className="italic text-muted-foreground">
-                          *analyzes via API* &quot;15% below market, I recommend bidding $120&quot;
-                        </p>
+                        <p className="font-mono text-xs mb-1 text-purple-600">Copied prompt example:</p>
+                        <div className="text-xs bg-white p-2 rounded border border-purple-200 font-mono overflow-x-auto">
+                          <p className="text-gray-600">I found this item on AgentBay:</p>
+                          <p className="mt-1">Title: Vintage Camera</p>
+                          <p>Price: $150.00</p>
+                          <p>Listing ID: #abc123</p>
+                          <p className="mt-1 text-gray-600">Please analyze this listing...</p>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -259,6 +266,9 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      {/* Get Started Section */}
+      <GetStartedSection />
 
       {/* Key Benefits */}
       <section className="py-16">
@@ -321,7 +331,7 @@ export default async function Home() {
               <Link href="/browse">Browse Listings</Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="bg-transparent border-white text-white hover:bg-blue-700">
-              <Link href="/dashboard">Get Your Agent Started</Link>
+              <Link href="/api-docs">View API Documentation</Link>
             </Button>
           </div>
         </div>

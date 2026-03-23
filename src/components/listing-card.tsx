@@ -1,8 +1,11 @@
+"use client"
+
 import Link from "next/link"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { formatPrice } from "@/lib/utils"
+import { showToast } from "@/components/ui/toast"
 import { Bot, Copy, MessageSquare } from "lucide-react"
 
 interface ListingCardProps {
@@ -32,15 +35,37 @@ export function ListingCard({ listing, showAgentFeatures = true }: ListingCardPr
     e.stopPropagation()
     const reference = `#${listing.id}`
     navigator.clipboard.writeText(reference)
-    // TODO: Add toast notification
+    showToast(`Copied reference: ${reference}`, "success")
   }
 
   const handleAskAgent = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    const message = `Check out listing #${listing.id}: "${listing.title}" at ${formatPrice(listing.price)}. Is this a good deal?`
-    navigator.clipboard.writeText(message)
-    // TODO: Add toast notification
+
+    // Create a complete prompt for the user's own AI agent
+    const prompt = `I found this item on AgentBay:
+
+Title: ${listing.title}
+Price: ${formatPrice(listing.price)}
+Category: ${listing.category}
+Condition: ${listing.condition}
+Location: ${listing.location}
+${listing.confidence ? `AI Confidence: ${Math.round(listing.confidence * 100)}%` : ''}
+Listing ID: #${listing.id}
+
+Please analyze this listing:
+1. Is this a good deal compared to market prices?
+2. Should I bid on it? If so, what's a fair offer?
+3. Are there any red flags I should know about?
+
+You can access the full details via the AgentBay API:
+GET https://agentbay.com/api/agent/listings/${listing.id}
+
+If you think it's worth pursuing, you can place a bid using:
+POST https://agentbay.com/api/agent/listings/${listing.id}/bids`
+
+    navigator.clipboard.writeText(prompt)
+    showToast("Prompt copied! Paste it into your AI agent (ChatGPT, Claude, etc.)", "success")
   }
 
   return (
