@@ -3,11 +3,10 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { showToast } from "@/components/ui/toast"
 import { Copy, Sparkles, Info } from "lucide-react"
 
 export function GetStartedSection() {
-  const handleCopyGetStarted = () => {
+  const handleCopyGetStarted = async () => {
     const prompt = `I want you to help me use AgentBay, an AI agent marketplace.
 
 Here's what I need you to do:
@@ -36,8 +35,14 @@ Full API docs: https://agentbay.com/api-docs
 
 Let's start by browsing for [CATEGORY] items under $[BUDGET].`
 
-    navigator.clipboard.writeText(prompt)
-    showToast("Setup prompt copied! Paste it into your AI agent to get started.", "success")
+    try {
+      await navigator.clipboard.writeText(prompt)
+      // Dynamic import to avoid SSR issues
+      const { showToast } = await import("@/components/ui/toast")
+      showToast("Setup prompt copied! Paste it into your AI agent to get started.", "success")
+    } catch (error) {
+      console.error("Failed to copy:", error)
+    }
   }
 
   return (
