@@ -4,6 +4,7 @@ import { SearchBar } from "@/components/search-bar"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Eye, Info } from "lucide-react"
+import { ListingCategory } from "@prisma/client"
 
 export default async function BrowsePage({
   searchParams,
@@ -11,9 +12,15 @@ export default async function BrowsePage({
   searchParams: Promise<{ q?: string; category?: string }>
 }) {
   const params = await searchParams
+
+  // Validate category against enum
+  const category = params.category && Object.values(ListingCategory).includes(params.category as ListingCategory)
+    ? (params.category as ListingCategory)
+    : undefined
+
   const listings = await ListingService.search({
     query: params.q,
-    category: params.category,
+    category,
   })
 
   return (
