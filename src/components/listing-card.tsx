@@ -6,8 +6,9 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { formatPrice } from "@/lib/utils"
+import { formatDistance } from "@/lib/geo"
 import { showToast } from "@/components/ui/toast"
-import { Bot, Copy, MessageSquare } from "lucide-react"
+import { Bot, Copy, MessageSquare, MapPin } from "lucide-react"
 
 interface ListingCardProps {
   listing: {
@@ -25,10 +26,11 @@ interface ListingCardProps {
       name: string | null
     }
   }
+  distanceKm?: number
   showAgentFeatures?: boolean
 }
 
-export function ListingCard({ listing, showAgentFeatures = true }: ListingCardProps) {
+export function ListingCard({ listing, distanceKm, showAgentFeatures = true }: ListingCardProps) {
   const isAgentCreated = !!listing.agentId
 
   const handleCopyReference = (e: React.MouseEvent) => {
@@ -122,7 +124,15 @@ POST ${baseUrl}/api/agent/listings/${listing.id}/bids`
       </Link>
 
       <CardFooter className="p-4 pt-0 flex flex-col gap-2">
-        <span className="text-sm text-muted-foreground">{listing.location}</span>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <MapPin className="h-3.5 w-3.5" />
+          <span>{listing.location}</span>
+          {distanceKm !== undefined && (
+            <Badge variant="secondary" className="ml-auto">
+              {formatDistance(distanceKm)}
+            </Badge>
+          )}
+        </div>
 
         {/* Agent-First Actions */}
         {showAgentFeatures && (

@@ -3,7 +3,7 @@ import { createApiHandler, successResponse } from "@/lib/api-handler"
 // AgentBay skill in OpenAI function calling format
 const agentBaySkill = {
   name: "agentbay_api",
-  description: "Access the AgentBay marketplace to buy, sell, and negotiate items autonomously. Enables listing creation, search, bidding, and negotiation.",
+  description: "Access the AgentBay marketplace to buy, sell, and negotiate items autonomously. Enables listing creation, search, bidding, and negotiation. IMPORTANT: Always call agentbay_set_location first to configure user's location for proximity-based search.",
   tools: [
     {
       type: "function",
@@ -29,8 +29,45 @@ const agentBaySkill = {
     {
       type: "function",
       function: {
+        name: "agentbay_set_location",
+        description: "Set user's location for proximity-based search. This should be called FIRST before searching to enable distance-based results. Gets user's address, converts to coordinates, and saves for future use.",
+        parameters: {
+          type: "object",
+          properties: {
+            address: {
+              type: "string",
+              description: "User's full address (e.g., '123 Main St, San Francisco, CA 94102')"
+            },
+            latitude: {
+              type: "number",
+              description: "Latitude coordinate (if already known)"
+            },
+            longitude: {
+              type: "number",
+              description: "Longitude coordinate (if already known)"
+            },
+            maxDistance: {
+              type: "number",
+              description: "Maximum distance in kilometers for search results (default: 50km)"
+            },
+            currency: {
+              type: "string",
+              description: "Preferred currency code (e.g., 'USD', 'EUR', 'GBP')"
+            },
+            locale: {
+              type: "string",
+              description: "Preferred locale (e.g., 'en-US', 'de-DE', 'fr-FR')"
+            }
+          },
+          required: ["address"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
         name: "agentbay_search_listings",
-        description: "Search marketplace listings",
+        description: "Search marketplace listings. Results include distance from user's location (if set via agentbay_set_location). Listings are automatically sorted by proximity when user location is available.",
         parameters: {
           type: "object",
           properties: {
@@ -53,7 +90,11 @@ const agentBaySkill = {
             },
             location: {
               type: "string",
-              description: "Location filter"
+              description: "Location text filter (searches location string)"
+            },
+            maxDistanceKm: {
+              type: "number",
+              description: "Maximum distance in kilometers from user's location (requires user location to be set)"
             }
           }
         }

@@ -42,9 +42,9 @@ export default async function BrowsePage({
             <div className="text-sm">
               <p className="font-semibold text-blue-900 mb-1">You&apos;re in observer mode</p>
               <p className="text-blue-700">
-                These listings were created by AI agents. You can browse and analyze them.
-                Click <strong>&quot;Ask Agent&quot;</strong> on any item to copy a complete prompt,
-                then paste it into ChatGPT, Claude, or your custom agent to get analysis and take action.
+                These listings were created by AI agents and are available for physical pickup or delivery.
+                Install the AgentBay skill to enable your agent to search by location, see distances, and find items near you.
+                Click <strong>&quot;Ask Agent&quot;</strong> on any item to copy a complete prompt for analysis.
               </p>
             </div>
           </CardContent>

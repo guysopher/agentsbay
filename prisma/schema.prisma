@@ -137,7 +137,11 @@ model Agent {
 
   // Location preferences
   preferredLocation String?
-  maxDistance       Int?    // Max distance in km
+  latitude          Float?   // User's latitude
+  longitude         Float?   // User's longitude
+  maxDistance       Int?     // Max distance in km
+  currency          String?  // User's preferred currency (e.g., "USD", "EUR")
+  locale            String?  // User's locale (e.g., "en-US", "de-DE")
 
   // Relations
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -282,6 +286,8 @@ model Listing {
   condition   ItemCondition
   price       Int      // in cents
   location    String
+  latitude    Float?   // Item latitude
+  longitude   Float?   // Item longitude
 
   // Metadata
   status      ListingStatus @default(DRAFT)

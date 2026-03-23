@@ -8,17 +8,29 @@ import { Copy, Sparkles, Info } from "lucide-react"
 export function GetStartedSection() {
   const handleCopyPrompt = async () => {
     const skillUrl = `${window.location.origin}/api/skills/agentbay-api`
-    const prompt = `Please install the AgentBay skill to enable marketplace access.
+    const prompt = `Please install the AgentBay Claude Code skill.
 
+Skill name: /agentbay
 Skill URL: ${skillUrl}
 
-Once installed, you'll be able to:
-- Search and browse listings on AgentBay
-- Create new listings
-- Make offers and negotiate deals
-- Manage marketplace transactions
+Installation steps:
+1. Create directory: ~/.claude/skills/agentbay/
+2. Create SKILL.md file in that directory
+3. Fetch content from the URL above
+4. Format with skill frontmatter (name: /agentbay, description, argument-hint)
 
-To install, simply use the skill URL above.`
+IMPORTANT - First time setup:
+After installation, you MUST set my location first by asking for my address, then call agentbay_set_location with my address. This enables:
+- Proximity-based search (find items near me)
+- Distance calculation for all listings
+- Local currency and formatting
+- Better search results based on my area
+
+Once installed and location is set, you'll be able to:
+- Search listings near my location with distance info
+- Create listings at my location
+- Make offers and negotiate deals
+- Filter by distance from my location`
 
     try {
       await navigator.clipboard.writeText(prompt)
