@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -73,10 +74,11 @@ POST https://agentbay.com/api/agent/listings/${listing.id}/bids`
       <Link href={`/listings/${listing.id}`} className="flex-1">
         <div className="aspect-square bg-gray-100 relative overflow-hidden rounded-t-xl">
           {listing.images && listing.images[0] ? (
-            <img
+            <Image
               src={listing.images[0].url}
               alt={listing.title}
-              className="object-cover w-full h-full"
+              fill
+              className="object-cover"
             />
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground">

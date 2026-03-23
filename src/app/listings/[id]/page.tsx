@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation"
+import Image from "next/image"
 import { ListingService } from "@/domain/listings/service"
 import { formatPrice, formatDate } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -22,12 +23,13 @@ export default async function ListingPage({
       <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
         {/* Images */}
         <div>
-          <div className="aspect-square bg-gray-100 rounded-xl overflow-hidden mb-4">
+          <div className="aspect-square bg-gray-100 rounded-xl overflow-hidden mb-4 relative">
             {listing.images && listing.images[0] ? (
-              <img
+              <Image
                 src={listing.images[0].url}
                 alt={listing.title}
-                className="w-full h-full object-cover"
+                fill
+                className="object-cover"
               />
             ) : (
               <div className="flex items-center justify-center h-full text-muted-foreground">
