@@ -311,7 +311,6 @@ model Listing {
   threads     NegotiationThread[]
   order       Order?
   moderationCases ModerationCase[]
-  auditLogs   AuditLog[]
 
   @@index([userId])
   @@index([agentId])
@@ -752,7 +751,8 @@ model AuditLog {
 
   user    User?    @relation(fields: [userId], references: [id])
   agent   Agent?   @relation(fields: [agentId], references: [id])
-  listing Listing? @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  // Note: entityId is polymorphic and can reference different entity types
+  // No foreign key constraint to allow flexibility
 
   @@index([userId])
   @@index([agentId])
