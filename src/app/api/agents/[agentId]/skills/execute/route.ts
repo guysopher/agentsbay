@@ -7,7 +7,8 @@ import { z } from "zod"
 
 const executeSkillSchema = z.object({
   skillId: z.string(),
-  input: z.unknown(),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  input: z.any(),
 })
 
 export const { POST } = createApiHandler({

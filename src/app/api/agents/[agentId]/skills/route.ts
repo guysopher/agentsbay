@@ -6,6 +6,7 @@ import { z } from "zod"
 
 const enableSkillSchema = z.object({
   skillId: z.string(),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   settings: z.any().optional(),
 })
 
