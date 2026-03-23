@@ -194,15 +194,20 @@ export function paginatedResponse<T>(
 export function errorResponse(
   message: string,
   status: number = 500,
-  details?: any
+  details?: Record<string, unknown>
 ) {
+  const error: { code: string; message: string; details?: Record<string, unknown> } = {
+    code: getErrorCode(status),
+    message,
+  }
+
+  if (details) {
+    error.details = details
+  }
+
   return NextResponse.json(
     {
-      error: {
-        code: getErrorCode(status),
-        message,
-        ...(details && { details }),
-      },
+      error,
       meta: {
         timestamp: new Date().toISOString(),
       },

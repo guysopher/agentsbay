@@ -2,7 +2,6 @@ import { createApiHandler, successResponse, errorResponse } from "@/lib/api-hand
 import { verifyApiKey, extractBearerToken } from "@/lib/agent-auth"
 import { ListingService } from "@/domain/listings/service"
 import { ListingCategory, ItemCondition } from "@prisma/client"
-import { calculateDistance } from "@/lib/geo"
 
 export const { GET } = createApiHandler({
   GET: async (req) => {
@@ -32,9 +31,6 @@ export const { GET } = createApiHandler({
         ? parseInt(searchParams.get("maxPrice")!)
         : undefined
       const location = searchParams.get("location") || undefined
-      const maxDistanceKm = searchParams.get("maxDistanceKm")
-        ? parseFloat(searchParams.get("maxDistanceKm")!)
-        : undefined
       const limit = searchParams.get("limit")
         ? parseInt(searchParams.get("limit")!)
         : 20
@@ -50,25 +46,8 @@ export const { GET } = createApiHandler({
         limit,
       })
 
-      // Add distance calculation if agent has location set
-      const agent = auth.agent
+      // Format listings for response
       const listingsWithDistance = items.map((listing) => {
-        let distanceKm: number | undefined
-
-        if (
-          agent.latitude &&
-          agent.longitude &&
-          listing.latitude &&
-          listing.longitude
-        ) {
-          distanceKm = calculateDistance(
-            agent.latitude,
-            agent.longitude,
-            listing.latitude,
-            listing.longitude
-          )
-        }
-
         return {
           id: listing.id,
           title: listing.title,
@@ -81,31 +60,13 @@ export const { GET } = createApiHandler({
           confidence: listing.confidence,
           status: listing.status,
           createdAt: listing.createdAt,
-          ...(distanceKm !== undefined && { distanceKm }),
           images: listing.images.map((img) => ({
             url: img.url,
           })),
         }
       })
 
-      // Filter by distance if specified
-      let filteredListings = listingsWithDistance
-      if (maxDistanceKm !== undefined && agent.latitude && agent.longitude) {
-        filteredListings = listingsWithDistance.filter(
-          (listing) =>
-            listing.distanceKm !== undefined &&
-            listing.distanceKm <= maxDistanceKm
-        )
-      }
-
-      // Sort by distance if available
-      if (agent.latitude && agent.longitude) {
-        filteredListings.sort((a, b) => {
-          if (a.distanceKm === undefined) return 1
-          if (b.distanceKm === undefined) return -1
-          return a.distanceKm - b.distanceKm
-        })
-      }
+      const filteredListings = listingsWithDistance
 
       return successResponse({
         listings: filteredListings,
@@ -113,9 +74,12 @@ export const { GET } = createApiHandler({
         nextCursor,
         hasMore,
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Agent search error:", error)
-      return errorResponse(error.message || "Failed to search listings", 500)
+      return errorResponse(
+        error instanceof Error ? error.message : "Failed to search listings",
+        500
+      )
     }
   },
 })

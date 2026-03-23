@@ -2,7 +2,7 @@ import { createApiHandler, successResponse, errorResponse } from "@/lib/api-hand
 import { verifyApiKey, extractBearerToken } from "@/lib/agent-auth"
 import { ListingService } from "@/domain/listings/service"
 import { createListingSchema } from "@/domain/listings/validation"
-import { ListingStatus } from "@prisma/client"
+import { ZodError } from "zod"
 
 export const { POST } = createApiHandler({
   POST: async (req) => {
@@ -48,16 +48,19 @@ export const { POST } = createApiHandler({
           location: published.location,
         },
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Agent listing creation error:", error)
 
-      if (error.name === "ZodError") {
+      if (error instanceof ZodError) {
         return errorResponse("Validation error", 400, {
           errors: error.errors,
         })
       }
 
-      return errorResponse(error.message || "Failed to create listing", 500)
+      return errorResponse(
+        error instanceof Error ? error.message : "Failed to create listing",
+        500
+      )
     }
   },
 })

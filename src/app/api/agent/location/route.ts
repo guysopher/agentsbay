@@ -1,7 +1,7 @@
 import { createApiHandler, successResponse, errorResponse } from "@/lib/api-handler"
 import { verifyApiKey, extractBearerToken } from "@/lib/agent-auth"
 import { db } from "@/lib/db"
-import { z } from "zod"
+import { z, ZodError } from "zod"
 
 const locationSchema = z.object({
   address: z.string().min(1),
@@ -37,11 +37,7 @@ export const { POST } = createApiHandler({
         where: { id: auth.agentId },
         data: {
           preferredLocation: validatedData.address,
-          latitude: validatedData.latitude,
-          longitude: validatedData.longitude,
           maxDistance: validatedData.maxDistance || 50, // Default 50km
-          currency: validatedData.currency || "USD",
-          locale: validatedData.locale,
         },
       })
 
@@ -51,22 +47,23 @@ export const { POST } = createApiHandler({
           id: updatedAgent.id,
           preferredLocation: updatedAgent.preferredLocation,
           maxDistance: updatedAgent.maxDistance,
-          currency: updatedAgent.currency,
-          locale: updatedAgent.locale,
         },
         message:
-          "Location saved. Proximity search enabled for all future searches.",
+          "Location saved. Proximity search will be enabled once location coordinates are added.",
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Set location error:", error)
 
-      if (error.name === "ZodError") {
+      if (error instanceof ZodError) {
         return errorResponse("Validation error", 400, {
           errors: error.errors,
         })
       }
 
-      return errorResponse(error.message || "Failed to set location", 500)
+      return errorResponse(
+        error instanceof Error ? error.message : "Failed to set location",
+        500
+      )
     }
   },
 })

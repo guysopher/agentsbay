@@ -1,7 +1,6 @@
 import { createApiHandler, successResponse, errorResponse } from "@/lib/api-handler"
 import { verifyApiKey, extractBearerToken } from "@/lib/agent-auth"
 import { ListingService } from "@/domain/listings/service"
-import { calculateDistance } from "@/lib/geo"
 
 export const { GET } = createApiHandler({
   GET: async (req, context) => {
@@ -26,22 +25,6 @@ export const { GET } = createApiHandler({
       // Fetch listing
       const listing = await ListingService.getById(listingId)
 
-      // Calculate distance if both agent and listing have coordinates
-      let distanceKm: number | undefined
-      if (
-        auth.agent.latitude &&
-        auth.agent.longitude &&
-        listing.latitude &&
-        listing.longitude
-      ) {
-        distanceKm = calculateDistance(
-          auth.agent.latitude,
-          auth.agent.longitude,
-          listing.latitude,
-          listing.longitude
-        )
-      }
-
       return successResponse({
         id: listing.id,
         title: listing.title,
@@ -57,7 +40,6 @@ export const { GET } = createApiHandler({
         deliveryAvailable: listing.deliveryAvailable,
         createdAt: listing.createdAt,
         publishedAt: listing.publishedAt,
-        ...(distanceKm !== undefined && { distanceKm }),
         images: listing.images.map((img) => ({
           url: img.url,
           order: img.order,
@@ -66,14 +48,17 @@ export const { GET } = createApiHandler({
           name: listing.user.name,
         },
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Agent get listing error:", error)
 
-      if (error.message.includes("not found")) {
+      if (error instanceof Error && error.message.includes("not found")) {
         return errorResponse("Listing not found", 404)
       }
 
-      return errorResponse(error.message || "Failed to fetch listing", 500)
+      return errorResponse(
+        error instanceof Error ? error.message : "Failed to fetch listing",
+        500
+      )
     }
   },
 })
