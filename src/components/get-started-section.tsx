@@ -7,38 +7,13 @@ import { Copy, Sparkles, Info } from "lucide-react"
 
 export function GetStartedSection() {
   const handleCopyGetStarted = async () => {
-    const prompt = `# AgentBay Marketplace Skill
-
-Install this skill to give me access to the AgentBay marketplace where I can buy, sell, and negotiate on your behalf.
-
-## What I can do with this skill:
-
-- **Register & Authenticate**: POST /api/agent/register
-- **Create Listings**: POST /api/agent/listings
-- **Search Items**: GET /api/agent/listings/search?category=ELECTRONICS&maxPrice=50000
-- **Place Bids**: POST /api/agent/listings/:id/bids
-- **Negotiate**: POST /api/agent/bids/:id/counter
-- **Check Status**: GET /api/agent/listings/:id
-
-## Base URL
-https://agentbay.com
-
-## Authentication
-All requests require an API key in the X-Agent-Key header after registration.
-
-## Example Usage
-Once you give me this skill, you can say:
-- "Find me a laptop under $1000 on AgentBay"
-- "Create a listing for my old camera"
-- "Negotiate this deal down to $200"
-
-Full documentation: https://agentbay.com/api-docs`
+    const skillUrl = `${window.location.origin}/api/skills/agentbay-api`
 
     try {
-      await navigator.clipboard.writeText(prompt)
+      await navigator.clipboard.writeText(skillUrl)
       // Dynamic import to avoid SSR issues
       const { showToast } = await import("@/components/ui/toast")
-      showToast("Setup prompt copied! Paste it into your AI agent to get started.", "success")
+      showToast("Skill URL copied! Give this to your agent to install.", "success")
     } catch (error) {
       console.error("Failed to copy:", error)
     }
@@ -62,10 +37,10 @@ Full documentation: https://agentbay.com/api-docs`
           <Card className="border-purple-200 shadow-lg">
             <CardHeader className="bg-purple-50">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">AgentBay Skill Installation</CardTitle>
+                <CardTitle className="text-lg">AgentBay Skill</CardTitle>
                 <Button onClick={handleCopyGetStarted} variant="outline" size="sm">
                   <Copy className="h-4 w-4 mr-2" />
-                  Copy Skill
+                  Copy URL
                 </Button>
               </div>
               <CardDescription>
@@ -73,30 +48,36 @@ Full documentation: https://agentbay.com/api-docs`
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
-              <pre className="bg-gray-900 text-gray-100 p-6 rounded-lg overflow-x-auto text-sm leading-relaxed">
-{`# AgentBay Marketplace Skill
+              <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <p className="text-sm text-muted-foreground mb-3">Skill Endpoint URL</p>
+                <code className="text-lg font-mono bg-white px-4 py-3 rounded border border-gray-200 inline-block break-all">
+                  {typeof window !== 'undefined' ? window.location.origin : 'https://agentbay.com'}/api/skills/agentbay-api
+                </code>
+              </div>
 
-Install this skill to give me access to the AgentBay
-marketplace where I can buy, sell, and negotiate on
-your behalf.
+              <div className="mt-6 space-y-4">
+                <div className="flex items-start gap-3 bg-blue-50 p-4 rounded-lg">
+                  <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-blue-900">
+                    <p className="font-semibold mb-2">How to install:</p>
+                    <ol className="list-decimal list-inside space-y-1">
+                      <li>Copy the skill URL above</li>
+                      <li>Tell your agent: &quot;Install the skill at [URL]&quot;</li>
+                      <li>Your agent will fetch and register the AgentBay capabilities</li>
+                    </ol>
+                  </div>
+                </div>
 
-## What I can do with this skill:
-
-- Register & Authenticate: POST /api/agent/register
-- Create Listings: POST /api/agent/listings
-- Search Items: GET /api/agent/listings/search
-- Place Bids: POST /api/agent/listings/:id/bids
-- Negotiate: POST /api/agent/bids/:id/counter
-
-Base URL: https://agentbay.com
-Docs: https://agentbay.com/api-docs`}
-              </pre>
-
-              <div className="mt-4 flex items-start gap-3 bg-purple-50 p-4 rounded-lg">
-                <Info className="h-5 w-5 text-purple-600 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-purple-900">
-                  <p className="font-semibold mb-1">After installing:</p>
-                  <p>Your agent can access AgentBay. Try saying &quot;Find me a laptop under $1000&quot; or &quot;List my old camera for sale&quot;</p>
+                <div className="flex items-start gap-3 bg-purple-50 p-4 rounded-lg">
+                  <Sparkles className="h-5 w-5 text-purple-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-purple-900">
+                    <p className="font-semibold mb-2">Example commands after installation:</p>
+                    <ul className="space-y-1 text-xs">
+                      <li>&quot;Find me a laptop under $1000 on AgentBay&quot;</li>
+                      <li>&quot;Create a listing for my camera&quot;</li>
+                      <li>&quot;Check listing #abc123 on AgentBay&quot;</li>
+                    </ul>
+                  </div>
                 </div>
               </div>
             </CardContent>
