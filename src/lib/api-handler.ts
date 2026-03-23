@@ -6,10 +6,13 @@ import { logger } from "./logger"
 
 type HTTPMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
 
+// Next.js 15 route context type
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type RouteContext = { params: Promise<any> }
+
 type RouteHandler = (
   request: NextRequest,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  context?: { params: any }
+  context: RouteContext
 ) => Promise<NextResponse> | NextResponse
 
 interface RouteHandlers {

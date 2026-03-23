@@ -11,7 +11,8 @@ export const { GET } = createApiHandler({
       throw new UnauthorizedError()
     }
 
-    const agentId = context?.params?.agentId
+    const params = await context.params
+    const agentId = params.agentId
     const { searchParams } = request.nextUrl
 
     const options: {

@@ -17,7 +17,8 @@ export const { POST } = createApiHandler({
       throw new UnauthorizedError()
     }
 
-    const agentId = context?.params?.agentId
+    const params = await context.params
+    const agentId = params.agentId
 
     // Rate limiting - max 30 skill executions per hour
     await rateLimiter.check(

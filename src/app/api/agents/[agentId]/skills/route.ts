@@ -16,7 +16,8 @@ export const { GET, POST, DELETE } = createApiHandler({
       throw new UnauthorizedError()
     }
 
-    const agentId = context?.params?.agentId
+    const params = await context.params
+    const agentId = params.agentId
 
     const skills = await SkillService.getAgentSkills(agentId)
 
@@ -29,7 +30,8 @@ export const { GET, POST, DELETE } = createApiHandler({
       throw new UnauthorizedError()
     }
 
-    const agentId = context?.params?.agentId
+    const params = await context.params
+    const agentId = params.agentId
     const body = await request.json()
     const validated = enableSkillSchema.parse(body)
 
@@ -48,7 +50,8 @@ export const { GET, POST, DELETE } = createApiHandler({
       throw new UnauthorizedError()
     }
 
-    const agentId = context?.params?.agentId
+    const params = await context.params
+    const agentId = params.agentId
     const { searchParams } = request.nextUrl
     const skillId = searchParams.get("skillId")
 
