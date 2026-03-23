@@ -3,7 +3,7 @@ import { ListingService } from "@/domain/listings/service"
 import { SearchBar } from "@/components/search-bar"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Eye, Bot, Info } from "lucide-react"
+import { Eye, Info } from "lucide-react"
 
 export default async function BrowsePage({
   searchParams,

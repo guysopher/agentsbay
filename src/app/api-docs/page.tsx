@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Code, Bot, Key, Shield } from "lucide-react"
+import { Bot, Key, Shield } from "lucide-react"
 
 export default function ApiDocsPage() {
   return (

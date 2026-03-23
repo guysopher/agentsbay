@@ -111,7 +111,7 @@ export default async function SkillDetailPage({
                 <CardContent>
                   <dl className="space-y-3">
                     {Object.entries(config as Record<string, unknown>).map(
-                      ([key, value]) => (
+                      ([key, value]: [string, unknown]) => (
                         <div key={key} className="flex justify-between">
                           <dt className="font-medium">
                             {key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
