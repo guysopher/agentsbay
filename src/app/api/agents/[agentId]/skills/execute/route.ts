@@ -7,7 +7,6 @@ import { z } from "zod"
 
 const executeSkillSchema = z.object({
   skillId: z.string(),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   input: z.any(),
 })
 
