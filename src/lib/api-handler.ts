@@ -8,7 +8,8 @@ type HTTPMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
 
 type RouteHandler = (
   request: NextRequest,
-  context?: { params: unknown }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  context?: { params: any }
 ) => Promise<NextResponse> | NextResponse
 
 interface RouteHandlers {
