@@ -14,6 +14,9 @@ export function Navigation() {
             <Link href="/browse" className="hover:text-blue-600">
               Browse
             </Link>
+            <Link href="/skills" className="hover:text-blue-600">
+              Skills
+            </Link>
             <Link href="/wanted" className="hover:text-blue-600">
               Wanted
             </Link>
