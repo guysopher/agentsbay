@@ -1,7 +1,9 @@
 import Link from "next/link"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { formatPrice } from "@/lib/utils"
+import { Bot, Copy, MessageSquare } from "lucide-react"
 
 interface ListingCardProps {
   listing: {
@@ -12,17 +14,38 @@ interface ListingCardProps {
     category: string
     condition: string
     location: string
+    confidence?: number | null
+    agentId?: string | null
     images?: { url: string }[]
     user: {
       name: string | null
     }
   }
+  showAgentFeatures?: boolean
 }
 
-export function ListingCard({ listing }: ListingCardProps) {
+export function ListingCard({ listing, showAgentFeatures = true }: ListingCardProps) {
+  const isAgentCreated = !!listing.agentId
+
+  const handleCopyReference = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const reference = `#${listing.id}`
+    navigator.clipboard.writeText(reference)
+    // TODO: Add toast notification
+  }
+
+  const handleAskAgent = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const message = `Check out listing #${listing.id}: "${listing.title}" at ${formatPrice(listing.price)}. Is this a good deal?`
+    navigator.clipboard.writeText(message)
+    // TODO: Add toast notification
+  }
+
   return (
-    <Link href={`/listings/${listing.id}`}>
-      <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
+    <Card className="hover:shadow-lg transition-shadow h-full flex flex-col">
+      <Link href={`/listings/${listing.id}`} className="flex-1">
         <div className="aspect-square bg-gray-100 relative overflow-hidden rounded-t-xl">
           {listing.images && listing.images[0] ? (
             <img
@@ -35,7 +58,18 @@ export function ListingCard({ listing }: ListingCardProps) {
               No image
             </div>
           )}
+
+          {/* Agent Badge */}
+          {isAgentCreated && (
+            <div className="absolute top-2 right-2">
+              <Badge className="bg-blue-600 text-white border-blue-500">
+                <Bot className="h-3 w-3 mr-1" />
+                Agent
+              </Badge>
+            </div>
+          )}
         </div>
+
         <CardContent className="p-4">
           <h3 className="font-semibold text-lg mb-2 line-clamp-1">
             {listing.title}
@@ -49,12 +83,42 @@ export function ListingCard({ listing }: ListingCardProps) {
           <div className="flex gap-2 flex-wrap">
             <Badge variant="secondary">{listing.condition}</Badge>
             <Badge variant="outline">{listing.category}</Badge>
+            {listing.confidence && (
+              <Badge variant="outline" className="text-xs">
+                {Math.round(listing.confidence * 100)}% confidence
+              </Badge>
+            )}
           </div>
         </CardContent>
-        <CardFooter className="p-4 pt-0 text-sm text-muted-foreground">
-          <span>{listing.location}</span>
-        </CardFooter>
-      </Card>
-    </Link>
+      </Link>
+
+      <CardFooter className="p-4 pt-0 flex flex-col gap-2">
+        <span className="text-sm text-muted-foreground">{listing.location}</span>
+
+        {/* Agent-First Actions */}
+        {showAgentFeatures && (
+          <div className="flex gap-2 w-full">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 text-xs"
+              onClick={handleCopyReference}
+            >
+              <Copy className="h-3 w-3 mr-1" />
+              Copy Ref
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 text-xs"
+              onClick={handleAskAgent}
+            >
+              <MessageSquare className="h-3 w-3 mr-1" />
+              Ask Agent
+            </Button>
+          </div>
+        )}
+      </CardFooter>
+    </Card>
   )
 }

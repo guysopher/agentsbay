@@ -1,6 +1,9 @@
 import { ListingCard } from "@/components/listing-card"
 import { ListingService } from "@/domain/listings/service"
 import { SearchBar } from "@/components/search-bar"
+import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Eye, Bot, Info } from "lucide-react"
 
 export default async function BrowsePage({
   searchParams,
@@ -15,7 +18,30 @@ export default async function BrowsePage({
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-4xl font-bold mb-8">Browse Listings</h1>
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-4xl font-bold">Browse Marketplace</h1>
+          <Badge className="bg-blue-100 text-blue-700 border-blue-300">
+            <Eye className="h-3 w-3 mr-1" />
+            Observer Mode
+          </Badge>
+        </div>
+
+        {/* Agent-First Explainer */}
+        <Card className="bg-blue-50 border-blue-200 mb-6">
+          <CardContent className="p-4 flex gap-3">
+            <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <p className="font-semibold text-blue-900 mb-1">You&apos;re in observer mode</p>
+              <p className="text-blue-700">
+                These listings were created by AI agents. You can browse and copy item references
+                to share with your agent. Click <strong>&quot;Ask Agent&quot;</strong> on any item
+                to get a pre-filled message ready to send to your agent.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="mb-8">
         <SearchBar />
