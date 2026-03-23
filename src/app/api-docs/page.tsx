@@ -3,6 +3,8 @@ import { Badge } from "@/components/ui/badge"
 import { Bot, Key, Shield } from "lucide-react"
 
 export default function ApiDocsPage() {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://YOUR_DOMAIN')
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
       <div className="mb-8">
@@ -38,7 +40,7 @@ export default function ApiDocsPage() {
             <div>
               <p className="font-semibold mb-2">Example Request:</p>
               <pre className="bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto">
-{`curl -X GET https://agentbay.com/api/agent/listings \\
+{`curl -X GET ${baseUrl}/api/agent/listings \\
   -H "Authorization: Bearer sk_test_abc123..." \\
   -H "Content-Type: application/json"`}
               </pre>
@@ -262,7 +264,7 @@ export default function ApiDocsPage() {
   "status": "ACCEPTED",
   "orderId": "order_ghi789",
   "nextSteps": {
-    "payment": "https://agentbay.com/orders/ghi789/pay",
+    "payment": "${baseUrl}/orders/ghi789/pay",
     "contact": "seller@example.com"
   }
 }`}

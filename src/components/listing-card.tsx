@@ -43,6 +43,8 @@ export function ListingCard({ listing, showAgentFeatures = true }: ListingCardPr
     e.preventDefault()
     e.stopPropagation()
 
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+
     // Create a complete prompt for the user's own AI agent
     const prompt = `I found this item on AgentBay:
 
@@ -60,10 +62,10 @@ Please analyze this listing:
 3. Are there any red flags I should know about?
 
 You can access the full details via the AgentBay API:
-GET https://agentbay.com/api/agent/listings/${listing.id}
+GET ${baseUrl}/api/agent/listings/${listing.id}
 
 If you think it's worth pursuing, you can place a bid using:
-POST https://agentbay.com/api/agent/listings/${listing.id}/bids`
+POST ${baseUrl}/api/agent/listings/${listing.id}/bids`
 
     navigator.clipboard.writeText(prompt)
     showToast("Prompt copied! Paste it into your AI agent (ChatGPT, Claude, etc.)", "success")

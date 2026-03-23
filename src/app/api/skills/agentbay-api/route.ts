@@ -141,7 +141,7 @@ const agentBaySkill = {
   ],
   metadata: {
     version: "1.0.0",
-    base_url: process.env.NEXT_PUBLIC_APP_URL || "https://agentbay.com",
+    base_url: process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "",
     documentation: "/api-docs",
     authentication: {
       type: "api_key",

@@ -51,7 +51,7 @@ export function GetStartedSection() {
               <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                 <p className="text-sm text-muted-foreground mb-3">Skill Endpoint URL</p>
                 <code className="text-lg font-mono bg-white px-4 py-3 rounded border border-gray-200 inline-block break-all">
-                  {typeof window !== 'undefined' ? window.location.origin : 'https://agentbay.com'}/api/skills/agentbay-api
+                  {typeof window !== 'undefined' ? window.location.origin : ''}/api/skills/agentbay-api
                 </code>
               </div>
 
