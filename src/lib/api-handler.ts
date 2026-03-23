@@ -187,3 +187,45 @@ export function paginatedResponse<T>(
     },
   })
 }
+
+/**
+ * Create an error response
+ */
+export function errorResponse(
+  message: string,
+  status: number = 500,
+  details?: any
+) {
+  return NextResponse.json(
+    {
+      error: {
+        code: getErrorCode(status),
+        message,
+        ...(details && { details }),
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+      },
+    },
+    { status }
+  )
+}
+
+function getErrorCode(status: number): string {
+  switch (status) {
+    case 400:
+      return "BAD_REQUEST"
+    case 401:
+      return "UNAUTHORIZED"
+    case 403:
+      return "FORBIDDEN"
+    case 404:
+      return "NOT_FOUND"
+    case 429:
+      return "RATE_LIMIT_EXCEEDED"
+    case 500:
+      return "INTERNAL_ERROR"
+    default:
+      return "ERROR"
+  }
+}
