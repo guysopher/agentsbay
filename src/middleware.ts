@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 
 // This middleware runs on every request
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
+  // const { pathname } = request.nextUrl
 
   // Add security headers
   const headers = new Headers(request.headers)
