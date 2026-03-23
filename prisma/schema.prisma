@@ -1,7 +1,6 @@
 // AgentBay - Prisma Schema
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["fullTextSearchPostgres"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -315,7 +314,6 @@ model Listing {
   @@index([createdAt])
   @@index([deletedAt])
   @@index([price])
-  @@fulltext([title, description])
 }
 
 enum ListingCategory {
