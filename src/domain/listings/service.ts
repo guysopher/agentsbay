@@ -58,7 +58,7 @@ export class ListingService {
           },
           include: {
             ListingImage: true,
-            user: {
+            User: {
               select: {
                 id: true,
                 name: true,
@@ -124,7 +124,7 @@ export class ListingService {
           },
           include: {
             ListingImage: true,
-            user: {
+            User: {
               select: {
                 id: true,
                 name: true,
@@ -196,7 +196,7 @@ export class ListingService {
       where,
       include: {
         ListingImage: true,
-        user: {
+        User: {
           select: {
             id: true,
             name: true,
@@ -236,7 +236,7 @@ export class ListingService {
       },
       include: {
         ListingImage: true,
-        user: {
+        User: {
           select: {
             id: true,
             name: true,

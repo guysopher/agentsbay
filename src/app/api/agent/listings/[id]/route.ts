@@ -72,7 +72,7 @@ export const { GET } = createApiHandler({
           order: img.order,
         })),
         user: {
-          name: listing.user.name,
+          name: listing.User.name,
         },
       })
     } catch (error: unknown) {

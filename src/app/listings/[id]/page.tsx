@@ -74,7 +74,7 @@ export default async function ListingPage({
               </div>
               <div>
                 <span className="font-semibold">Seller:</span>{" "}
-                {listing.user.name || "Anonymous"}
+                {listing.User.name || "Anonymous"}
               </div>
             </CardContent>
           </Card>
