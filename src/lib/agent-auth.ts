@@ -11,6 +11,15 @@ export function generateApiKey(): string {
 }
 
 /**
+ * Generate a unique agent user ID
+ */
+export function generateAgentUserId(): string {
+  const timestamp = Date.now().toString(36)
+  const randomPart = randomBytes(6).toString("hex")
+  return `agent_${timestamp}_${randomPart}`
+}
+
+/**
  * Verify an API key and return the associated agent
  */
 export async function verifyApiKey(apiKey: string) {

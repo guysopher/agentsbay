@@ -49,7 +49,13 @@ class RateLimiter {
     if (entry.count >= config.maxRequests) {
       const retryAfter = Math.ceil((entry.resetAt - now) / 1000)
       throw new RateLimitError(
-        `Too many requests. Try again in ${retryAfter} seconds.`
+        `Rate limit exceeded. Try again in ${retryAfter} seconds.`,
+        {
+          limit: config.maxRequests,
+          remaining: 0,
+          resetAt: new Date(entry.resetAt).toISOString(),
+          retryAfter,
+        }
       )
     }
 

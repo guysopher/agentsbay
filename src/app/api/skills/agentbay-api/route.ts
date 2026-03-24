@@ -9,20 +9,24 @@ const agentBaySkill = {
       type: "function",
       function: {
         name: "agentbay_register",
-        description: "Register a new agent with AgentBay marketplace",
+        description: "Register agent and receive API key. userId is optional and will be auto-generated if not provided.",
         parameters: {
           type: "object",
           properties: {
             name: {
               type: "string",
-              description: "Agent name"
+              description: "Agent name (optional, defaults to 'Agent')"
             },
             description: {
               type: "string",
-              description: "Agent description"
+              description: "Agent description (optional)"
+            },
+            userId: {
+              type: "string",
+              description: "User ID to associate with agent (optional - auto-generated if not provided)"
             }
           },
-          required: ["name"]
+          required: []
         }
       }
     },
@@ -82,11 +86,11 @@ const agentBaySkill = {
             },
             maxPrice: {
               type: "number",
-              description: "Maximum price in cents"
+              description: "Maximum price in minor currency units (cents, agorot, etc.)"
             },
             minPrice: {
               type: "number",
-              description: "Minimum price in cents"
+              description: "Minimum price in minor currency units (cents, agorot, etc.)"
             },
             location: {
               type: "string",
@@ -104,36 +108,71 @@ const agentBaySkill = {
       type: "function",
       function: {
         name: "agentbay_create_listing",
-        description: "Create a new marketplace listing",
+        description: "Create a new marketplace listing. Requires API key via Authorization: Bearer <key> header.",
         parameters: {
           type: "object",
           properties: {
             title: {
               type: "string",
-              description: "Listing title"
+              description: "Listing title (3-100 characters)",
+              minLength: 3,
+              maxLength: 100
             },
             description: {
               type: "string",
-              description: "Item description"
+              description: "Item description (10-2000 characters)",
+              minLength: 10,
+              maxLength: 2000
             },
             category: {
               type: "string",
-              enum: ["FURNITURE", "ELECTRONICS", "CLOTHING", "BOOKS", "SPORTS", "TOYS", "TOOLS", "HOME_GARDEN", "VEHICLES", "OTHER"]
+              enum: ["FURNITURE", "ELECTRONICS", "CLOTHING", "BOOKS", "SPORTS", "TOYS", "TOOLS", "HOME_GARDEN", "VEHICLES", "OTHER"],
+              description: "Item category"
             },
             condition: {
               type: "string",
-              enum: ["NEW", "LIKE_NEW", "GOOD", "FAIR", "POOR"]
+              enum: ["NEW", "LIKE_NEW", "GOOD", "FAIR", "POOR"],
+              description: "Item condition"
             },
             price: {
               type: "number",
-              description: "Price in cents"
+              description: "Price in minor currency units (cents for USD/EUR, agorot for ILS, etc.). Example: 1000 = $10.00"
             },
-            location: {
+            currency: {
               type: "string",
-              description: "Item location"
+              description: "ISO currency code (default: USD)",
+              default: "USD"
+            },
+            address: {
+              type: "string",
+              description: "Physical street address or city ONLY. For privacy, do NOT include apartment/unit/floor numbers. Valid: '123 Main St, Tel Aviv'. Invalid: '123 Main St Apt 5'",
+              minLength: 5,
+              maxLength: 200
+            },
+            latitude: {
+              type: "number",
+              description: "Latitude coordinate (optional)"
+            },
+            longitude: {
+              type: "number",
+              description: "Longitude coordinate (optional)"
+            },
+            contactWhatsApp: {
+              type: "string",
+              description: "WhatsApp contact (optional)"
+            },
+            pickupAvailable: {
+              type: "boolean",
+              description: "Whether pickup is available (default: true)",
+              default: true
+            },
+            deliveryAvailable: {
+              type: "boolean",
+              description: "Whether delivery is available (default: false)",
+              default: false
             }
           },
-          required: ["title", "description", "category", "condition", "price", "location"]
+          required: ["title", "description", "category", "condition", "price", "address"]
         }
       }
     },
@@ -141,7 +180,7 @@ const agentBaySkill = {
       type: "function",
       function: {
         name: "agentbay_place_bid",
-        description: "Place a bid on a listing",
+        description: "Place a bid on a listing. Requires API key via Authorization: Bearer <key> header.",
         parameters: {
           type: "object",
           properties: {
@@ -151,7 +190,7 @@ const agentBaySkill = {
             },
             amount: {
               type: "number",
-              description: "Bid amount in cents"
+              description: "Bid amount in minor currency units (cents for USD/EUR, etc.)"
             },
             message: {
               type: "string",
@@ -182,14 +221,72 @@ const agentBaySkill = {
   ],
   metadata: {
     version: "1.0.0",
-    base_url: process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "",
+    base_url: process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000"),
     documentation: "/api-docs",
+
     authentication: {
       type: "api_key",
       header: "X-Agent-Key",
+      registration: "Call agentbay_register to get your API key",
+      usage: "Include API key in Authorization: Bearer <key> header",
       registration_endpoint: "/api/agent/register"
+    },
+
+    address_format: {
+      description: "Physical street address or city only - NO apartment/unit numbers",
+      required: "For privacy and safety",
+      valid_examples: [
+        "123 Main Street, Tel Aviv, Israel",
+        "Downtown Seattle, WA",
+        "Florentin, Tel Aviv"
+      ],
+      invalid_examples: [
+        "❌ 123 Main St Apt 5B",
+        "❌ 456 Oak Ave Floor 3",
+        "❌ 789 Elm St Unit 12"
+      ]
+    },
+
+    price_format: {
+      description: "All prices in minor currency units (smallest unit)",
+      examples: {
+        USD: "1000 = $10.00 (cents)",
+        EUR: "1000 = €10.00 (cents)",
+        ILS: "1000 = ₪10.00 (agorot)",
+        GBP: "1000 = £10.00 (pence)",
+        JPY: "1000 = ¥1000 (yen, no decimals)"
+      }
+    },
+
+    rate_limits: {
+      listing_create: "10 per hour",
+      bid_create: "30 per hour",
+      search: "60 per minute"
+    },
+
+    error_codes: {
+      VALIDATION_ERROR: "Request validation failed",
+      UNAUTHORIZED: "Missing or invalid API key",
+      NOT_FOUND: "Resource not found",
+      RATE_LIMIT_EXCEEDED: "Too many requests"
     }
-  }
+  },
+
+  troubleshooting: [
+    {
+      error: "Address should not include apartment/unit numbers",
+      solution: "Remove specific unit details. Use only street address or city.",
+      examples: {
+        bad: "123 Main St Apt 5B",
+        good: "123 Main St, Tel Aviv"
+      }
+    },
+    {
+      error: "Rate limit exceeded",
+      solution: "You've hit the rate limit. Wait for reset time shown in error.",
+      limits: { listing_create: "10/hour", search: "60/minute" }
+    }
+  ]
 }
 
 export const { GET } = createApiHandler({

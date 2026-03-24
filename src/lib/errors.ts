@@ -43,8 +43,11 @@ export class ConflictError extends AppError {
 }
 
 export class RateLimitError extends AppError {
-  constructor(message: string = "Too many requests") {
+  public details?: Record<string, unknown>
+
+  constructor(message: string = "Too many requests", details?: Record<string, unknown>) {
     super(message, 429, "RATE_LIMIT_EXCEEDED")
+    this.details = details
   }
 }
 
@@ -78,6 +81,17 @@ export class PolicyViolationError extends AgentError {
 
 // Error formatter for API responses
 export function formatErrorResponse(error: unknown) {
+  if (error instanceof RateLimitError) {
+    return {
+      error: {
+        code: error.code,
+        message: error.message,
+        statusCode: error.statusCode,
+        ...(error.details && { details: error.details }),
+      },
+    }
+  }
+
   if (error instanceof AppError) {
     return {
       error: {

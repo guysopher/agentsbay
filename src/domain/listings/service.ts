@@ -5,6 +5,16 @@ import { NotFoundError, ValidationError } from "@/lib/errors"
 import { eventBus } from "@/lib/events"
 import { logError } from "@/lib/errors"
 import { geocodeAddress } from "@/lib/geocoding"
+import { formatPrice } from "@/lib/formatting"
+
+// Helper to add formatted prices to listing
+function withFormattedPrices<T extends { price: number; priceMax?: number | null; currency: string }>(listing: T) {
+  return {
+    ...listing,
+    priceFormatted: formatPrice(listing.price, listing.currency),
+    priceMaxFormatted: listing.priceMax ? formatPrice(listing.priceMax, listing.currency) : null,
+  }
+}
 
 export class ListingService {
   // Create a new listing
@@ -79,7 +89,7 @@ export class ListingService {
         title: data.title,
       })
 
-      return listing
+      return withFormattedPrices(listing)
     } catch (error) {
       logError(error, { userId, data })
       throw error
@@ -141,7 +151,7 @@ export class ListingService {
         userId,
       })
 
-      return updated
+      return withFormattedPrices(updated)
     } catch (error) {
       logError(error, { listingId, userId })
       throw error
@@ -211,7 +221,7 @@ export class ListingService {
     const nextCursor = hasMore ? results[results.length - 1].id : null
 
     return {
-      items: results,
+      items: results.map(withFormattedPrices),
       nextCursor,
       hasMore,
     }
@@ -240,12 +250,12 @@ export class ListingService {
       throw new NotFoundError("Listing")
     }
 
-    return listing
+    return withFormattedPrices(listing)
   }
 
   // Get user's listings
   static async getUserListings(userId: string) {
-    return db.listing.findMany({
+    const listings = await db.listing.findMany({
       where: {
         userId,
         deletedAt: null,
@@ -257,6 +267,8 @@ export class ListingService {
         createdAt: "desc",
       },
     })
+
+    return listings.map(withFormattedPrices)
   }
 
   // Update listing
@@ -297,7 +309,7 @@ export class ListingService {
 
       await eventBus.emit("listing.updated", { listingId, userId })
 
-      return updated
+      return withFormattedPrices(updated)
     } catch (error) {
       logError(error, { listingId, userId, data })
       throw error

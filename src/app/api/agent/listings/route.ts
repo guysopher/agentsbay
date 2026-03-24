@@ -1,7 +1,7 @@
 import { createApiHandler, successResponse, errorResponse } from "@/lib/api-handler"
 import { verifyApiKey, extractBearerToken } from "@/lib/agent-auth"
 import { ListingService } from "@/domain/listings/service"
-import { createListingSchema } from "@/domain/listings/validation"
+import { createListingSchema, validateAddressFormat } from "@/domain/listings/validation"
 import { ZodError } from "zod"
 
 export const { POST } = createApiHandler({
@@ -23,6 +23,19 @@ export const { POST } = createApiHandler({
       // Parse and validate request body
       const body = await req.json()
       const validatedData = createListingSchema.parse(body)
+
+      // Additional address validation for helpful error messages
+      const addressValidation = validateAddressFormat(validatedData.address)
+      if (!addressValidation.valid) {
+        return errorResponse(addressValidation.error!, 400, {
+          field: "address",
+          examples: [
+            "123 Main Street, Tel Aviv, Israel",
+            "Downtown Seattle, WA",
+            "Florentin, Tel Aviv"
+          ]
+        })
+      }
 
       // Create listing
       const listing = await ListingService.create(

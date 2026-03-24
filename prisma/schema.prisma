@@ -1,4 +1,3 @@
-// AgentBay - Prisma Schema
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,59 +7,8 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================
-// AUTH & USER MANAGEMENT
-// ============================================
-
-model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  emailVerified DateTime?
-  name          String?
-  image         String?
-  password      String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Relations
-  accounts      Account[]
-  sessions      Session[]
-  profile       Profile?
-  agents        Agent[]
-  listings      Listing[]
-  wantedRequests WantedRequest[]
-  buyerThreads  NegotiationThread[] @relation("BuyerThreads")
-  sellerThreads NegotiationThread[] @relation("SellerThreads")
-  orders        Order[]
-  moderationCases ModerationCase[]
-  moderationActions ModerationAction[]
-  auditLogs     AuditLog[]
-  notifications Notification[]
-  reputationEvents ReputationEvent[]
-  trustSignals  TrustSignal[]
-
-  // Status
-  status        UserStatus @default(ACTIVE)
-  isBanned      Boolean    @default(false)
-  bannedAt      DateTime?
-  bannedReason  String?
-
-  // Soft delete
-  deletedAt     DateTime?
-
-  @@index([email])
-  @@index([deletedAt])
-}
-
-enum UserStatus {
-  ACTIVE
-  SUSPENDED
-  BANNED
-  DELETED
-}
-
 model Account {
-  id                String  @id @default(cuid())
+  id                String  @id
   userId            String
   type              String
   provider          String
@@ -72,21 +20,436 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  User              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@index([userId])
 }
 
+model Agent {
+  id                 String            @id
+  userId             String
+  name               String            @default("Agent")
+  description        String?
+  isActive           Boolean           @default(true)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime
+  deletedAt          DateTime?
+  autoNegotiate      Boolean           @default(false)
+  maxBidAmount       Int?
+  minAcceptAmount    Int?
+  maxAcceptAmount    Int?
+  autoRejectBelow    Int?
+  autoCounterEnabled Boolean           @default(false)
+  requireApproval    Boolean           @default(true)
+  preferredLocation  String?
+  maxDistance        Int?
+  currency           String?
+  latitude           Float?
+  locale             String?
+  longitude          Float?
+  User               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  AgentCredential    AgentCredential[]
+  AgentSkill         AgentSkill[]
+  AuditLog           AuditLog[]
+  Bid                Bid[]
+  Listing            Listing[]
+  SkillExecution     SkillExecution[]
+  WantedRequest      WantedRequest[]
+
+  @@index([deletedAt])
+  @@index([isActive])
+  @@index([userId])
+}
+
+model AgentCredential {
+  id        String   @id
+  agentId   String
+  provider  String
+  apiKey    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  Agent     Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([agentId])
+}
+
+model AgentSkill {
+  id        String   @id
+  agentId   String
+  skillId   String
+  isEnabled Boolean  @default(true)
+  settings  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  Agent     Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  Skill     Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, skillId])
+  @@index([agentId])
+  @@index([skillId])
+}
+
+model AuditLog {
+  id         String   @id
+  userId     String?
+  agentId    String?
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  Agent      Agent?   @relation(fields: [agentId], references: [id])
+  User       User?    @relation(fields: [userId], references: [id])
+
+  @@index([agentId])
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@index([userId])
+}
+
+model Bid {
+  id                String            @id
+  threadId          String
+  agentId           String?
+  amount            Int
+  message           String?
+  status            BidStatus         @default(PENDING)
+  expiresAt         DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime
+  Agent             Agent?            @relation(fields: [agentId], references: [id])
+  NegotiationThread NegotiationThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([agentId])
+  @@index([status])
+  @@index([threadId])
+}
+
+model DeliveryRequest {
+  id             String         @id
+  orderId        String         @unique
+  provider       String?
+  trackingNumber String?
+  status         DeliveryStatus @default(PENDING)
+  fromAddress    String
+  toAddress      String
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime
+  pickedUpAt     DateTime?
+  deliveredAt    DateTime?
+  Order          Order          @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+  @@index([status])
+}
+
+model Listing {
+  id                String              @id
+  userId            String
+  agentId           String?
+  title             String
+  description       String
+  category          ListingCategory
+  condition         ItemCondition
+  price             Int
+  address           String
+  status            ListingStatus       @default(DRAFT)
+  confidence        Float?
+  pickupAvailable   Boolean             @default(true)
+  deliveryAvailable Boolean             @default(false)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime
+  publishedAt       DateTime?
+  soldAt            DateTime?
+  deletedAt         DateTime?
+  latitude          Float?
+  longitude         Float?
+  currency          String              @default("USD")
+  labels            String[]            @default([])
+  priceMax          Int?
+  contactDiscord    String?
+  contactTelegram   String?
+  contactWhatsApp   String?
+  Agent             Agent?              @relation(fields: [agentId], references: [id])
+  User              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ListingImage      ListingImage[]
+  ModerationCase    ModerationCase[]
+  NegotiationThread NegotiationThread[]
+  Order             Order?
+
+  @@index([agentId])
+  @@index([category])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@index([price])
+  @@index([status])
+  @@index([userId])
+}
+
+model ListingImage {
+  id        String   @id
+  listingId String
+  url       String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  Listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
+}
+
+model ModerationAction {
+  id             String              @id
+  caseId         String
+  moderatorId    String
+  action         ModeratorActionType
+  reason         String?
+  createdAt      DateTime            @default(now())
+  ModerationCase ModerationCase      @relation(fields: [caseId], references: [id])
+  User           User                @relation(fields: [moderatorId], references: [id])
+
+  @@index([caseId])
+  @@index([moderatorId])
+}
+
+model ModerationCase {
+  id               String               @id
+  reporterId       String
+  targetType       ModerationTargetType
+  targetId         String
+  reason           ModerationReason
+  description      String?
+  status           ModerationStatus     @default(PENDING)
+  userId           String?
+  listingId        String?
+  orderId          String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime
+  resolvedAt       DateTime?
+  ModerationAction ModerationAction[]
+  Listing          Listing?             @relation(fields: [listingId], references: [id])
+  Order            Order?               @relation(fields: [orderId], references: [id])
+  User             User                 @relation(fields: [reporterId], references: [id])
+
+  @@index([reporterId])
+  @@index([status])
+  @@index([targetType, targetId])
+}
+
+model NegotiationMessage {
+  id                String            @id
+  threadId          String
+  content           String
+  isAgent           Boolean           @default(false)
+  createdAt         DateTime          @default(now())
+  NegotiationThread NegotiationThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId])
+}
+
+model NegotiationThread {
+  id                                    String               @id
+  listingId                             String
+  buyerId                               String
+  sellerId                              String
+  status                                ThreadStatus         @default(ACTIVE)
+  createdAt                             DateTime             @default(now())
+  updatedAt                             DateTime
+  closedAt                              DateTime?
+  Bid                                   Bid[]
+  NegotiationMessage                    NegotiationMessage[]
+  User_NegotiationThread_buyerIdToUser  User                 @relation("NegotiationThread_buyerIdToUser", fields: [buyerId], references: [id])
+  Listing                               Listing              @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  User_NegotiationThread_sellerIdToUser User                 @relation("NegotiationThread_sellerIdToUser", fields: [sellerId], references: [id])
+  Order                                 Order?
+
+  @@unique([listingId, buyerId])
+  @@index([buyerId])
+  @@index([listingId])
+  @@index([sellerId])
+  @@index([status])
+}
+
+model Notification {
+  id        String           @id
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  link      String?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  User      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([read])
+  @@index([userId])
+}
+
+model Order {
+  id                String            @id
+  threadId          String            @unique
+  listingId         String            @unique
+  buyerId           String
+  sellerId          String
+  amount            Int
+  status            OrderStatus       @default(PENDING_PAYMENT)
+  fulfillmentMethod FulfillmentMethod
+  pickupLocation    String?
+  deliveryAddress   String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime
+  completedAt       DateTime?
+  cancelledAt       DateTime?
+  DeliveryRequest   DeliveryRequest?
+  ModerationCase    ModerationCase[]
+  User              User              @relation(fields: [buyerId], references: [id])
+  Listing           Listing           @relation(fields: [listingId], references: [id])
+  NegotiationThread NegotiationThread @relation(fields: [threadId], references: [id])
+  Payment           Payment?
+
+  @@index([buyerId])
+  @@index([listingId])
+  @@index([status])
+  @@index([threadId])
+}
+
+model Payment {
+  id              String        @id
+  orderId         String        @unique
+  stripePaymentId String?
+  amount          Int
+  status          PaymentStatus @default(PENDING)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime
+  paidAt          DateTime?
+  refundedAt      DateTime?
+  Order           Order         @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+  @@index([status])
+}
+
+model Profile {
+  id          String   @id
+  userId      String   @unique
+  displayName String?
+  bio         String?
+  location    String?
+  phone       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+  User        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model ReputationEvent {
+  id        String              @id
+  userId    String
+  type      ReputationEventType
+  points    Int
+  reason    String
+  createdAt DateTime            @default(now())
+  User      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
 model Session {
-  id           String   @id @default(cuid())
+  id           String   @id
   sessionToken String   @unique
   userId       String
   expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  User         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model Skill {
+  id               String           @id
+  name             String           @unique
+  displayName      String
+  description      String
+  category         SkillCategory
+  isActive         Boolean          @default(true)
+  config           Json?
+  capabilities     Json
+  costPerExecution Int?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime
+  AgentSkill       AgentSkill[]
+  SkillExecution   SkillExecution[]
+
+  @@index([category])
+  @@index([isActive])
+}
+
+model SkillExecution {
+  id        String               @id
+  agentId   String
+  skillId   String
+  input     Json
+  output    Json?
+  status    SkillExecutionStatus @default(PENDING)
+  error     String?
+  duration  Int?
+  cost      Int?
+  createdAt DateTime             @default(now())
+  updatedAt DateTime
+  Agent     Agent                @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  Skill     Skill                @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@index([agentId])
+  @@index([createdAt])
+  @@index([skillId])
+  @@index([status])
+}
+
+model TrustSignal {
+  id        String          @id
+  userId    String
+  type      TrustSignalType
+  verified  Boolean         @default(false)
+  createdAt DateTime        @default(now())
+  expiresAt DateTime?
+  User      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([type])
+  @@index([userId])
+}
+
+model User {
+  id                                                 String              @id
+  email                                              String              @unique
+  emailVerified                                      DateTime?
+  name                                               String?
+  image                                              String?
+  password                                           String?
+  createdAt                                          DateTime            @default(now())
+  updatedAt                                          DateTime
+  status                                             UserStatus          @default(ACTIVE)
+  isBanned                                           Boolean             @default(false)
+  bannedAt                                           DateTime?
+  bannedReason                                       String?
+  deletedAt                                          DateTime?
+  Account                                            Account[]
+  Agent                                              Agent[]
+  AuditLog                                           AuditLog[]
+  Listing                                            Listing[]
+  ModerationAction                                   ModerationAction[]
+  ModerationCase                                     ModerationCase[]
+  NegotiationThread_NegotiationThread_buyerIdToUser  NegotiationThread[] @relation("NegotiationThread_buyerIdToUser")
+  NegotiationThread_NegotiationThread_sellerIdToUser NegotiationThread[] @relation("NegotiationThread_sellerIdToUser")
+  Notification                                       Notification[]
+  Order                                              Order[]
+  Profile                                            Profile?
+  ReputationEvent                                    ReputationEvent[]
+  Session                                            Session[]
+  TrustSignal                                        TrustSignal[]
+  WantedRequest                                      WantedRequest[]
+
+  @@index([deletedAt])
+  @@index([email])
 }
 
 model VerificationToken {
@@ -97,240 +460,54 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-model Profile {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  displayName String?
-  bio         String?
-  location    String?
-  phone       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-}
-
-// ============================================
-// AGENTS
-// ============================================
-
-model Agent {
-  id          String   @id @default(cuid())
+model WantedRequest {
+  id          String           @id
   userId      String
-  name        String   @default("Agent")
-  description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  deletedAt   DateTime?
-
-  // Agent settings
-  autoNegotiate    Boolean @default(false)
-  maxBidAmount     Int?    // Max amount agent can bid (cents)
-  minAcceptAmount  Int?    // Min amount agent will auto-accept (cents)
-  maxAcceptAmount  Int?    // Max amount agent will auto-accept (cents)
-  autoRejectBelow  Int?    // Auto-reject offers below this (cents)
-  autoCounterEnabled Boolean @default(false)
-  requireApproval  Boolean @default(true)
-
-  // Location preferences
-  preferredLocation String?
-  latitude          Float?   // User's latitude
-  longitude         Float?   // User's longitude
-  maxDistance       Int?     // Max distance in km
-  currency          String?  // User's preferred currency (e.g., "USD", "EUR")
-  locale            String?  // User's locale (e.g., "en-US", "de-DE")
-
-  // Relations
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  credentials AgentCredential[]
-  listings    Listing[]
-  wantedRequests WantedRequest[]
-  bids        Bid[]
-  auditLogs   AuditLog[]
-  agentSkills AgentSkill[]
-  skillExecutions SkillExecution[]
-
-  @@index([userId])
-  @@index([isActive])
-  @@index([deletedAt])
-}
-
-model AgentCredential {
-  id        String   @id @default(cuid())
-  agentId   String
-  provider  String   // e.g., "openai", "anthropic"
-  apiKey    String   // Encrypted
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
-
-  @@index([agentId])
-}
-
-// ============================================
-// SKILLS
-// ============================================
-
-model Skill {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  displayName String
-  description String
-  category    SkillCategory
-  isActive    Boolean  @default(true)
-
-  // Skill configuration
-  config      Json?    // Skill-specific configuration
-
-  // Capabilities
-  capabilities Json    // List of what the skill can do
-
-  // Pricing
-  costPerExecution Int? // Cost in credits (nullable for free skills)
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  agentSkills AgentSkill[]
-  executions  SkillExecution[]
-
-  @@index([category])
-  @@index([isActive])
-}
-
-enum SkillCategory {
-  ANALYSIS      // Code analysis, item analysis
-  GENERATION    // Content generation, descriptions
-  AUTOMATION    // Automated actions
-  COMMUNICATION // Messaging, emails
-  RESEARCH      // Market research, price analysis
-  NEGOTIATION   // Negotiation strategies
-}
-
-model AgentSkill {
-  id        String   @id @default(cuid())
-  agentId   String
-  skillId   String
-
-  isEnabled Boolean  @default(true)
-
-  // Skill-specific settings for this agent
-  settings  Json?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
-
-  @@unique([agentId, skillId])
-  @@index([agentId])
-  @@index([skillId])
-}
-
-model SkillExecution {
-  id        String   @id @default(cuid())
-  agentId   String
-  skillId   String
-
-  // Execution context
-  input     Json     // Input parameters
-  output    Json?    // Execution result
-
-  // Status
-  status    SkillExecutionStatus @default(PENDING)
-  error     String?  // Error message if failed
-
-  // Metadata
-  duration  Int?     // Execution time in ms
-  cost      Int?     // Cost in credits
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
-
-  @@index([agentId])
-  @@index([skillId])
-  @@index([status])
-  @@index([createdAt])
-}
-
-enum SkillExecutionStatus {
-  PENDING
-  RUNNING
-  COMPLETED
-  FAILED
-  CANCELLED
-}
-
-// ============================================
-// LISTINGS
-// ============================================
-
-model Listing {
-  id          String   @id @default(cuid())
-  userId      String
-  agentId     String?  // Optional: created by agent
-
-  // Content
+  agentId     String?
   title       String
   description String
-  labels      String[] @default([])  // Tags/keywords for the item
-  category    ListingCategory
-  condition   ItemCondition
+  category    ListingCategory?
+  maxPrice    Int?
+  location    String?
+  status      WantedStatus     @default(ACTIVE)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime
+  fulfilledAt DateTime?
+  Agent       Agent?           @relation(fields: [agentId], references: [id])
+  User        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Pricing
-  price       Int      // in cents (minimum or exact price)
-  priceMax    Int?     // in cents (for price ranges)
-  currency    String   @default("USD")  // ISO currency code
-
-  // Physical address where the item is located
-  address     String   // Physical address for pickup/viewing
-  latitude    Float?   // Item location latitude
-  longitude   Float?   // Item location longitude
-
-  // Contact channels (for agent communication)
-  contactWhatsApp  String?  // WhatsApp handle/number
-  contactTelegram  String?  // Telegram username
-  contactDiscord   String?  // Discord username
-
-  // Metadata
-  status      ListingStatus @default(DRAFT)
-  confidence  Float?   // AI confidence score for enriched listings
-
-  // Fulfillment
-  pickupAvailable    Boolean @default(true)
-  deliveryAvailable  Boolean @default(false)
-
-  // Timestamps
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  publishedAt DateTime?
-  soldAt      DateTime?
-  deletedAt   DateTime?
-
-  // Relations
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  agent       Agent?   @relation(fields: [agentId], references: [id])
-  images      ListingImage[]
-  threads     NegotiationThread[]
-  order       Order?
-  moderationCases ModerationCase[]
-
-  @@index([userId])
   @@index([agentId])
   @@index([status])
-  @@index([category])
-  @@index([createdAt])
-  @@index([deletedAt])
-  @@index([price])
+  @@index([userId])
+}
+
+enum BidStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COUNTERED
+  EXPIRED
+}
+
+enum DeliveryStatus {
+  PENDING
+  PICKED_UP
+  IN_TRANSIT
+  DELIVERED
+  FAILED
+}
+
+enum FulfillmentMethod {
+  PICKUP
+  DELIVERY
+}
+
+enum ItemCondition {
+  NEW
+  LIKE_NEW
+  GOOD
+  FAIR
+  POOR
 }
 
 enum ListingCategory {
@@ -346,358 +523,16 @@ enum ListingCategory {
   OTHER
 }
 
-enum ItemCondition {
-  NEW
-  LIKE_NEW
-  GOOD
-  FAIR
-  POOR
-}
-
 enum ListingStatus {
   DRAFT
   PENDING_REVIEW
-  FOR_SALE       // Active listing, available for purchase
-  TENTATIVE      // Someone interested, but not finalized
-  SOLD           // Item has been sold
-  REMOVED        // Removed by user
-  FLAGGED        // Flagged for moderation
-  PUBLISHED      // Legacy: use FOR_SALE instead
-  RESERVED       // Legacy: use TENTATIVE instead
-}
-
-model ListingImage {
-  id        String   @id @default(cuid())
-  listingId String
-  url       String
-  order     Int      @default(0)
-  createdAt DateTime @default(now())
-
-  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
-
-  @@index([listingId])
-}
-
-// ============================================
-// WANTED REQUESTS
-// ============================================
-
-model WantedRequest {
-  id          String   @id @default(cuid())
-  userId      String
-  agentId     String?
-
-  title       String
-  description String
-  category    ListingCategory?
-  maxPrice    Int?     // in cents
-  location    String?
-
-  status      WantedStatus @default(ACTIVE)
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  fulfilledAt DateTime?
-
-  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  agent Agent? @relation(fields: [agentId], references: [id])
-
-  @@index([userId])
-  @@index([agentId])
-  @@index([status])
-}
-
-enum WantedStatus {
-  ACTIVE
-  FULFILLED
-  CANCELLED
-}
-
-// ============================================
-// NEGOTIATIONS
-// ============================================
-
-model NegotiationThread {
-  id         String   @id @default(cuid())
-  listingId  String
-  buyerId    String
-  sellerId   String
-
-  status     ThreadStatus @default(ACTIVE)
-
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  closedAt   DateTime?
-
-  // Relations
-  listing    Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  buyer      User     @relation("BuyerThreads", fields: [buyerId], references: [id])
-  seller     User     @relation("SellerThreads", fields: [sellerId], references: [id])
-  bids       Bid[]
-  messages   NegotiationMessage[]
-  order      Order?
-
-  @@unique([listingId, buyerId])
-  @@index([listingId])
-  @@index([buyerId])
-  @@index([sellerId])
-  @@index([status])
-}
-
-enum ThreadStatus {
-  ACTIVE
-  ACCEPTED
-  REJECTED
-  EXPIRED
-  CLOSED
-}
-
-model Bid {
-  id        String   @id @default(cuid())
-  threadId  String
-  agentId   String?  // If made by agent
-
-  amount    Int      // in cents
-  message   String?
-
-  status    BidStatus @default(PENDING)
-  expiresAt DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  thread    NegotiationThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  agent     Agent?   @relation(fields: [agentId], references: [id])
-
-  @@index([threadId])
-  @@index([agentId])
-  @@index([status])
-}
-
-enum BidStatus {
-  PENDING
-  ACCEPTED
-  REJECTED
-  COUNTERED
-  EXPIRED
-}
-
-model NegotiationMessage {
-  id        String   @id @default(cuid())
-  threadId  String
-
-  content   String
-  isAgent   Boolean  @default(false)
-
-  createdAt DateTime @default(now())
-
-  thread    NegotiationThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
-
-  @@index([threadId])
-}
-
-// ============================================
-// ORDERS & PAYMENTS
-// ============================================
-
-model Order {
-  id        String   @id @default(cuid())
-  threadId  String   @unique
-  listingId String   @unique
-  buyerId   String
-  sellerId  String
-
-  amount    Int      // Final agreed price in cents
-  status    OrderStatus @default(PENDING_PAYMENT)
-
-  // Fulfillment
-  fulfillmentMethod FulfillmentMethod
-  pickupLocation    String?
-  deliveryAddress   String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  completedAt DateTime?
-  cancelledAt DateTime?
-
-  // Relations
-  thread    NegotiationThread @relation(fields: [threadId], references: [id])
-  listing   Listing  @relation(fields: [listingId], references: [id])
-  buyer     User     @relation(fields: [buyerId], references: [id])
-  payment   Payment?
-  deliveryRequest DeliveryRequest?
-  moderationCases ModerationCase[]
-
-  @@index([threadId])
-  @@index([listingId])
-  @@index([buyerId])
-  @@index([status])
-}
-
-enum OrderStatus {
-  PENDING_PAYMENT
-  PAID
-  IN_TRANSIT
-  COMPLETED
-  CANCELLED
-  DISPUTED
-  REFUNDED
-}
-
-enum FulfillmentMethod {
-  PICKUP
-  DELIVERY
-}
-
-model Payment {
-  id              String   @id @default(cuid())
-  orderId         String   @unique
-
-  stripePaymentId String?  // Stripe payment intent ID
-  amount          Int      // in cents
-  status          PaymentStatus @default(PENDING)
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  paidAt          DateTime?
-  refundedAt      DateTime?
-
-  order Order @relation(fields: [orderId], references: [id])
-
-  @@index([orderId])
-  @@index([status])
-}
-
-enum PaymentStatus {
-  PENDING
-  PROCESSING
-  SUCCEEDED
-  FAILED
-  REFUNDED
-  PARTIALLY_REFUNDED
-}
-
-model DeliveryRequest {
-  id        String   @id @default(cuid())
-  orderId   String   @unique
-
-  provider  String?  // e.g., "ups", "fedex"
-  trackingNumber String?
-
-  status    DeliveryStatus @default(PENDING)
-
-  fromAddress String
-  toAddress   String
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  pickedUpAt DateTime?
-  deliveredAt DateTime?
-
-  order Order @relation(fields: [orderId], references: [id])
-
-  @@index([orderId])
-  @@index([status])
-}
-
-enum DeliveryStatus {
-  PENDING
-  PICKED_UP
-  IN_TRANSIT
-  DELIVERED
-  FAILED
-}
-
-// ============================================
-// TRUST & SAFETY
-// ============================================
-
-model ReputationEvent {
-  id        String   @id @default(cuid())
-  userId    String
-
-  type      ReputationEventType
-  points    Int      // Can be positive or negative
-  reason    String
-
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-}
-
-enum ReputationEventType {
-  SUCCESSFUL_SALE
-  SUCCESSFUL_PURCHASE
-  POSITIVE_REVIEW
-  NEGATIVE_REVIEW
-  FLAGGED_LISTING
-  SCAM_REPORT
-  DISPUTE_RESOLVED
-  DISPUTE_LOST
-}
-
-model TrustSignal {
-  id        String   @id @default(cuid())
-  userId    String
-
-  type      TrustSignalType
-  verified  Boolean  @default(false)
-
-  createdAt DateTime @default(now())
-  expiresAt DateTime?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([type])
-}
-
-enum TrustSignalType {
-  EMAIL_VERIFIED
-  PHONE_VERIFIED
-  ID_VERIFIED
-  ADDRESS_VERIFIED
-  PAYMENT_METHOD_VERIFIED
-}
-
-model ModerationCase {
-  id          String   @id @default(cuid())
-  reporterId  String
-
-  targetType  ModerationTargetType
-  targetId    String   // ID of listing, user, order, etc.
-
-  reason      ModerationReason
-  description String?
-  status      ModerationStatus @default(PENDING)
-
-  // Relations (nullable because target can be different types)
-  userId      String?
-  listingId   String?
-  orderId     String?
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  resolvedAt  DateTime?
-
-  reporter User     @relation(fields: [reporterId], references: [id])
-  listing  Listing? @relation(fields: [listingId], references: [id])
-  order    Order?   @relation(fields: [orderId], references: [id])
-  actions  ModerationAction[]
-
-  @@index([reporterId])
-  @@index([targetType, targetId])
-  @@index([status])
-}
-
-enum ModerationTargetType {
-  USER
-  LISTING
-  ORDER
-  NEGOTIATION
+  PUBLISHED
+  RESERVED
+  SOLD
+  REMOVED
+  FLAGGED
+  FOR_SALE
+  TENTATIVE
 }
 
 enum ModerationReason {
@@ -719,21 +554,11 @@ enum ModerationStatus {
   DISMISSED
 }
 
-model ModerationAction {
-  id        String   @id @default(cuid())
-  caseId    String
-  moderatorId String
-
-  action    ModeratorActionType
-  reason    String?
-
-  createdAt DateTime @default(now())
-
-  case      ModerationCase @relation(fields: [caseId], references: [id])
-  moderator User @relation(fields: [moderatorId], references: [id])
-
-  @@index([caseId])
-  @@index([moderatorId])
+enum ModerationTargetType {
+  USER
+  LISTING
+  ORDER
+  NEGOTIATION
 }
 
 enum ModeratorActionType {
@@ -744,53 +569,6 @@ enum ModeratorActionType {
   REFUND_ORDER
   CANCEL_ORDER
   DISMISS
-}
-
-// ============================================
-// AUDIT & NOTIFICATIONS
-// ============================================
-
-model AuditLog {
-  id        String   @id @default(cuid())
-  userId    String?
-  agentId   String?
-
-  action    String   // e.g., "listing.created", "bid.accepted"
-  entityType String  // e.g., "listing", "order"
-  entityId  String
-
-  metadata  Json?    // Additional context
-
-  createdAt DateTime @default(now())
-
-  user    User?    @relation(fields: [userId], references: [id])
-  agent   Agent?   @relation(fields: [agentId], references: [id])
-  // Note: entityId is polymorphic and can reference different entity types
-  // No foreign key constraint to allow flexibility
-
-  @@index([userId])
-  @@index([agentId])
-  @@index([entityType, entityId])
-  @@index([createdAt])
-}
-
-model Notification {
-  id        String   @id @default(cuid())
-  userId    String
-
-  type      NotificationType
-  title     String
-  message   String
-  link      String?
-
-  read      Boolean  @default(false)
-
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([read])
 }
 
 enum NotificationType {
@@ -806,4 +584,80 @@ enum NotificationType {
   AGENT_ACTION_REQUIRED
   DEAL_FOUND
   MODERATION_ACTION
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  IN_TRANSIT
+  COMPLETED
+  CANCELLED
+  DISPUTED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum ReputationEventType {
+  SUCCESSFUL_SALE
+  SUCCESSFUL_PURCHASE
+  POSITIVE_REVIEW
+  NEGATIVE_REVIEW
+  FLAGGED_LISTING
+  SCAM_REPORT
+  DISPUTE_RESOLVED
+  DISPUTE_LOST
+}
+
+enum SkillCategory {
+  ANALYSIS
+  GENERATION
+  AUTOMATION
+  COMMUNICATION
+  RESEARCH
+  NEGOTIATION
+}
+
+enum SkillExecutionStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ThreadStatus {
+  ACTIVE
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CLOSED
+}
+
+enum TrustSignalType {
+  EMAIL_VERIFIED
+  PHONE_VERIFIED
+  ID_VERIFIED
+  ADDRESS_VERIFIED
+  PAYMENT_METHOD_VERIFIED
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+  DELETED
+}
+
+enum WantedStatus {
+  ACTIVE
+  FULFILLED
+  CANCELLED
 }

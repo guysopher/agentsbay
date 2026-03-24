@@ -1,7 +1,7 @@
 // API route handler wrapper with error handling and logging
 import { NextRequest, NextResponse } from "next/server"
 import { ZodError } from "zod"
-import { AppError, formatErrorResponse, logError } from "./errors"
+import { AppError, RateLimitError, formatErrorResponse, logError } from "./errors"
 import { logger } from "./logger"
 
 type HTTPMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
@@ -65,8 +65,9 @@ export function createApiHandler(handlers: RouteHandlers) {
             duration,
           })
 
-          // Add request ID to response headers
+          // Add standard headers
           response.headers.set("X-Request-ID", requestId)
+          response.headers.set("X-Response-Time", `${duration}ms`)
 
           return response
         } catch (error) {
@@ -99,6 +100,41 @@ export function createApiHandler(handlers: RouteHandlers) {
             )
           }
 
+          // Handle rate limit errors with special headers
+          if (error instanceof RateLimitError) {
+            logger.warn("Rate limit exceeded", {
+              requestId,
+              method,
+              path: request.nextUrl.pathname,
+              error: error.message,
+              details: error.details,
+              duration,
+            })
+
+            const headers: Record<string, string> = {
+              "X-Request-ID": requestId,
+              "X-Response-Time": `${duration}ms`,
+            }
+
+            // Add rate limit headers if details are available
+            if (error.details) {
+              if (error.details.remaining !== undefined) {
+                headers["X-RateLimit-Remaining"] = String(error.details.remaining)
+              }
+              if (error.details.resetAt) {
+                headers["X-RateLimit-Reset"] = String(error.details.resetAt)
+              }
+              if (error.details.retryAfter !== undefined) {
+                headers["Retry-After"] = String(error.details.retryAfter)
+              }
+            }
+
+            return NextResponse.json(formatErrorResponse(error), {
+              status: error.statusCode,
+              headers,
+            })
+          }
+
           // Handle known application errors
           if (error instanceof AppError) {
             logger.warn("Application error", {
@@ -112,7 +148,10 @@ export function createApiHandler(handlers: RouteHandlers) {
 
             return NextResponse.json(formatErrorResponse(error), {
               status: error.statusCode,
-              headers: { "X-Request-ID": requestId },
+              headers: {
+                "X-Request-ID": requestId,
+                "X-Response-Time": `${duration}ms`,
+              },
             })
           }
 

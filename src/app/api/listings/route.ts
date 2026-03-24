@@ -1,6 +1,6 @@
 import { ListingService } from "@/domain/listings/service"
-import { createListingSchema, searchListingsSchema } from "@/domain/listings/validation"
-import { createApiHandler, successResponse } from "@/lib/api-handler"
+import { createListingSchema, searchListingsSchema, validateAddressFormat } from "@/domain/listings/validation"
+import { createApiHandler, successResponse, errorResponse } from "@/lib/api-handler"
 import { auth } from "@/lib/auth"
 import { UnauthorizedError } from "@/lib/errors"
 import { rateLimiter, RATE_LIMITS } from "@/lib/rate-limit"
@@ -46,6 +46,19 @@ export const { GET, POST } = createApiHandler({
     // Parse and validate body
     const body = await request.json()
     const validated = createListingSchema.parse(body)
+
+    // Additional address validation for helpful error messages
+    const addressValidation = validateAddressFormat(validated.address)
+    if (!addressValidation.valid) {
+      return errorResponse(addressValidation.error!, 400, {
+        field: "address",
+        examples: [
+          "123 Main Street, Tel Aviv, Israel",
+          "Downtown Seattle, WA",
+          "Florentin, Tel Aviv"
+        ]
+      })
+    }
 
     // Create listing
     const listing = await ListingService.create(userId, validated)

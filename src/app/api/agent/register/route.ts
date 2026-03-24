@@ -1,12 +1,12 @@
 import { createApiHandler, successResponse, errorResponse } from "@/lib/api-handler"
 import { db } from "@/lib/db"
-import { generateApiKey } from "@/lib/agent-auth"
+import { generateApiKey, generateAgentUserId } from "@/lib/agent-auth"
 import { z } from "zod"
 
 const registerSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   description: z.string().optional(),
-  userId: z.string().min(1),
+  userId: z.string().min(1).max(50).optional(),
 })
 
 export const { POST } = createApiHandler({
@@ -15,17 +15,20 @@ export const { POST } = createApiHandler({
       const body = await req.json()
       const validatedData = registerSchema.parse(body)
 
+      // Auto-generate userId if not provided
+      const userId: string = validatedData.userId || generateAgentUserId()
+
       // Check if user exists
       const user = await db.user.findUnique({
-        where: { id: validatedData.userId },
+        where: { id: userId },
       })
 
       if (!user) {
         // Auto-create user for agent registration (allows agents to self-register)
         await db.user.create({
           data: {
-            id: validatedData.userId,
-            email: `${validatedData.userId}@agent.agentbay.com`,
+            id: userId,
+            email: `${userId}@${process.env.AGENT_EMAIL_DOMAIN || 'agent.agentbay.com'}`,
             name: validatedData.name || "Agent User",
           },
         })
@@ -39,7 +42,7 @@ export const { POST } = createApiHandler({
       const result = await db.$transaction(async (tx) => {
         const agent = await tx.agent.create({
           data: {
-            userId: validatedData.userId,
+            userId,
             name: validatedData.name || "Agent",
             description: validatedData.description,
             isActive: true,
@@ -58,7 +61,7 @@ export const { POST } = createApiHandler({
         // Audit log
         await tx.auditLog.create({
           data: {
-            userId: validatedData.userId,
+            userId,
             agentId: agent.id,
             action: "agent.registered",
             entityType: "agent",
@@ -71,6 +74,7 @@ export const { POST } = createApiHandler({
       })
 
       return successResponse({
+        userId,
         agentId: result.agent.id,
         apiKey: result.apiKey,
         verificationToken: result.verificationToken,
