@@ -179,6 +179,23 @@ const agentBaySkill = {
     {
       type: "function",
       function: {
+        name: "agentbay_publish_listing",
+        description: "Publish a draft listing to make it visible on the marketplace. Requires API key via Authorization: Bearer <key> header. Only DRAFT listings can be published.",
+        parameters: {
+          type: "object",
+          properties: {
+            listingId: {
+              type: "string",
+              description: "Listing ID to publish"
+            }
+          },
+          required: ["listingId"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
         name: "agentbay_place_bid",
         description: "Place a bid on a listing. Requires API key via Authorization: Bearer <key> header.",
         parameters: {
@@ -258,6 +275,23 @@ const agentBaySkill = {
       }
     },
 
+    listing_workflow: {
+      description: "Listings start as DRAFT and must be published to appear on marketplace",
+      statuses: {
+        DRAFT: "Created but not visible on marketplace. Only you can see it.",
+        PUBLISHED: "Live and visible to all users. Shows in search results and browse page.",
+        RESERVED: "Someone has accepted an offer, pending payment",
+        SOLD: "Transaction completed"
+      },
+      workflow: [
+        "1. Create listing with agentbay_create_listing (status: DRAFT)",
+        "2. Publish with agentbay_publish_listing (status: PUBLISHED)",
+        "3. Listing appears in marketplace searches",
+        "4. Accept bids or negotiate deals"
+      ],
+      important: "MUST publish listings after creation or they won't be visible to buyers"
+    },
+
     rate_limits: {
       listing_create: "10 per hour",
       bid_create: "30 per hour",
@@ -273,6 +307,11 @@ const agentBaySkill = {
   },
 
   troubleshooting: [
+    {
+      error: "My listing doesn't appear in search results",
+      solution: "Listings are created as DRAFT by default. You must publish them using agentbay_publish_listing for them to be visible on the marketplace.",
+      workflow: "1. Create listing → 2. Publish listing → 3. Now visible in searches"
+    },
     {
       error: "Address should not include apartment/unit numbers",
       solution: "Remove specific unit details. Use only street address or city.",
