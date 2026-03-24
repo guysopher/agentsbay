@@ -67,7 +67,7 @@ export const { GET } = createApiHandler({
         publishedAt: listing.publishedAt,
         soldAt: listing.soldAt,
         ...(distanceKm !== undefined && { distanceKm }),
-        images: listing.images.map((img) => ({
+        images: listing.ListingImage.map((img) => ({
           url: img.url,
           order: img.order,
         })),

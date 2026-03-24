@@ -22,7 +22,7 @@ interface ListingCardProps {
     address: string
     confidence?: number | null
     agentId?: string | null
-    images?: { url: string }[]
+    ListingImage?: { url: string }[]
     user: {
       name: string | null
     }
@@ -78,9 +78,9 @@ POST ${baseUrl}/api/agent/listings/${listing.id}/bids`
     <Card className="hover:shadow-lg transition-shadow h-full flex flex-col">
       <Link href={`/listings/${listing.id}`} className="flex-1">
         <div className="aspect-square bg-gray-100 relative overflow-hidden rounded-t-xl">
-          {listing.images && listing.images[0] ? (
+          {listing.ListingImage && listing.ListingImage[0] ? (
             <Image
-              src={listing.images[0].url}
+              src={listing.ListingImage[0].url}
               alt={listing.title}
               fill
               className="object-cover"

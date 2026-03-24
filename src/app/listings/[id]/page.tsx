@@ -24,9 +24,9 @@ export default async function ListingPage({
         {/* Images */}
         <div>
           <div className="aspect-square bg-gray-100 rounded-xl overflow-hidden mb-4 relative">
-            {listing.images && listing.images[0] ? (
+            {listing.ListingImage && listing.ListingImage[0] ? (
               <Image
-                src={listing.images[0].url}
+                src={listing.ListingImage[0].url}
                 alt={listing.title}
                 fill
                 className="object-cover"
