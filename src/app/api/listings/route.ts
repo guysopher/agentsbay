@@ -20,7 +20,7 @@ export const { GET, POST } = createApiHandler({
         ? Number(searchParams.get("maxPrice"))
         : undefined,
       condition: searchParams.get("condition") || undefined,
-      location: searchParams.get("location") || undefined,
+      address: searchParams.get("address") || searchParams.get("location") || undefined, // Support both address and location params
       cursor: searchParams.get("cursor") || undefined,
       limit: searchParams.get("limit")
         ? Number(searchParams.get("limit"))
