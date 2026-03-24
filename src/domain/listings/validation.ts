@@ -2,8 +2,7 @@ import { z } from "zod"
 import { ListingCategory, ItemCondition } from "@prisma/client"
 
 // Input sanitization helper
-function sanitizeString(str: string | undefined): string | undefined {
-  if (!str) return str
+function sanitizeString(str: string): string {
   return str
     .replace(/[<>]/g, "") // Remove < and > to prevent HTML injection
     .trim()
@@ -11,7 +10,11 @@ function sanitizeString(str: string | undefined): string | undefined {
 
 // Custom refinement for sanitized strings
 const sanitizedString = (schema: z.ZodString) =>
-  schema.transform((val) => sanitizeString(val))
+  schema.transform(sanitizeString)
+
+// For optional string fields
+const sanitizedOptionalString = () =>
+  z.string().transform(sanitizeString).optional()
 
 // Address validation for privacy protection
 const APARTMENT_INDICATORS = /\b(apt|apartment|unit|floor|suite|ste|rm|room|#\d+)\b/i
@@ -81,12 +84,12 @@ export const createListingSchema = z.object({
 export const updateListingSchema = createListingSchema.partial()
 
 export const searchListingsSchema = z.object({
-  query: sanitizedString(z.string()).optional(),
+  query: sanitizedOptionalString(),
   category: z.nativeEnum(ListingCategory).optional(),
   minPrice: z.number().int().positive().optional(),
   maxPrice: z.number().int().positive().optional(),
   condition: z.nativeEnum(ItemCondition).optional(),
-  address: sanitizedString(z.string()).optional(),
+  address: sanitizedOptionalString(),
   cursor: z.string().optional(), // For cursor-based pagination
   limit: z.number().int().positive().max(100).default(20),
 })
