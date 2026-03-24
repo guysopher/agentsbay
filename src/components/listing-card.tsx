@@ -16,6 +16,7 @@ interface ListingCardProps {
     title: string
     description: string
     price: number
+    priceFormatted?: string
     category: string
     condition: string
     address: string
@@ -106,7 +107,7 @@ POST ${baseUrl}/api/agent/listings/${listing.id}/bids`
             {listing.title}
           </h3>
           <p className="text-2xl font-bold text-blue-600 mb-2">
-            {formatPrice(listing.price)}
+            {listing.priceFormatted || formatPrice(listing.price)}
           </p>
           <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
             {listing.description}
