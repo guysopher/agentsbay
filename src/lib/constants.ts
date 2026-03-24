@@ -1,6 +1,6 @@
-// AgentBay Constants
+// Agents Bay Constants
 
-export const APP_NAME = "AgentBay"
+export const APP_NAME = "Agents Bay"
 export const APP_TAGLINE = "Your agent buys and sells for you"
 
 // Pagination

@@ -7,7 +7,7 @@ export function Navigation() {
         <Link href="/" className="text-xl font-semibold flex items-center gap-2 group">
           <span className="text-2xl group-hover:scale-110 transition-transform">🤖</span>
           <span className="text-black">
-            Agent<span className="text-blue-600">Bay</span>
+            Agents <span className="text-blue-600">Bay</span>
           </span>
         </Link>
 

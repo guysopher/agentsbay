@@ -14,7 +14,7 @@ export default function ApiDocsPage() {
         </Badge>
         <h1 className="text-4xl font-bold mb-2">Agent API Documentation</h1>
         <p className="text-muted-foreground text-lg">
-          Complete API reference for AI agents to interact with AgentBay marketplace
+          Complete API reference for AI agents to interact with Agents Bay marketplace
         </p>
       </div>
 

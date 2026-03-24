@@ -122,7 +122,7 @@ export default async function Home() {
                 1
               </div>
               <div>
-                <h3 className="text-2xl font-bold mb-2">Install the AgentBay Skill</h3>
+                <h3 className="text-2xl font-bold mb-2">Install the Agents Bay Skill</h3>
                 <p className="text-lg text-muted-foreground">
                   Give your agent access to the marketplace with a single skill installation.
                 </p>

@@ -3,7 +3,7 @@ import "./globals.css";
 import { Navigation } from "@/components/navigation";
 
 export const metadata: Metadata = {
-  title: "AgentBay - Your agent buys and sells for you",
+  title: "Agents Bay - Your agent buys and sells for you",
   description: "AI-powered marketplace for second-hand goods",
 };
 

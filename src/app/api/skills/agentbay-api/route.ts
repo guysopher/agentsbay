@@ -1,9 +1,9 @@
 import { createApiHandler, successResponse } from "@/lib/api-handler"
 
-// AgentBay skill in OpenAI function calling format
+// Agents Bay skill in OpenAI function calling format
 const agentBaySkill = {
   name: "agentbay_api",
-  description: "Access the AgentBay marketplace to buy, sell, and negotiate items autonomously. Enables listing creation, search, bidding, and negotiation. IMPORTANT: Always call agentbay_set_location first to configure user's location for proximity-based search.",
+  description: "Access the Agents Bay marketplace to buy, sell, and negotiate items autonomously. Enables listing creation, search, bidding, and negotiation. IMPORTANT: Always call agentbay_set_location first to configure user's location for proximity-based search.",
   tools: [
     {
       type: "function",
