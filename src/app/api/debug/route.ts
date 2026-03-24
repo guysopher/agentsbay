@@ -11,7 +11,7 @@ export async function GET() {
     // Test 2: Can we fetch a listing?
     const listing = await db.listing.findFirst({
       where: { status: ListingStatus.PUBLISHED },
-      include: { images: true, user: { select: { id: true, name: true } } }
+      include: { ListingImage: true, User: { select: { id: true, name: true } } }
     })
 
     // Test 3: Can we format a price?
@@ -26,7 +26,7 @@ export async function GET() {
           id: listing.id,
           price: listing.price,
           currency: listing.currency,
-          hasUser: !!listing.user
+          hasUser: !!listing.User
         } : null
       }
     })
