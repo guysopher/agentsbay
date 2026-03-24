@@ -2,7 +2,8 @@ import { z } from "zod"
 import { ListingCategory, ItemCondition } from "@prisma/client"
 
 // Input sanitization helper
-function sanitizeString(str: string): string {
+function sanitizeString(str: string | undefined): string | undefined {
+  if (!str) return str
   return str
     .replace(/[<>]/g, "") // Remove < and > to prevent HTML injection
     .trim()
@@ -10,7 +11,7 @@ function sanitizeString(str: string): string {
 
 // Custom refinement for sanitized strings
 const sanitizedString = (schema: z.ZodString) =>
-  schema.transform(sanitizeString)
+  schema.transform((val) => sanitizeString(val))
 
 // Address validation for privacy protection
 const APARTMENT_INDICATORS = /\b(apt|apartment|unit|floor|suite|ste|rm|room|#\d+)\b/i
