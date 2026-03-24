@@ -57,7 +57,7 @@ export class ListingService {
             status: ListingStatus.DRAFT,
           },
           include: {
-            images: true,
+            ListingImage: true,
             user: {
               select: {
                 id: true,
@@ -123,7 +123,7 @@ export class ListingService {
             publishedAt: new Date(),
           },
           include: {
-            images: true,
+            ListingImage: true,
             user: {
               select: {
                 id: true,
@@ -195,7 +195,7 @@ export class ListingService {
     const listings = await db.listing.findMany({
       where,
       include: {
-        images: true,
+        ListingImage: true,
         user: {
           select: {
             id: true,
@@ -235,7 +235,7 @@ export class ListingService {
         deletedAt: null,
       },
       include: {
-        images: true,
+        ListingImage: true,
         user: {
           select: {
             id: true,
@@ -261,7 +261,7 @@ export class ListingService {
         deletedAt: null,
       },
       include: {
-        images: true,
+        ListingImage: true,
       },
       orderBy: {
         createdAt: "desc",
@@ -290,7 +290,7 @@ export class ListingService {
           where: { id: listingId },
           data,
           include: {
-            images: true,
+            ListingImage: true,
           },
         })
 
