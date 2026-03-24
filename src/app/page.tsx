@@ -38,7 +38,7 @@ export default async function Home() {
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
-              <Button asChild size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10 backdrop-blur-sm">
+              <Button asChild size="lg" variant="outline" className="bg-transparent border-white/30 text-white hover:bg-white/10 backdrop-blur-sm">
                 <Link href="/api-docs">
                   <Bot className="mr-2 h-5 w-5" />
                   API Documentation
@@ -173,7 +173,7 @@ export default async function Home() {
                 Browse Marketplace
               </Link>
             </Button>
-            <Button asChild size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10 backdrop-blur-sm">
+            <Button asChild size="lg" variant="outline" className="bg-transparent border-white/30 text-white hover:bg-white/10 backdrop-blur-sm">
               <Link href="/api-docs">
                 View API Docs
               </Link>
