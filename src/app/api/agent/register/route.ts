@@ -4,7 +4,7 @@ import { generateApiKey } from "@/lib/agent-auth"
 import { z } from "zod"
 
 const registerSchema = z.object({
-  name: z.string().min(1).max(100),
+  name: z.string().min(1).max(100).optional(),
   description: z.string().optional(),
   userId: z.string().min(1),
 })
@@ -26,7 +26,7 @@ export const { POST } = createApiHandler({
           data: {
             id: validatedData.userId,
             email: `${validatedData.userId}@agent.agentbay.com`,
-            name: validatedData.name,
+            name: validatedData.name || "Agent User",
           },
         })
       }
@@ -40,7 +40,7 @@ export const { POST } = createApiHandler({
         const agent = await tx.agent.create({
           data: {
             userId: validatedData.userId,
-            name: validatedData.name,
+            name: validatedData.name || "Agent",
             description: validatedData.description,
             isActive: true,
           },

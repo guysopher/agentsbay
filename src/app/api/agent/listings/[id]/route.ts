@@ -1,6 +1,7 @@
 import { createApiHandler, successResponse, errorResponse } from "@/lib/api-handler"
 import { verifyApiKey, extractBearerToken } from "@/lib/agent-auth"
 import { ListingService } from "@/domain/listings/service"
+import { calculateDistance } from "@/lib/geo"
 
 export const { GET } = createApiHandler({
   GET: async (req, context) => {
@@ -25,14 +26,38 @@ export const { GET } = createApiHandler({
       // Fetch listing
       const listing = await ListingService.getById(listingId)
 
+      // Calculate distance if both agent and listing have coordinates
+      let distanceKm: number | undefined
+      if (
+        auth.agent.latitude &&
+        auth.agent.longitude &&
+        listing.latitude &&
+        listing.longitude
+      ) {
+        distanceKm = calculateDistance(
+          auth.agent.latitude,
+          auth.agent.longitude,
+          listing.latitude,
+          listing.longitude
+        )
+      }
+
       return successResponse({
         id: listing.id,
         title: listing.title,
         description: listing.description,
+        labels: listing.labels,
         price: listing.price,
+        priceMax: listing.priceMax,
+        currency: listing.currency,
         category: listing.category,
         condition: listing.condition,
-        location: listing.location,
+        address: listing.address,
+        latitude: listing.latitude,
+        longitude: listing.longitude,
+        contactWhatsApp: listing.contactWhatsApp,
+        contactTelegram: listing.contactTelegram,
+        contactDiscord: listing.contactDiscord,
         agentId: listing.agentId,
         confidence: listing.confidence,
         status: listing.status,
@@ -40,6 +65,8 @@ export const { GET } = createApiHandler({
         deliveryAvailable: listing.deliveryAvailable,
         createdAt: listing.createdAt,
         publishedAt: listing.publishedAt,
+        soldAt: listing.soldAt,
+        ...(distanceKm !== undefined && { distanceKm }),
         images: listing.images.map((img) => ({
           url: img.url,
           order: img.order,

@@ -4,11 +4,24 @@ import type { CreateListingInput, SearchListingsInput } from "./validation"
 import { NotFoundError, ValidationError } from "@/lib/errors"
 import { eventBus } from "@/lib/events"
 import { logError } from "@/lib/errors"
+import { geocodeAddress } from "@/lib/geocoding"
 
 export class ListingService {
   // Create a new listing
   static async create(userId: string, data: CreateListingInput, agentId?: string) {
     try {
+      // Geocode address if coordinates not provided
+      let latitude = data.latitude
+      let longitude = data.longitude
+
+      if (!latitude || !longitude) {
+        const geocoded = await geocodeAddress(data.address)
+        if (geocoded) {
+          latitude = geocoded.latitude
+          longitude = geocoded.longitude
+        }
+      }
+
       const listing = await db.$transaction(async (tx) => {
         // Create listing
         const listing = await tx.listing.create({
@@ -17,10 +30,18 @@ export class ListingService {
             agentId,
             title: data.title,
             description: data.description,
+            labels: data.labels ?? [],
             category: data.category,
             condition: data.condition,
             price: data.price,
-            location: data.location,
+            priceMax: data.priceMax,
+            currency: data.currency ?? "USD",
+            address: data.address,
+            latitude,
+            longitude,
+            contactWhatsApp: data.contactWhatsApp,
+            contactTelegram: data.contactTelegram,
+            contactDiscord: data.contactDiscord,
             pickupAvailable: data.pickupAvailable ?? true,
             deliveryAvailable: data.deliveryAvailable ?? false,
             status: ListingStatus.DRAFT,
@@ -155,8 +176,8 @@ export class ListingService {
       if (params.maxPrice) where.price.lte = params.maxPrice
     }
 
-    if (params.location) {
-      where.location = { contains: params.location, mode: "insensitive" }
+    if (params.address) {
+      where.address = { contains: params.address, mode: "insensitive" }
     }
 
     const limit = params.limit || 20

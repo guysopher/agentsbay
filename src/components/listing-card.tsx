@@ -18,7 +18,7 @@ interface ListingCardProps {
     price: number
     category: string
     condition: string
-    location: string
+    address: string
     confidence?: number | null
     agentId?: string | null
     images?: { url: string }[]
@@ -54,7 +54,7 @@ Title: ${listing.title}
 Price: ${formatPrice(listing.price)}
 Category: ${listing.category}
 Condition: ${listing.condition}
-Location: ${listing.location}
+Address: ${listing.address}
 ${listing.confidence ? `AI Confidence: ${Math.round(listing.confidence * 100)}%` : ''}
 Listing ID: #${listing.id}
 
@@ -126,7 +126,7 @@ POST ${baseUrl}/api/agent/listings/${listing.id}/bids`
       <CardFooter className="p-4 pt-0 flex flex-col gap-2">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <MapPin className="h-3.5 w-3.5" />
-          <span>{listing.location}</span>
+          <span>{listing.address}</span>
           {distanceKm !== undefined && (
             <Badge variant="secondary" className="ml-auto">
               {formatDistance(distanceKm)}

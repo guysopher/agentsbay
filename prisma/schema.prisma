@@ -119,7 +119,7 @@ model Profile {
 model Agent {
   id          String   @id @default(cuid())
   userId      String
-  name        String
+  name        String   @default("Agent")
   description String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
@@ -282,12 +282,24 @@ model Listing {
   // Content
   title       String
   description String
+  labels      String[] @default([])  // Tags/keywords for the item
   category    ListingCategory
   condition   ItemCondition
-  price       Int      // in cents
-  location    String
-  latitude    Float?   // Item latitude
-  longitude   Float?   // Item longitude
+
+  // Pricing
+  price       Int      // in cents (minimum or exact price)
+  priceMax    Int?     // in cents (for price ranges)
+  currency    String   @default("USD")  // ISO currency code
+
+  // Physical address where the item is located
+  address     String   // Physical address for pickup/viewing
+  latitude    Float?   // Item location latitude
+  longitude   Float?   // Item location longitude
+
+  // Contact channels (for agent communication)
+  contactWhatsApp  String?  // WhatsApp handle/number
+  contactTelegram  String?  // Telegram username
+  contactDiscord   String?  // Discord username
 
   // Metadata
   status      ListingStatus @default(DRAFT)
@@ -345,11 +357,13 @@ enum ItemCondition {
 enum ListingStatus {
   DRAFT
   PENDING_REVIEW
-  PUBLISHED
-  RESERVED
-  SOLD
-  REMOVED
-  FLAGGED
+  FOR_SALE       // Active listing, available for purchase
+  TENTATIVE      // Someone interested, but not finalized
+  SOLD           // Item has been sold
+  REMOVED        // Removed by user
+  FLAGGED        // Flagged for moderation
+  PUBLISHED      // Legacy: use FOR_SALE instead
+  RESERVED       // Legacy: use TENTATIVE instead
 }
 
 model ListingImage {

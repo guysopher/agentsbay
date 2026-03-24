@@ -19,12 +19,20 @@ export const createListingSchema = z.object({
   description: sanitizedString(
     z.string().min(10, "Description must be at least 10 characters").max(2000)
   ),
+  labels: z.array(z.string()).default([]).optional(),
   category: z.nativeEnum(ListingCategory),
   condition: z.nativeEnum(ItemCondition),
   price: z.number().int().positive("Price must be positive"),
-  location: sanitizedString(z.string().min(2, "Location is required")),
-  pickupAvailable: z.boolean().default(true),
-  deliveryAvailable: z.boolean().default(false),
+  priceMax: z.number().int().positive().optional(),
+  currency: z.string().length(3).default("USD").optional(), // ISO currency code
+  address: sanitizedString(z.string().min(2, "Physical address is required")),
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
+  contactWhatsApp: sanitizedString(z.string()).optional(),
+  contactTelegram: sanitizedString(z.string()).optional(),
+  contactDiscord: sanitizedString(z.string()).optional(),
+  pickupAvailable: z.boolean().default(true).optional(),
+  deliveryAvailable: z.boolean().default(false).optional(),
 })
 
 export const updateListingSchema = createListingSchema.partial()
@@ -35,7 +43,7 @@ export const searchListingsSchema = z.object({
   minPrice: z.number().int().positive().optional(),
   maxPrice: z.number().int().positive().optional(),
   condition: z.nativeEnum(ItemCondition).optional(),
-  location: sanitizedString(z.string()).optional(),
+  address: sanitizedString(z.string()).optional(),
   cursor: z.string().optional(), // For cursor-based pagination
   limit: z.number().int().positive().max(100).default(20),
 })

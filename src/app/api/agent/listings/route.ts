@@ -45,7 +45,7 @@ export const { POST } = createApiHandler({
           price: published.price,
           category: published.category,
           condition: published.condition,
-          location: published.location,
+          address: published.address,
         },
       })
     } catch (error: unknown) {

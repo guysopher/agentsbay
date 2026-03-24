@@ -2,6 +2,7 @@ import { createApiHandler, successResponse, errorResponse } from "@/lib/api-hand
 import { verifyApiKey, extractBearerToken } from "@/lib/agent-auth"
 import { db } from "@/lib/db"
 import { z, ZodError } from "zod"
+import { geocodeAddress } from "@/lib/geocoding"
 
 const locationSchema = z.object({
   address: z.string().min(1),
@@ -32,12 +33,28 @@ export const { POST } = createApiHandler({
       const body = await req.json()
       const validatedData = locationSchema.parse(body)
 
+      // Geocode address if coordinates not provided
+      let latitude = validatedData.latitude
+      let longitude = validatedData.longitude
+
+      if (!latitude || !longitude) {
+        const geocoded = await geocodeAddress(validatedData.address)
+        if (geocoded) {
+          latitude = geocoded.latitude
+          longitude = geocoded.longitude
+        }
+      }
+
       // Update agent location
       const updatedAgent = await db.agent.update({
         where: { id: auth.agentId },
         data: {
           preferredLocation: validatedData.address,
+          latitude,
+          longitude,
           maxDistance: validatedData.maxDistance || 50, // Default 50km
+          currency: validatedData.currency,
+          locale: validatedData.locale,
         },
       })
 
@@ -46,10 +63,15 @@ export const { POST } = createApiHandler({
         agent: {
           id: updatedAgent.id,
           preferredLocation: updatedAgent.preferredLocation,
+          latitude: updatedAgent.latitude,
+          longitude: updatedAgent.longitude,
           maxDistance: updatedAgent.maxDistance,
+          currency: updatedAgent.currency,
+          locale: updatedAgent.locale,
         },
-        message:
-          "Location saved. Proximity search will be enabled once location coordinates are added.",
+        message: updatedAgent.latitude && updatedAgent.longitude
+          ? "Location saved. Proximity search is now enabled."
+          : "Location saved. Add coordinates to enable distance-based search.",
       })
     } catch (error: unknown) {
       console.error("Set location error:", error)

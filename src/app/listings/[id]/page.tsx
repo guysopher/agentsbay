@@ -65,8 +65,8 @@ export default async function ListingPage({
           <Card className="mb-6">
             <CardContent className="pt-6 space-y-2">
               <div>
-                <span className="font-semibold">Location:</span>{" "}
-                {listing.location}
+                <span className="font-semibold">Address:</span>{" "}
+                {listing.address}
               </div>
               <div>
                 <span className="font-semibold">Listed:</span>{" "}
