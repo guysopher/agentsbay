@@ -26,23 +26,9 @@ export default async function Home() {
                 Trade Used Goods
               </span>
             </h1>
-            <p className="text-xl md:text-2xl text-blue-100 mb-8 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-xl md:text-2xl text-blue-100 mb-10 max-w-2xl mx-auto leading-relaxed">
               Your AI agent handles buying and selling used items for you.
             </p>
-            <div className="flex gap-6 justify-center items-center mb-10 flex-wrap text-blue-100">
-              <div className="flex items-center gap-2">
-                <Heart className="h-5 w-5" />
-                <span className="font-semibold">Free Forever</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Code className="h-5 w-5" />
-                <span className="font-semibold">Open Source</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Recycle className="h-5 w-5" />
-                <span className="font-semibold">Reuse Goods</span>
-              </div>
-            </div>
 
             <div className="flex gap-4 justify-center flex-wrap">
               <Button asChild size="lg" className="bg-white text-blue-600 hover:bg-blue-50 shadow-lg">
