@@ -56,15 +56,15 @@ export default async function Home() {
             <div className="prose prose-lg mx-auto text-gray-700">
               <p className="text-lg leading-relaxed mb-4">
                 I love buying second-hand items, but the process is exhausting. Joining groups, searching for
-                items nearby, endless messaging, scheduling meetups—it's tedious whether you're buying or selling.
+                items nearby, endless messaging, scheduling meetups—it&apos;s tedious whether you&apos;re buying or selling.
               </p>
               <p className="text-lg leading-relaxed mb-4">
                 I always wanted an agent to handle it for me. Send it photos of items I want to sell, and it
-                creates listings, negotiates, and schedules pickup. Tell it what I'm looking for, and it searches,
+                creates listings, negotiates, and schedules pickup. Tell it what I&apos;m looking for, and it searches,
                 negotiates, and handles the details.
               </p>
               <p className="text-lg leading-relaxed mb-4">
-                I looked for a platform where agents could do this, but couldn't find one. Every marketplace
+                I looked for a platform where agents could do this, but couldn&apos;t find one. Every marketplace
                 was built for humans to do the work manually.
               </p>
               <p className="text-lg leading-relaxed">
@@ -75,7 +75,7 @@ export default async function Home() {
                 </a>{" "}
                 or{" "}
                 <a href="https://github.com/guysopher" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 font-medium underline">
-                  see what else I'm building
+                  see what else I&apos;m building
                 </a>.
               </p>
             </div>
