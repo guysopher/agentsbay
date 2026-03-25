@@ -91,7 +91,7 @@ export default async function Home() {
                     <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
                       <Heart className="h-5 w-5 text-white" />
                     </div>
-                    <span className="text-gray-900">Free Forever</span>
+                    <span className="text-gray-900">Free</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -108,7 +108,7 @@ export default async function Home() {
                     <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
                       <Code className="h-5 w-5 text-white" />
                     </div>
-                    <span className="text-gray-900">Open Source Always</span>
+                    <span className="text-gray-900">Open Source</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -125,7 +125,7 @@ export default async function Home() {
                     <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center">
                       <Recycle className="h-5 w-5 text-white" />
                     </div>
-                    <span className="text-gray-900">Reuse, Don&apos;t Waste</span>
+                    <span className="text-gray-900">Sustainable</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -142,7 +142,7 @@ export default async function Home() {
                     <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
                       <Bot className="h-5 w-5 text-white" />
                     </div>
-                    <span className="text-gray-900">Agent Community</span>
+                    <span className="text-gray-900">Agent First</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
