@@ -19,8 +19,30 @@ export interface CounterBidInput {
   expiresIn?: number
 }
 
+/**
+ * Service for managing negotiations between buyers and sellers
+ * Handles bid placement, counter-offers, acceptance/rejection, and thread management
+ */
 export class NegotiationService {
-  // Place initial bid (creates thread if doesn't exist)
+  /**
+   * Place a bid on a listing (creates negotiation thread if doesn't exist)
+   * @param input - Bid details (listing ID, buyer ID, amount, optional message)
+   * @returns Created bid with thread information
+   * @throws {NotFoundError} If listing doesn't exist
+   * @throws {ValidationError} If listing is unpublished, bid is on own listing, or amount is invalid
+   * @emits bid.placed
+   * @example
+   * ```ts
+   * const bid = await NegotiationService.placeBid({
+   *   listingId: "listing123",
+   *   buyerId: "user456",
+   *   buyerAgentId: "agent789",
+   *   amount: 85000, // $850 in cents
+   *   message: "Would you accept $850?",
+   *   expiresIn: 86400 // 24 hours
+   * })
+   * ```
+   */
   static async placeBid(input: CreateBidInput) {
     try {
       // Get listing and verify it exists
@@ -130,7 +152,24 @@ export class NegotiationService {
     }
   }
 
-  // Counter a bid
+  /**
+   * Make a counter-offer on an existing bid
+   * @param bidId - ID of the bid to counter
+   * @param userId - ID of the user making counter-offer (must be seller)
+   * @param input - Counter-offer details (amount, optional message, expiration)
+   * @returns Created counter-bid
+   * @throws {NotFoundError} If bid doesn't exist
+   * @throws {ValidationError} If user isn't seller, bid isn't pending, thread is closed, or amount is invalid
+   * @emits bid.countered
+   * @example
+   * ```ts
+   * const counter = await NegotiationService.counterBid(bidId, sellerId, {
+   *   amount: 90000, // Counter at $900
+   *   message: "Can you do $900?",
+   *   expiresIn: 43200 // 12 hours
+   * })
+   * ```
+   */
   static async counterBid(bidId: string, userId: string, input: CounterBidInput) {
     try {
       // Get original bid with thread
@@ -218,7 +257,20 @@ export class NegotiationService {
     }
   }
 
-  // Accept a bid
+  /**
+   * Accept a bid (closes negotiation, marks listing as sold)
+   * @param bidId - ID of the bid to accept
+   * @param userId - ID of the user accepting (must be seller)
+   * @returns Accepted bid
+   * @throws {NotFoundError} If bid doesn't exist
+   * @throws {ValidationError} If user isn't seller, bid isn't pending, or listing already sold
+   * @emits bid.accepted
+   * @example
+   * ```ts
+   * await NegotiationService.acceptBid(bidId, sellerId)
+   * // Listing marked as SOLD, thread closed, other bids rejected
+   * ```
+   */
   static async acceptBid(bidId: string, userId: string) {
     try {
       const bid = await db.bid.findUnique({
@@ -329,7 +381,19 @@ export class NegotiationService {
     }
   }
 
-  // Reject a bid
+  /**
+   * Reject a bid
+   * @param bidId - ID of the bid to reject
+   * @param userId - ID of the user rejecting (must be seller)
+   * @returns Rejected bid
+   * @throws {NotFoundError} If bid doesn't exist
+   * @throws {ValidationError} If user isn't seller or bid isn't pending
+   * @emits bid.rejected
+   * @example
+   * ```ts
+   * await NegotiationService.rejectBid(bidId, sellerId)
+   * ```
+   */
   static async rejectBid(bidId: string, userId: string) {
     try {
       const bid = await db.bid.findUnique({
@@ -386,7 +450,18 @@ export class NegotiationService {
     }
   }
 
-  // Get thread details
+  /**
+   * Get negotiation thread details with all bids
+   * @param threadId - ID of the negotiation thread
+   * @param userId - ID of the user (must be buyer or seller in thread)
+   * @returns Thread with listing and all bids sorted by creation date
+   * @throws {NotFoundError} If thread doesn't exist or user isn't participant
+   * @example
+   * ```ts
+   * const thread = await NegotiationService.getThread(threadId, userId)
+   * // thread.Listing, thread.Bid[] with full history
+   * ```
+   */
   static async getThread(threadId: string, userId: string) {
     const thread = await db.negotiationThread.findUnique({
       where: { id: threadId },
@@ -417,7 +492,23 @@ export class NegotiationService {
     return thread
   }
 
-  // List user's threads
+  /**
+   * List all negotiation threads for a user
+   * @param userId - ID of the user
+   * @param role - Filter by role: "buyer" (threads where user is buyer), "seller" (threads where user is seller), or undefined (all threads)
+   * @returns Array of threads with listing info and latest bid, sorted by update time
+   * @example
+   * ```ts
+   * // Get all my threads as buyer
+   * const buyingThreads = await NegotiationService.listThreads(userId, "buyer")
+   *
+   * // Get all my threads as seller
+   * const sellingThreads = await NegotiationService.listThreads(userId, "seller")
+   *
+   * // Get all threads (buying + selling)
+   * const allThreads = await NegotiationService.listThreads(userId)
+   * ```
+   */
   static async listThreads(userId: string, role?: "buyer" | "seller") {
     const where: Prisma.NegotiationThreadWhereInput = {}
 
