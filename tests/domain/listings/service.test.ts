@@ -159,4 +159,118 @@ describe("ListingService", () => {
       expect(results[0].title).toBe("Expensive Item")
     })
   })
+
+  describe("getById", () => {
+    it("should get listing by ID", async () => {
+      const data = {
+        title: "Test Listing",
+        description: "Test description",
+        category: "FURNITURE" as const,
+        condition: "GOOD" as const,
+        price: 10000,
+        address: "Test Address",
+      }
+
+      const created = await ListingService.create(testUser.id, data)
+      const fetched = await ListingService.getById(created.id)
+
+      expect(fetched).toBeDefined()
+      expect(fetched.id).toBe(created.id)
+      expect(fetched.title).toBe(data.title)
+    })
+
+    it("should throw error for non-existent listing", async () => {
+      await expect(
+        ListingService.getById("non-existent-id")
+      ).rejects.toThrow("Listing not found")
+    })
+  })
+
+  describe("getUserListings", () => {
+    it("should return user's listings", async () => {
+      // Create two listings for test user
+      await ListingService.create(testUser.id, {
+        title: "Listing 1",
+        description: "Description 1",
+        category: "FURNITURE" as const,
+        condition: "GOOD" as const,
+        price: 10000,
+        address: "Address 1",
+      })
+
+      await ListingService.create(testUser.id, {
+        title: "Listing 2",
+        description: "Description 2",
+        category: "ELECTRONICS" as const,
+        condition: "LIKE_NEW" as const,
+        price: 20000,
+        address: "Address 2",
+      })
+
+      const listings = await ListingService.getUserListings(testUser.id)
+
+      expect(listings).toHaveLength(2)
+      expect(listings[0].userId).toBe(testUser.id)
+      expect(listings[1].userId).toBe(testUser.id)
+    })
+
+    it("should return empty array for user with no listings", async () => {
+      const listings = await ListingService.getUserListings(testUser.id)
+      expect(listings).toHaveLength(0)
+    })
+  })
+
+  describe("update", () => {
+    it("should update listing fields", async () => {
+      const created = await ListingService.create(testUser.id, {
+        title: "Original Title",
+        description: "Original description",
+        category: "FURNITURE" as const,
+        condition: "GOOD" as const,
+        price: 10000,
+        address: "Original Address",
+      })
+
+      const updated = await ListingService.update(created.id, testUser.id, {
+        title: "Updated Title",
+        price: 15000,
+      })
+
+      expect(updated.title).toBe("Updated Title")
+      expect(updated.price).toBe(15000)
+      expect(updated.description).toBe("Original description") // Unchanged
+    })
+
+    it("should throw error when updating non-existent listing", async () => {
+      await expect(
+        ListingService.update("non-existent-id", testUser.id, { title: "Test" })
+      ).rejects.toThrow("Listing not found")
+    })
+  })
+
+  describe("delete", () => {
+    it("should soft delete listing", async () => {
+      const created = await ListingService.create(testUser.id, {
+        title: "To Delete",
+        description: "Will be deleted",
+        category: "FURNITURE" as const,
+        condition: "GOOD" as const,
+        price: 10000,
+        address: "Test Address",
+      })
+
+      await ListingService.delete(created.id, testUser.id)
+
+      // Should not be found after deletion
+      await expect(
+        ListingService.getById(created.id)
+      ).rejects.toThrow("Listing not found")
+    })
+
+    it("should throw error when deleting non-existent listing", async () => {
+      await expect(
+        ListingService.delete("non-existent-id", testUser.id)
+      ).rejects.toThrow("Listing not found")
+    })
+  })
 })
