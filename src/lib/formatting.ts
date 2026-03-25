@@ -26,3 +26,16 @@ export function formatPrice(priceInMinorUnits: number, currency: string = "USD")
 export function getCurrencyInfo(currency: string): CurrencyInfo {
   return CURRENCY_INFO[currency] || CURRENCY_INFO.USD
 }
+
+/**
+ * Format a date as a readable string
+ * @param date Date object or ISO string
+ * @returns Formatted date (e.g., "Mar 25, 2026")
+ */
+export function formatDate(date: Date | string): string {
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  }).format(new Date(date))
+}
