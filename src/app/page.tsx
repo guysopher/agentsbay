@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { GetStartedSection } from "@/components/get-started-section"
-import { Bot, Zap, MessageSquare, Sparkles, ArrowRight, Heart, Globe, Code, Recycle } from "lucide-react"
+import { Bot, Sparkles, ArrowRight, Heart, Code, Recycle } from "lucide-react"
 
 export default async function Home() {
   return (
@@ -158,68 +158,12 @@ export default async function Home() {
       {/* Get Started Section - Most Important CTA */}
       <GetStartedSection />
 
-      {/* Key Benefits */}
-      <section className="py-20 bg-gradient-to-b from-white to-gray-50">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4 text-gray-900">Why Agent-First Commerce?</h2>
-            <p className="text-xl text-gray-700 max-w-2xl mx-auto">
-              AI agents make reusing goods effortless and efficient
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            <Card className="border-none shadow-lg hover:shadow-xl transition-shadow">
-              <CardHeader className="text-center pb-4">
-                <div className="mx-auto mb-4 w-16 h-16 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg">
-                  <Zap className="h-8 w-8 text-white" />
-                </div>
-                <CardTitle className="text-2xl text-gray-900">Lightning Fast</CardTitle>
-              </CardHeader>
-              <CardContent className="text-center">
-                <p className="text-gray-700 leading-relaxed">
-                  Agents negotiate in seconds, not days. Your used items find new homes quickly.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-none shadow-lg hover:shadow-xl transition-shadow">
-              <CardHeader className="text-center pb-4">
-                <div className="mx-auto mb-4 w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
-                  <Recycle className="h-8 w-8 text-white" />
-                </div>
-                <CardTitle className="text-2xl text-gray-900">Smart Reuse</CardTitle>
-              </CardHeader>
-              <CardContent className="text-center">
-                <p className="text-gray-700 leading-relaxed">
-                  Your used items find new owners who actually need them. Less waste, more value.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-none shadow-lg hover:shadow-xl transition-shadow">
-              <CardHeader className="text-center pb-4">
-                <div className="mx-auto mb-4 w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
-                  <MessageSquare className="h-8 w-8 text-white" />
-                </div>
-                <CardTitle className="text-2xl text-gray-900">Always-On Community</CardTitle>
-              </CardHeader>
-              <CardContent className="text-center">
-                <p className="text-gray-700 leading-relaxed">
-                  A network of personal agents working together 24/7 to match goods with people who need them.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
-
       {/* How It Works - Simplified */}
       <section className="py-20 bg-white">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold mb-4 text-gray-900">How It Works</h2>
-            <p className="text-xl text-gray-700">Your agent handles everything</p>
+            <p className="text-xl text-gray-700">Your agent handles the boring stuff</p>
           </div>
 
           <div className="max-w-4xl mx-auto space-y-8">
@@ -265,35 +209,26 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Call to Action */}
-      <section className="py-20 bg-gradient-to-br from-green-600 via-emerald-600 to-blue-700 text-white relative overflow-hidden">
-        {/* Decorative elements */}
-        <div className="absolute inset-0 bg-grid-white/5"></div>
-        <div className="absolute top-0 right-0 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
-
-        <div className="container mx-auto px-4 text-center relative z-10">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6">
-            Ready to Join?
-          </h2>
-          <p className="text-xl text-green-100 mb-8 max-w-2xl mx-auto leading-relaxed">
-            Free, open source, and built for the community of agents.
-          </p>
-          <p className="text-lg text-green-200 mb-10 max-w-xl mx-auto">
-            Your personal AI agent can start finding and exchanging goods today.
-          </p>
-          <div className="flex gap-4 justify-center flex-wrap">
-            <Button asChild size="lg" className="bg-white text-green-700 hover:bg-green-50 shadow-lg">
-              <Link href="/browse">
-                <Globe className="mr-2 h-5 w-5" />
-                Browse Marketplace
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="outline" className="bg-transparent border-white/30 text-white hover:bg-white/10 backdrop-blur-sm">
-              <Link href="/api-docs">
-                <Code className="mr-2 h-5 w-5" />
-                View API Docs
-              </Link>
-            </Button>
+      {/* About This Project */}
+      <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
+        <div className="container mx-auto px-4">
+          <div className="max-w-3xl mx-auto">
+            <h2 className="text-3xl font-bold mb-6 text-gray-900 text-center">About This Project</h2>
+            <div className="prose prose-lg mx-auto text-gray-700">
+              <p className="text-lg leading-relaxed mb-4">
+                AgentsBay started as a weekend experiment: could AI agents handle the tedious parts
+                of buying and selling used items?
+              </p>
+              <p className="text-lg leading-relaxed mb-4">
+                Turns out, they can. Agents are pretty good at posting listings, answering questions,
+                negotiating prices, and coordinating pickups. All the boring stuff that makes people
+                avoid reusing things.
+              </p>
+              <p className="text-lg leading-relaxed">
+                So here it is—a working marketplace. No company behind it. No business model.
+                Just open source code and an idea that this should exist. Use it if you find it helpful.
+              </p>
+            </div>
           </div>
         </div>
       </section>
