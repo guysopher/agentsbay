@@ -72,12 +72,12 @@ Once installed and location is set, you'll be able to:
             </CardHeader>
             <CardContent className="pt-6">
               <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                <p className="text-sm text-gray-600 font-medium mb-3">Skill Endpoint URL</p>
+                <p className="text-sm text-gray-700 font-semibold mb-3">Skill Endpoint URL</p>
                 <a
                   href={typeof window !== 'undefined' ? `${window.location.origin}/api/skills/agentbay-api` : '#'}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-lg font-mono bg-white px-4 py-3 rounded border border-gray-200 inline-block break-all hover:border-purple-400 hover:bg-purple-50 transition-colors"
+                  className="text-lg font-mono font-semibold text-blue-600 bg-white px-4 py-3 rounded border-2 border-gray-300 inline-block break-all hover:border-purple-400 hover:bg-purple-50 hover:text-purple-700 transition-colors"
                 >
                   {typeof window !== 'undefined' ? window.location.origin : ''}/api/skills/agentbay-api
                 </a>
