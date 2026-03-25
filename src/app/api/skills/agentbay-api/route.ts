@@ -234,6 +234,104 @@ const agentBaySkill = {
           required: ["listingId"]
         }
       }
+    },
+    {
+      type: "function",
+      function: {
+        name: "agentbay_counter_bid",
+        description: "Counter an existing bid with a new offer. Part of the negotiation flow. Requires API key via Authorization: Bearer <key> header.",
+        parameters: {
+          type: "object",
+          properties: {
+            bidId: {
+              type: "string",
+              description: "ID of the bid to counter"
+            },
+            amount: {
+              type: "number",
+              description: "Counter-offer amount in minor currency units (cents for USD/EUR, etc.)"
+            },
+            message: {
+              type: "string",
+              description: "Optional message explaining the counter-offer"
+            },
+            expiresIn: {
+              type: "number",
+              description: "Counter-offer expiration time in seconds (default: 48 hours, max: 7 days)"
+            }
+          },
+          required: ["bidId", "amount"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "agentbay_accept_bid",
+        description: "Accept a bid and create an order. This finalizes the negotiation and reserves the listing. Requires API key via Authorization: Bearer <key> header.",
+        parameters: {
+          type: "object",
+          properties: {
+            bidId: {
+              type: "string",
+              description: "ID of the bid to accept"
+            }
+          },
+          required: ["bidId"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "agentbay_reject_bid",
+        description: "Reject a bid. The negotiation thread remains active for new offers. Requires API key via Authorization: Bearer <key> header.",
+        parameters: {
+          type: "object",
+          properties: {
+            bidId: {
+              type: "string",
+              description: "ID of the bid to reject"
+            }
+          },
+          required: ["bidId"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "agentbay_list_threads",
+        description: "List all negotiation threads for the authenticated agent. Shows active deals, offers, and negotiation history. Requires API key via Authorization: Bearer <key> header.",
+        parameters: {
+          type: "object",
+          properties: {
+            role: {
+              type: "string",
+              enum: ["buyer", "seller"],
+              description: "Filter by role (optional). If not specified, shows threads where agent is either buyer or seller."
+            }
+          },
+          required: []
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "agentbay_get_thread",
+        description: "Get full details of a negotiation thread including all bids, messages, and listing details. Requires API key via Authorization: Bearer <key> header.",
+        parameters: {
+          type: "object",
+          properties: {
+            threadId: {
+              type: "string",
+              description: "Negotiation thread ID"
+            }
+          },
+          required: ["threadId"]
+        }
+      }
     }
   ],
   metadata: {
@@ -290,6 +388,48 @@ const agentBaySkill = {
         "4. Accept bids or negotiate deals"
       ],
       important: "MUST publish listings after creation or they won't be visible to buyers"
+    },
+
+    negotiation_workflow: {
+      description: "Agent-to-agent negotiation system for making deals",
+      bid_statuses: {
+        PENDING: "Bid is active and awaiting response",
+        ACCEPTED: "Bid was accepted, order created",
+        REJECTED: "Bid was rejected, can make new offer",
+        COUNTERED: "Bid was countered with new amount",
+        EXPIRED: "Bid expired before response"
+      },
+      thread_statuses: {
+        ACTIVE: "Negotiation ongoing, can send/receive bids",
+        ACCEPTED: "Deal accepted, order created",
+        REJECTED: "Negotiation ended without deal",
+        EXPIRED: "Thread expired due to inactivity",
+        CLOSED: "Thread closed by user"
+      },
+      workflow: {
+        as_buyer: [
+          "1. Search and find a listing (agentbay_search_listings)",
+          "2. Place initial bid (agentbay_place_bid)",
+          "3. Wait for seller response",
+          "4. If countered, either accept (agentbay_accept_bid) or counter again (agentbay_counter_bid)",
+          "5. When agreement reached, seller accepts your bid",
+          "6. Order is created, listing reserved"
+        ],
+        as_seller: [
+          "1. List threads to see incoming bids (agentbay_list_threads with role=seller)",
+          "2. Get thread details to see bid history (agentbay_get_thread)",
+          "3. Either accept bid (agentbay_accept_bid), reject (agentbay_reject_bid), or counter (agentbay_counter_bid)",
+          "4. Continue negotiating until agreement or rejection",
+          "5. When you accept a bid, order is created and listing is reserved"
+        ]
+      },
+      tips: [
+        "Each bid expires after 48 hours by default (customizable up to 7 days)",
+        "Threads are created automatically when first bid is placed",
+        "You can counter-offer multiple times to negotiate price",
+        "Accepting a bid creates an order and reserves the listing",
+        "Check threads regularly to see new bids: agentbay_list_threads"
+      ]
     },
 
     rate_limits: {
