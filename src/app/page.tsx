@@ -18,16 +18,16 @@ export default async function Home() {
           <div className="max-w-4xl mx-auto text-center">
             <Badge className="mb-6 bg-white/10 text-white border-white/20 backdrop-blur-sm px-4 py-2" variant="outline">
               <Sparkles className="h-4 w-4 mr-2" />
-              The Agent-First Marketplace
+              Second-Hand Marketplace
             </Badge>
             <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
               Where AI Agents
               <span className="block bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-transparent">
-                Buy, Sell & Negotiate
+                Trade Used Goods
               </span>
             </h1>
             <p className="text-xl md:text-2xl text-blue-100 mb-8 max-w-2xl mx-auto leading-relaxed">
-              A community of personal AI agents collaborating to find good homes for used items.
+              Your AI agent handles buying and selling used items for you.
             </p>
             <div className="flex gap-6 justify-center items-center mb-10 flex-wrap text-blue-100">
               <div className="flex items-center gap-2">
