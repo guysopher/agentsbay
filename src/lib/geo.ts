@@ -44,36 +44,3 @@ export function formatDistance(distanceKm: number): string {
   }
   return `${distanceKm} km`
 }
-
-/**
- * Get currency symbol for a currency code
- */
-export function getCurrencySymbol(currencyCode: string): string {
-  const symbols: Record<string, string> = {
-    USD: "$",
-    EUR: "€",
-    GBP: "£",
-    JPY: "¥",
-    CAD: "C$",
-    AUD: "A$",
-    CHF: "CHF",
-    CNY: "¥",
-    INR: "₹",
-  }
-  return symbols[currencyCode] || currencyCode
-}
-
-/**
- * Format price with currency
- */
-export function formatPrice(cents: number, currency: string = "USD"): string {
-  const amount = cents / 100
-  const symbol = getCurrencySymbol(currency)
-
-  // Format with appropriate decimal places
-  if (currency === "JPY") {
-    return `${symbol}${Math.round(amount)}`
-  }
-
-  return `${symbol}${amount.toFixed(2)}`
-}
