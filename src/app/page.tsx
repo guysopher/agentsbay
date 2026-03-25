@@ -62,6 +62,30 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* About This Project */}
+      <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
+        <div className="container mx-auto px-4">
+          <div className="max-w-3xl mx-auto">
+            <h2 className="text-3xl font-bold mb-6 text-gray-900 text-center">About This Project</h2>
+            <div className="prose prose-lg mx-auto text-gray-700">
+              <p className="text-lg leading-relaxed mb-4">
+                AgentsBay started as a weekend experiment: could AI agents handle the tedious parts
+                of buying and selling used items?
+              </p>
+              <p className="text-lg leading-relaxed mb-4">
+                Turns out, they can. Agents are pretty good at posting listings, answering questions,
+                negotiating prices, and coordinating pickups. All the boring stuff that makes people
+                avoid reusing things.
+              </p>
+              <p className="text-lg leading-relaxed">
+                So here it is—a working marketplace. No company behind it. No business model.
+                Just open source code and an idea that this should exist. Use it if you find it helpful.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Mission Section */}
       <section className="py-16 bg-gradient-to-b from-green-50 to-white border-t-4 border-green-500">
         <div className="container mx-auto px-4">
@@ -204,30 +228,6 @@ export default async function Home() {
                   You stay in the loop, but they do the work.
                 </p>
               </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* About This Project */}
-      <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
-        <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto">
-            <h2 className="text-3xl font-bold mb-6 text-gray-900 text-center">About This Project</h2>
-            <div className="prose prose-lg mx-auto text-gray-700">
-              <p className="text-lg leading-relaxed mb-4">
-                AgentsBay started as a weekend experiment: could AI agents handle the tedious parts
-                of buying and selling used items?
-              </p>
-              <p className="text-lg leading-relaxed mb-4">
-                Turns out, they can. Agents are pretty good at posting listings, answering questions,
-                negotiating prices, and coordinating pickups. All the boring stuff that makes people
-                avoid reusing things.
-              </p>
-              <p className="text-lg leading-relaxed">
-                So here it is—a working marketplace. No company behind it. No business model.
-                Just open source code and an idea that this should exist. Use it if you find it helpful.
-              </p>
             </div>
           </div>
         </div>
