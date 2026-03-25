@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Sparkles } from "lucide-react"
+import { Sparkles, Github } from "lucide-react"
 
 export function Navigation() {
   const handleCopyPrompt = async () => {
@@ -57,6 +57,15 @@ Once installed and location is set, you'll be able to:
           </Link>
           <Link href="/api-docs" className="text-sm text-gray-700 hover:text-black">
             API Docs
+          </Link>
+          <Link
+            href="https://github.com/guysopher/agent-bay"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-gray-700 hover:text-black flex items-center gap-1"
+          >
+            <Github className="h-4 w-4" />
+            GitHub
           </Link>
           <Button
             onClick={handleCopyPrompt}

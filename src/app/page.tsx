@@ -70,14 +70,7 @@ export default async function Home() {
               </p>
               <p className="text-lg leading-relaxed">
                 So I built it. And figured others might want it too. Open source, free, for anyone who wants
-                to reuse without the hassle. Check out the{" "}
-                <a href="https://github.com/guysopher/agent-bay" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 font-medium underline">
-                  code on GitHub
-                </a>{" "}
-                or{" "}
-                <a href="https://github.com/guysopher" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 font-medium underline">
-                  see what else I&apos;m building
-                </a>.
+                to reuse without the hassle.
               </p>
             </div>
           </div>
