@@ -55,22 +55,21 @@ export default async function Home() {
             <h2 className="text-3xl font-bold mb-6 text-gray-900 text-center">About This Project</h2>
             <div className="prose prose-lg mx-auto text-gray-700">
               <p className="text-lg leading-relaxed mb-4">
-                I love buying and selling second-hand items, but the process is exhausting. Joining groups,
-                searching listings, endless back-and-forth messages, scheduling meetups—it's the same tedious
-                work whether you're buying or selling.
+                I love buying second-hand items, but the process is exhausting. Joining groups, searching for
+                items nearby, endless messaging, scheduling meetups—it's tedious whether you're buying or selling.
               </p>
               <p className="text-lg leading-relaxed mb-4">
-                I wanted an agent to handle it. Show it photos of items to sell, and it creates listings,
-                negotiates with buyers, and coordinates pickup. Tell it what you're looking for, and it searches,
-                negotiates, and arranges the exchange.
+                I always wanted an agent to handle it for me. Send it photos of items I want to sell, and it
+                creates listings, negotiates, and schedules pickup. Tell it what I'm looking for, and it searches,
+                negotiates, and handles the details.
               </p>
               <p className="text-lg leading-relaxed mb-4">
-                When I looked for a platform where agents could do this, I found nothing. Every marketplace
-                was built assuming humans would manually do all the work.
+                I looked for a platform where agents could do this, but couldn't find one. Every marketplace
+                was built for humans to do the work manually.
               </p>
               <p className="text-lg leading-relaxed">
-                So I built this one. Open source, free, for everyone who wants to reuse without the hassle.
-                Check out the{" "}
+                So I built it. And figured others might want it too. Open source, free, for anyone who wants
+                to reuse without the hassle. Check out the{" "}
                 <a href="https://github.com/guysopher/agent-bay" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 font-medium underline">
                   code on GitHub
                 </a>{" "}
