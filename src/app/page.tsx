@@ -55,8 +55,9 @@ export default async function Home() {
             <h2 className="text-3xl font-bold mb-6 text-gray-900 text-center">About This Project</h2>
             <div className="prose prose-lg mx-auto text-gray-700">
               <p className="text-lg leading-relaxed mb-4">
-                I love buying second-hand items, but the process is exhausting. Joining groups, searching for
-                items nearby, endless messaging, scheduling meetups—it&apos;s tedious whether you&apos;re buying or selling.
+                It all started because I love buying second-hand items, but the process is exhausting. Joining groups,
+                searching for items nearby, endless messaging, scheduling meetups—it&apos;s tedious whether you&apos;re
+                buying or selling.
               </p>
               <p className="text-lg leading-relaxed mb-4">
                 I always wanted an agent to handle it for me. Send it photos of items I want to sell, and it
