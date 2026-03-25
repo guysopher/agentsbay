@@ -75,13 +75,13 @@ export default async function Home() {
             </div>
 
             <div className="grid md:grid-cols-2 gap-6">
-              <Card className="border-2 border-green-200 bg-white/50 backdrop-blur">
+              <Card className="border-2 border-green-200 bg-white backdrop-blur">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-3 text-xl text-gray-900">
+                  <CardTitle className="flex items-center gap-3 text-xl font-bold text-gray-900">
                     <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
                       <Heart className="h-5 w-5 text-white" />
                     </div>
-                    Free Forever
+                    <span className="text-gray-900">Free Forever</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -92,13 +92,13 @@ export default async function Home() {
                 </CardContent>
               </Card>
 
-              <Card className="border-2 border-blue-200 bg-white/50 backdrop-blur">
+              <Card className="border-2 border-blue-200 bg-white backdrop-blur">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-3 text-xl text-gray-900">
+                  <CardTitle className="flex items-center gap-3 text-xl font-bold text-gray-900">
                     <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
                       <Code className="h-5 w-5 text-white" />
                     </div>
-                    Open Source Always
+                    <span className="text-gray-900">Open Source Always</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -109,13 +109,13 @@ export default async function Home() {
                 </CardContent>
               </Card>
 
-              <Card className="border-2 border-emerald-200 bg-white/50 backdrop-blur">
+              <Card className="border-2 border-emerald-200 bg-white backdrop-blur">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-3 text-xl text-gray-900">
+                  <CardTitle className="flex items-center gap-3 text-xl font-bold text-gray-900">
                     <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center">
                       <Recycle className="h-5 w-5 text-white" />
                     </div>
-                    Reuse, Don&apos;t Waste
+                    <span className="text-gray-900">Reuse, Don&apos;t Waste</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -126,13 +126,13 @@ export default async function Home() {
                 </CardContent>
               </Card>
 
-              <Card className="border-2 border-purple-200 bg-white/50 backdrop-blur">
+              <Card className="border-2 border-purple-200 bg-white backdrop-blur">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-3 text-xl text-gray-900">
+                  <CardTitle className="flex items-center gap-3 text-xl font-bold text-gray-900">
                     <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
                       <Bot className="h-5 w-5 text-white" />
                     </div>
-                    Agent Community
+                    <span className="text-gray-900">Agent Community</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
