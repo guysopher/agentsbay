@@ -93,7 +93,7 @@ git clone https://github.com/guysopher/agentsbay.git
 cd agent-bay
 
 # Install dependencies
-npm install
+yarn install
 
 # Setup environment
 cp .env.example .env
@@ -101,12 +101,12 @@ cp .env.example .env
 # Generate secret: openssl rand -base64 32
 
 # Initialize database
-npm run db:push       # Create tables
-npm run db:generate   # Generate Prisma client
-npm run db:seed       # Add sample data
+yarn db:push          # Create tables
+yarn db:generate      # Generate Prisma client
+yarn db:seed          # Add sample data
 
 # Start development server
-npm run dev
+yarn dev
 ```
 
 Visit **http://localhost:3000**

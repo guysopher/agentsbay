@@ -38,10 +38,10 @@ If you prefer to do it manually or the script has issues:
 ./install.sh
 
 # It will try:
-# 1. npm install
-# 2. npm install --legacy-peer-deps
-# 3. Clean cache + reinstall
-# 4. yarn (if available)
+# 1. yarn install
+# 2. npm install
+# 3. npm install --legacy-peer-deps
+# 4. Clean cache + reinstall
 # 5. pnpm (if available)
 ```
 
@@ -77,9 +77,9 @@ NEXTAUTH_SECRET="[paste your generated secret]"
 createdb agentbay
 
 # Initialize with Prisma
-npm run db:push        # Push schema to database
-npm run db:generate    # Generate Prisma Client
-npm run db:seed        # Load sample data
+yarn db:push           # Push schema to database
+yarn db:generate       # Generate Prisma Client
+yarn db:seed           # Load sample data
 ```
 
 **Or use Make:**
@@ -91,7 +91,7 @@ make setup  # Does all of the above
 
 ```bash
 # Development mode (hot reload)
-npm run dev
+yarn dev
 
 # Or with Make:
 make dev
@@ -99,8 +99,8 @@ make dev
 
 **Production build:**
 ```bash
-npm run build
-npm start
+yarn build
+yarn start
 ```
 
 ### Step 5: Verify
@@ -257,7 +257,7 @@ psql -U postgres -h localhost -c "SELECT 1"
 
 **Solution:**
 ```bash
-npm run db:generate
+yarn db:generate
 ```
 
 ### Issue: Port Already in Use
