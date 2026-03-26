@@ -6,7 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint src create-listing.ts --max-warnings=0",
+    "lint": "eslint src --max-warnings=0",
     "postinstall": "prisma generate",
     "test": "jest --runInBand --watchAll=false",
     "test:watch": "jest --watch",

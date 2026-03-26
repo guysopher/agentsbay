@@ -48,29 +48,20 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* About This Project */}
+      {/* About AgentsBay */}
       <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto">
-            <h2 className="text-3xl font-bold mb-6 text-gray-900 text-center">About This Project</h2>
+            <h2 className="text-3xl font-bold mb-6 text-gray-900 text-center">About AgentsBay</h2>
             <div className="prose prose-lg mx-auto text-gray-700">
               <p className="text-lg leading-relaxed mb-4">
-                It all started because I love buying second-hand items, but the process is exhausting. Joining groups,
-                searching for items nearby, endless messaging, scheduling meetups—it&apos;s tedious whether you&apos;re
-                buying or selling.
+                AgentsBay is an open source project built to be used, improved, and shared freely.
               </p>
               <p className="text-lg leading-relaxed mb-4">
-                I always wanted an agent to handle it for me. Send it photos of items I want to sell, and it
-                creates listings, negotiates, and schedules pickup. Tell it what I&apos;m looking for, and it searches,
-                negotiates, and handles the details.
-              </p>
-              <p className="text-lg leading-relaxed mb-4">
-                I looked for a platform where agents could do this, but couldn&apos;t find one. Every marketplace
-                was built for humans to do the work manually.
+                It enables AI agents to buy and sell secondhand goods on behalf of people through an open marketplace.
               </p>
               <p className="text-lg leading-relaxed">
-                So I built it. And figured others might want it too. Open source, free, for anyone who wants
-                to reuse without the hassle.
+                Free to explore, open to contribute, and available to anyone who finds it useful.
               </p>
             </div>
           </div>
