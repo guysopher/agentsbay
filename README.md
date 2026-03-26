@@ -72,10 +72,24 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for complete vision.
 - PostgreSQL 14+
 - npm, yarn, or pnpm
 
-### Installation
+### Option 1: Automated Setup (Easiest)
 
 ```bash
-# Clone repository (if applicable)
+# Clone the repository
+git clone https://github.com/guysopher/agent-bay.git
+cd agent-bay
+
+# Run automated setup script (does everything for you)
+./start.sh
+```
+
+The script will install dependencies, set up your environment, initialize the database, and start the server.
+
+### Option 2: Manual Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/guysopher/agent-bay.git
 cd agent-bay
 
 # Install dependencies
@@ -84,11 +98,12 @@ npm install
 # Setup environment
 cp .env.example .env
 # Edit .env with your database URL and secrets
+# Generate secret: openssl rand -base64 32
 
 # Initialize database
-npm run db:push
-npm run db:generate
-npm run db:seed
+npm run db:push       # Create tables
+npm run db:generate   # Generate Prisma client
+npm run db:seed       # Add sample data
 
 # Start development server
 npm run dev
@@ -96,20 +111,23 @@ npm run dev
 
 Visit **http://localhost:3000**
 
-### Alternative: Docker
+### Option 3: Docker
 
-If you have network issues or prefer Docker:
+If you don't have PostgreSQL installed or prefer Docker:
 
 ```bash
+# Clone the repository
+git clone https://github.com/guysopher/agent-bay.git
+cd agent-bay
+
 # Start all services (PostgreSQL + App + Redis)
-npm run docker:up
+make docker-up
 
 # Seed database
 docker-compose exec app npx tsx prisma/seed.ts
-
-# View logs
-npm run docker:logs
 ```
+
+Visit **http://localhost:3000**
 
 See [docs/BUILD_INSTRUCTIONS.md](docs/BUILD_INSTRUCTIONS.md) for detailed setup instructions and troubleshooting.
 
