@@ -5,23 +5,50 @@ const prisma = new PrismaClient()
 
 async function main() {
   console.log("Seeding database...")
+  const now = new Date()
 
   // Create test users
   const hashedPassword = await bcrypt.hash("password123", 10)
 
   const user1 = await prisma.user.upsert({
     where: { email: "alice@example.com" },
-    update: {},
+    update: {
+      name: "Alice Johnson",
+      password: hashedPassword,
+      emailVerified: now,
+      updatedAt: now,
+      Profile: {
+        upsert: {
+          create: {
+            id: "profile-alice",
+            displayName: "Alice J.",
+            location: "San Francisco, CA",
+            bio: "Love finding great deals on furniture!",
+            updatedAt: now,
+          },
+          update: {
+            displayName: "Alice J.",
+            location: "San Francisco, CA",
+            bio: "Love finding great deals on furniture!",
+            updatedAt: now,
+          },
+        },
+      },
+    },
     create: {
+      id: "user-alice",
       email: "alice@example.com",
       name: "Alice Johnson",
       password: hashedPassword,
-      emailVerified: new Date(),
-      profile: {
+      emailVerified: now,
+      updatedAt: now,
+      Profile: {
         create: {
+          id: "profile-alice",
           displayName: "Alice J.",
           location: "San Francisco, CA",
           bio: "Love finding great deals on furniture!",
+          updatedAt: now,
         },
       },
     },
@@ -29,17 +56,43 @@ async function main() {
 
   const user2 = await prisma.user.upsert({
     where: { email: "bob@example.com" },
-    update: {},
+    update: {
+      name: "Bob Smith",
+      password: hashedPassword,
+      emailVerified: now,
+      updatedAt: now,
+      Profile: {
+        upsert: {
+          create: {
+            id: "profile-bob",
+            displayName: "Bob S.",
+            location: "New York, NY",
+            bio: "Tech enthusiast and collector",
+            updatedAt: now,
+          },
+          update: {
+            displayName: "Bob S.",
+            location: "New York, NY",
+            bio: "Tech enthusiast and collector",
+            updatedAt: now,
+          },
+        },
+      },
+    },
     create: {
+      id: "user-bob",
       email: "bob@example.com",
       name: "Bob Smith",
       password: hashedPassword,
-      emailVerified: new Date(),
-      profile: {
+      emailVerified: now,
+      updatedAt: now,
+      Profile: {
         create: {
+          id: "profile-bob",
           displayName: "Bob S.",
           location: "New York, NY",
           bio: "Tech enthusiast and collector",
+          updatedAt: now,
         },
       },
     },
@@ -48,11 +101,27 @@ async function main() {
   console.log("Created users:", { user1, user2 })
 
   // Create agents
-  const agent1 = await prisma.agent.create({
-    data: {
+  const agent1 = await prisma.agent.upsert({
+    where: { id: "agent-alice-shopping" },
+    update: {
       userId: user1.id,
       name: "Alice's Shopping Agent",
       description: "Helps me find furniture and home goods",
+      updatedAt: now,
+      autoNegotiate: true,
+      maxBidAmount: 50000, // $500
+      minAcceptAmount: 5000, // $50
+      maxAcceptAmount: 100000, // $1000
+      requireApproval: false,
+      preferredLocation: "San Francisco Bay Area",
+      maxDistance: 50,
+    },
+    create: {
+      id: "agent-alice-shopping",
+      userId: user1.id,
+      name: "Alice's Shopping Agent",
+      description: "Helps me find furniture and home goods",
+      updatedAt: now,
       autoNegotiate: true,
       maxBidAmount: 50000, // $500
       minAcceptAmount: 5000, // $50
@@ -63,11 +132,24 @@ async function main() {
     },
   })
 
-  const agent2 = await prisma.agent.create({
-    data: {
+  const agent2 = await prisma.agent.upsert({
+    where: { id: "agent-bob-tech" },
+    update: {
       userId: user2.id,
       name: "Bob's Tech Agent",
       description: "Finds electronics and gadgets",
+      updatedAt: now,
+      autoNegotiate: true,
+      maxBidAmount: 200000, // $2000
+      requireApproval: true,
+      preferredLocation: "New York",
+    },
+    create: {
+      id: "agent-bob-tech",
+      userId: user2.id,
+      name: "Bob's Tech Agent",
+      description: "Finds electronics and gadgets",
+      updatedAt: now,
       autoNegotiate: true,
       maxBidAmount: 200000, // $2000
       requireApproval: true,
@@ -80,6 +162,7 @@ async function main() {
   // Create sample listings
   const listings = [
     {
+      id: "listing-vintage-chair",
       userId: user1.id,
       title: "Vintage Wooden Office Chair",
       description:
@@ -87,13 +170,15 @@ async function main() {
       category: ListingCategory.FURNITURE,
       condition: ItemCondition.GOOD,
       price: 12000, // $120
-      location: "San Francisco, CA",
+      address: "San Francisco, CA",
       status: ListingStatus.PUBLISHED,
-      publishedAt: new Date(),
+      updatedAt: now,
+      publishedAt: now,
       pickupAvailable: true,
       deliveryAvailable: false,
     },
     {
+      id: "listing-standing-desk",
       userId: user1.id,
       title: "Standing Desk - Adjustable Height",
       description:
@@ -101,13 +186,15 @@ async function main() {
       category: ListingCategory.FURNITURE,
       condition: ItemCondition.LIKE_NEW,
       price: 35000, // $350
-      location: "Oakland, CA",
+      address: "Oakland, CA",
       status: ListingStatus.PUBLISHED,
-      publishedAt: new Date(),
+      updatedAt: now,
+      publishedAt: now,
       pickupAvailable: true,
       deliveryAvailable: true,
     },
     {
+      id: "listing-macbook-pro",
       userId: user2.id,
       title: "MacBook Pro 13-inch M1",
       description:
@@ -115,13 +202,15 @@ async function main() {
       category: ListingCategory.ELECTRONICS,
       condition: ItemCondition.LIKE_NEW,
       price: 80000, // $800
-      location: "Brooklyn, NY",
+      address: "Brooklyn, NY",
       status: ListingStatus.PUBLISHED,
-      publishedAt: new Date(),
+      updatedAt: now,
+      publishedAt: now,
       pickupAvailable: true,
       deliveryAvailable: true,
     },
     {
+      id: "listing-mechanical-keyboard",
       userId: user2.id,
       title: "Mechanical Keyboard - Cherry MX Blue",
       description:
@@ -129,13 +218,15 @@ async function main() {
       category: ListingCategory.ELECTRONICS,
       condition: ItemCondition.GOOD,
       price: 9000, // $90
-      location: "Manhattan, NY",
+      address: "Manhattan, NY",
       status: ListingStatus.PUBLISHED,
-      publishedAt: new Date(),
+      updatedAt: now,
+      publishedAt: now,
       pickupAvailable: true,
       deliveryAvailable: false,
     },
     {
+      id: "listing-garden-tools",
       userId: user1.id,
       title: "Garden Tool Set",
       description:
@@ -143,13 +234,15 @@ async function main() {
       category: ListingCategory.HOME_GARDEN,
       condition: ItemCondition.GOOD,
       price: 4500, // $45
-      location: "San Francisco, CA",
+      address: "San Francisco, CA",
       status: ListingStatus.PUBLISHED,
-      publishedAt: new Date(),
+      updatedAt: now,
+      publishedAt: now,
       pickupAvailable: true,
       deliveryAvailable: false,
     },
     {
+      id: "listing-camera-tripod",
       userId: user2.id,
       title: "Professional Camera Tripod",
       description:
@@ -157,17 +250,20 @@ async function main() {
       category: ListingCategory.ELECTRONICS,
       condition: ItemCondition.LIKE_NEW,
       price: 6500, // $65
-      location: "Queens, NY",
+      address: "Queens, NY",
       status: ListingStatus.PUBLISHED,
-      publishedAt: new Date(),
+      updatedAt: now,
+      publishedAt: now,
       pickupAvailable: true,
       deliveryAvailable: true,
     },
   ]
 
   for (const listingData of listings) {
-    await prisma.listing.create({
-      data: listingData,
+    await prisma.listing.upsert({
+      where: { id: listingData.id },
+      update: listingData,
+      create: listingData,
     })
   }
 
@@ -176,8 +272,42 @@ async function main() {
   // Create the AgentBay skill - the main skill agents install
   await prisma.skill.upsert({
     where: { name: "agentbay-api" },
-    update: {},
+    update: {
+      displayName: "AgentBay API",
+      description: "Complete API access to AgentBay marketplace. Enables agents to register, create listings, search items, place bids, and negotiate deals autonomously.",
+      category: SkillCategory.AUTOMATION,
+      isActive: true,
+      config: {
+        timeout: 30000,
+        retries: 2,
+      },
+      capabilities: [
+        {
+          name: "register_agent",
+          description: "Register a new agent with AgentBay",
+        },
+        {
+          name: "create_listing",
+          description: "Create a new marketplace listing",
+        },
+        {
+          name: "search_listings",
+          description: "Search and filter marketplace listings",
+        },
+        {
+          name: "place_bid",
+          description: "Place a bid on a listing",
+        },
+        {
+          name: "negotiate",
+          description: "Conduct autonomous negotiations",
+        },
+      ],
+      costPerExecution: null,
+      updatedAt: now,
+    },
     create: {
+      id: "skill-agentbay-api",
       name: "agentbay-api",
       displayName: "AgentBay API",
       description: "Complete API access to AgentBay marketplace. Enables agents to register, create listings, search items, place bids, and negotiate deals autonomously.",
@@ -210,25 +340,41 @@ async function main() {
         },
       ],
       costPerExecution: null,
+      updatedAt: now,
     },
   })
 
   console.log("Created AgentBay skill")
 
   // Create trust signals
-  await prisma.trustSignal.createMany({
-    data: [
-      {
-        userId: user1.id,
-        type: "EMAIL_VERIFIED",
-        verified: true,
-      },
-      {
-        userId: user2.id,
-        type: "EMAIL_VERIFIED",
-        verified: true,
-      },
-    ],
+  await prisma.trustSignal.upsert({
+    where: { id: "trust-alice-email" },
+    update: {
+      userId: user1.id,
+      type: "EMAIL_VERIFIED",
+      verified: true,
+    },
+    create: {
+      id: "trust-alice-email",
+      userId: user1.id,
+      type: "EMAIL_VERIFIED",
+      verified: true,
+    },
+  })
+
+  await prisma.trustSignal.upsert({
+    where: { id: "trust-bob-email" },
+    update: {
+      userId: user2.id,
+      type: "EMAIL_VERIFIED",
+      verified: true,
+    },
+    create: {
+      id: "trust-bob-email",
+      userId: user2.id,
+      type: "EMAIL_VERIFIED",
+      verified: true,
+    },
   })
 
   console.log("Seeding complete!")

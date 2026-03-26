@@ -31,7 +31,7 @@
   "dependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "next": "15.5.14",
+    "next": "15.5.12",
     "@prisma/client": "^6.1.0",
     "next-auth": "^5.0.0-beta.25",
     "@auth/prisma-adapter": "^2.7.4",
@@ -62,7 +62,7 @@
     "@tailwindcss/postcss": "^4",
     "tailwindcss": "^4",
     "eslint": "^9",
-    "eslint-config-next": "15.5.14",
+    "eslint-config-next": "15.5.12",
     "@eslint/eslintrc": "^3",
     "prisma": "^6.1.0",
     "tsx": "^4.19.2",
@@ -74,5 +74,6 @@
   "main": "index.js",
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }

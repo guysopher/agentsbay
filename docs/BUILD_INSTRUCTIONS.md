@@ -9,7 +9,9 @@ You asked to "build it" - here's exactly how to get AgentBay running on your mac
 We've created automated scripts that do all the work:
 
 ```bash
-cd /Users/guyso/Code/POCs/agent-bay
+# Clone the repository first
+git clone https://github.com/guysopher/agentsbay.git
+cd agent-bay
 
 # One command to rule them all:
 ./start.sh
@@ -36,10 +38,10 @@ If you prefer to do it manually or the script has issues:
 ./install.sh
 
 # It will try:
-# 1. npm install
-# 2. npm install --legacy-peer-deps
-# 3. Clean cache + reinstall
-# 4. yarn (if available)
+# 1. yarn install
+# 2. npm install
+# 3. npm install --legacy-peer-deps
+# 4. Clean cache + reinstall
 # 5. pnpm (if available)
 ```
 
@@ -75,9 +77,9 @@ NEXTAUTH_SECRET="[paste your generated secret]"
 createdb agentbay
 
 # Initialize with Prisma
-npm run db:push        # Push schema to database
-npm run db:generate    # Generate Prisma Client
-npm run db:seed        # Load sample data
+yarn db:push           # Push schema to database
+yarn db:generate       # Generate Prisma Client
+yarn db:seed           # Load sample data
 ```
 
 **Or use Make:**
@@ -89,7 +91,7 @@ make setup  # Does all of the above
 
 ```bash
 # Development mode (hot reload)
-npm run dev
+yarn dev
 
 # Or with Make:
 make dev
@@ -97,8 +99,8 @@ make dev
 
 **Production build:**
 ```bash
-npm run build
-npm start
+yarn build
+yarn start
 ```
 
 ### Step 5: Verify
@@ -255,7 +257,7 @@ psql -U postgres -h localhost -c "SELECT 1"
 
 **Solution:**
 ```bash
-npm run db:generate
+yarn db:generate
 ```
 
 ### Issue: Port Already in Use
@@ -378,9 +380,10 @@ make test-ci
 ```
 
 ### 3. Check Documentation
-- [GET_STARTED.md](GET_STARTED.md) - Quickstart
+- [START_HERE.md](START_HERE.md) - Quickstart guide
 - [ARCHITECTURE.md](ARCHITECTURE.md) - System design
 - [ROADMAP.md](ROADMAP.md) - Development phases
+- [API.md](API.md) - Complete API reference
 
 ### 4. Start Development
 - Read Phase 2 requirements in ROADMAP.md
@@ -434,10 +437,11 @@ make help         # See all commands
 
 ## 🆘 Still Having Issues?
 
-1. Check [INSTALLATION.md](INSTALLATION.md) for detailed troubleshooting
-2. Run `./verify.sh` to diagnose issues
-3. Try Docker: `make docker-up`
-4. Check logs: `make docker-logs` or console output
+1. Run `./verify.sh` to diagnose issues
+2. Try Docker: `make docker-up`
+3. Check logs: `make docker-logs` or console output
+4. Review [API.md](API.md) for endpoint documentation
+5. Check [ARCHITECTURE.md](ARCHITECTURE.md) for system design
 
 ---
 

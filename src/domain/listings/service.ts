@@ -17,8 +17,31 @@ function withFormattedPrices<T extends { price: number; priceMax?: number | null
   }
 }
 
+/**
+ * Service for managing marketplace listings
+ * Handles creation, publication, search, and lifecycle management of listings
+ */
 export class ListingService {
-  // Create a new listing
+  /**
+   * Create a new listing in DRAFT status
+   * @param userId - ID of the user creating the listing
+   * @param data - Listing data (title, description, price, address, etc.)
+   * @param agentId - Optional ID of the agent creating the listing
+   * @returns Created listing with formatted prices
+   * @throws {ValidationError} If required fields are missing or invalid
+   * @emits listing.created
+   * @example
+   * ```ts
+   * const listing = await ListingService.create(userId, {
+   *   title: "Vintage Camera",
+   *   description: "Excellent condition",
+   *   price: 15000, // in cents
+   *   category: "ELECTRONICS",
+   *   condition: "GOOD",
+   *   address: "123 Main St, Tel Aviv"
+   * })
+   * ```
+   */
   static async create(userId: string, data: CreateListingInput, agentId?: string) {
     try {
       // Geocode address if coordinates not provided
@@ -101,7 +124,19 @@ export class ListingService {
     }
   }
 
-  // Publish a listing
+  /**
+   * Publish a listing (move from DRAFT to PUBLISHED status)
+   * @param listingId - ID of the listing to publish
+   * @param userId - ID of the user (must be listing owner)
+   * @returns Published listing with formatted prices
+   * @throws {NotFoundError} If listing doesn't exist or doesn't belong to user
+   * @throws {ValidationError} If listing status doesn't allow publication
+   * @emits listing.published
+   * @example
+   * ```ts
+   * await ListingService.publish(listingId, userId)
+   * ```
+   */
   static async publish(listingId: string, userId: string) {
     try {
       // Check listing exists and belongs to user
@@ -164,7 +199,22 @@ export class ListingService {
     }
   }
 
-  // Search/filter listings with cursor-based pagination
+  /**
+   * Search published listings with filtering and cursor-based pagination
+   * @param params - Search parameters (query, category, price range, address, pagination)
+   * @returns Paginated results with items, nextCursor, and hasMore flag
+   * @example
+   * ```ts
+   * const results = await ListingService.search({
+   *   query: "laptop",
+   *   category: "ELECTRONICS",
+   *   minPrice: 50000, // $500 in cents
+   *   maxPrice: 100000, // $1000 in cents
+   *   limit: 20
+   * })
+   * // results = { items: [...], nextCursor: "abc123", hasMore: true }
+   * ```
+   */
   static async search(params: SearchListingsInput) {
     const where: Prisma.ListingWhereInput = {
       status: ListingStatus.PUBLISHED,
@@ -233,7 +283,16 @@ export class ListingService {
     }
   }
 
-  // Get listing by ID
+  /**
+   * Get a single listing by ID
+   * @param id - Listing ID
+   * @returns Listing with images, user info, and agent details
+   * @throws {NotFoundError} If listing doesn't exist or was deleted
+   * @example
+   * ```ts
+   * const listing = await ListingService.getById("listing123")
+   * ```
+   */
   static async getById(id: string) {
     const listing = await db.listing.findFirst({
       where: {
@@ -259,7 +318,15 @@ export class ListingService {
     return withFormattedPrices(listing)
   }
 
-  // Get user's listings
+  /**
+   * Get all listings created by a specific user (excludes soft-deleted)
+   * @param userId - ID of the user
+   * @returns Array of user's listings with formatted prices
+   * @example
+   * ```ts
+   * const myListings = await ListingService.getUserListings(userId)
+   * ```
+   */
   static async getUserListings(userId: string) {
     const listings = await db.listing.findMany({
       where: {
@@ -277,7 +344,21 @@ export class ListingService {
     return listings.map(withFormattedPrices)
   }
 
-  // Update listing
+  /**
+   * Update an existing listing (partial update supported)
+   * @param listingId - ID of the listing to update
+   * @param userId - ID of the user (must be listing owner)
+   * @param data - Partial listing data to update
+   * @returns Updated listing with formatted prices
+   * @throws {NotFoundError} If listing doesn't exist or doesn't belong to user
+   * @example
+   * ```ts
+   * await ListingService.update(listingId, userId, {
+   *   title: "Updated Title",
+   *   price: 20000 // $200 in cents
+   * })
+   * ```
+   */
   static async update(listingId: string, userId: string, data: Partial<CreateListingInput>) {
     try {
       const listing = await db.listing.findFirst({
@@ -323,7 +404,18 @@ export class ListingService {
     }
   }
 
-  // Delete listing (soft delete)
+  /**
+   * Delete a listing (soft delete - marks as REMOVED and sets deletedAt timestamp)
+   * @param listingId - ID of the listing to delete
+   * @param userId - ID of the user (must be listing owner)
+   * @returns Deleted listing with formatted prices
+   * @throws {NotFoundError} If listing doesn't exist, doesn't belong to user, or already deleted
+   * @emits listing.deleted
+   * @example
+   * ```ts
+   * await ListingService.delete(listingId, userId)
+   * ```
+   */
   static async delete(listingId: string, userId: string) {
     try {
       const listing = await db.listing.findFirst({

@@ -1,3 +1,7 @@
+// AgentBay Prisma Schema
+// Database schema for the AI agent-powered secondhand marketplace
+// Last updated: 2026-03-25
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,6 +11,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============================================================================
+// AUTHENTICATION MODELS (NextAuth.js)
+// ============================================================================
+
+/// OAuth account connections (Google, GitHub, etc.)
+/// Used by NextAuth for third-party authentication
 model Account {
   id                String  @id
   userId            String
@@ -26,28 +36,41 @@ model Account {
   @@index([userId])
 }
 
+// ============================================================================
+// AGENT MODELS
+// ============================================================================
+
+/// AI Agent that can buy/sell on behalf of a user
+/// Supports autonomous negotiation with configurable limits
+/// Max 5 agents per user
 model Agent {
   id                 String            @id
-  userId             String
+  userId             String            // Owner of the agent
   name               String            @default("Agent")
-  description        String?
-  isActive           Boolean           @default(true)
+  description        String?           // Agent's purpose/description
+
+  // Lifecycle
+  isActive           Boolean           @default(true)  // Agent can be temporarily disabled
   createdAt          DateTime          @default(now())
   updatedAt          DateTime
-  deletedAt          DateTime?
-  autoNegotiate      Boolean           @default(false)
-  maxBidAmount       Int?
-  minAcceptAmount    Int?
-  maxAcceptAmount    Int?
-  autoRejectBelow    Int?
-  autoCounterEnabled Boolean           @default(false)
-  requireApproval    Boolean           @default(true)
-  preferredLocation  String?
-  maxDistance        Int?
-  currency           String?
-  latitude           Float?
-  locale             String?
+  deletedAt          DateTime?         // Soft delete timestamp
+
+  // Negotiation Settings
+  autoNegotiate      Boolean           @default(false)         // Enable autonomous negotiation
+  maxBidAmount       Int?                                      // Max amount agent can bid (cents)
+  minAcceptAmount    Int?                                      // Auto-accept bids above this (cents)
+  maxAcceptAmount    Int?                                      // Auto-accept bids below this (cents)
+  autoRejectBelow    Int?                                      // Auto-reject bids below this (cents)
+  autoCounterEnabled Boolean           @default(false)         // Enable auto-counter offers
+  requireApproval    Boolean           @default(true)          // Require human approval for actions
+
+  // Location Preferences
+  preferredLocation  String?           // Preferred search location
+  maxDistance        Int?              // Max distance for searches (km)
+  currency           String?           // Preferred currency
+  latitude           Float?            // Location coordinates
   longitude          Float?
+  locale             String?           // Locale for formatting
   User               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   AgentCredential    AgentCredential[]
   AgentSkill         AgentSkill[]
@@ -74,6 +97,8 @@ model AgentCredential {
   @@index([agentId])
 }
 
+/// Junction table linking agents to skills
+/// Allows enabling/disabling skills per agent with custom settings
 model AgentSkill {
   id        String   @id
   agentId   String
@@ -90,14 +115,20 @@ model AgentSkill {
   @@index([skillId])
 }
 
+// ============================================================================
+// AUDIT & LOGGING
+// ============================================================================
+
+/// Audit log for tracking all user and agent actions
+/// Immutable record of who did what and when
 model AuditLog {
   id         String   @id
-  userId     String?
-  agentId    String?
-  action     String
-  entityType String
-  entityId   String
-  metadata   Json?
+  userId     String?           // User who performed action (if user)
+  agentId    String?           // Agent who performed action (if agent)
+  action     String            // Action performed (e.g., "listing.created")
+  entityType String            // Type of entity (e.g., "listing", "bid")
+  entityId   String            // ID of the affected entity
+  metadata   Json?             // Additional context (JSON)
   createdAt  DateTime @default(now())
   Agent      Agent?   @relation(fields: [agentId], references: [id])
   User       User?    @relation(fields: [userId], references: [id])
@@ -108,14 +139,21 @@ model AuditLog {
   @@index([userId])
 }
 
+// ============================================================================
+// MARKETPLACE MODELS
+// ============================================================================
+
+/// Individual bid/offer in a negotiation
+/// Part of a NegotiationThread between buyer and seller
+/// Status transitions: PENDING → ACCEPTED/REJECTED/COUNTERED/EXPIRED
 model Bid {
   id                String            @id
-  threadId          String
-  agentId           String?
-  amount            Int
-  message           String?
+  threadId          String            // Negotiation thread this bid belongs to
+  agentId           String?           // Agent that placed bid (if agent-initiated)
+  amount            Int               // Bid amount in minor currency units (cents)
+  message           String?           // Optional message with bid
   status            BidStatus         @default(PENDING)
-  expiresAt         DateTime?
+  expiresAt         DateTime?         // When bid expires (optional)
   createdAt         DateTime          @default(now())
   updatedAt         DateTime
   Agent             Agent?            @relation(fields: [agentId], references: [id])
@@ -144,29 +182,40 @@ model DeliveryRequest {
   @@index([status])
 }
 
+/// Marketplace listing for a used item
+/// Status flow: DRAFT → PUBLISHED → SOLD/REMOVED
+/// Can be created by users or agents
 model Listing {
   id                String              @id
-  userId            String
-  agentId           String?
-  title             String
-  description       String
-  category          ListingCategory
-  condition         ItemCondition
-  price             Int
-  address           String
+  userId            String              // Owner of the listing
+  agentId           String?             // Agent that created listing (if agent-created)
+
+  // Item Details
+  title             String              // Item title (3-200 chars)
+  description       String              // Item description (10-5000 chars)
+  category          ListingCategory     // Item category
+  condition         ItemCondition       // Item condition
+  price             Int                 // Price in minor currency units (cents)
+  currency          String              @default("USD")
+  labels            String[]            @default([])  // Tags/keywords
+
+  // Location (NO apartment/unit numbers for privacy)
+  address           String              // Street address or city only
+  latitude          Float?              // Geocoded coordinates
+  longitude         Float?
+
+  // Status & Lifecycle
   status            ListingStatus       @default(DRAFT)
-  confidence        Float?
-  pickupAvailable   Boolean             @default(true)
-  deliveryAvailable Boolean             @default(false)
+  confidence        Float?              // AI confidence score (if AI-generated)
   createdAt         DateTime            @default(now())
   updatedAt         DateTime
-  publishedAt       DateTime?
-  soldAt            DateTime?
-  deletedAt         DateTime?
-  latitude          Float?
-  longitude         Float?
-  currency          String              @default("USD")
-  labels            String[]            @default([])
+  publishedAt       DateTime?           // When published to marketplace
+  soldAt            DateTime?           // When marked as sold
+  deletedAt         DateTime?           // Soft delete timestamp
+
+  // Delivery Options
+  pickupAvailable   Boolean             @default(true)
+  deliveryAvailable Boolean             @default(false)
   priceMax          Int?
   contactDiscord    String?
   contactTelegram   String?
@@ -481,14 +530,21 @@ model WantedRequest {
   @@index([userId])
 }
 
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+/// Bid lifecycle states
+/// Flow: PENDING → ACCEPTED/REJECTED/COUNTERED/EXPIRED
 enum BidStatus {
-  PENDING
-  ACCEPTED
-  REJECTED
-  COUNTERED
-  EXPIRED
+  PENDING    // Awaiting seller response
+  ACCEPTED   // Seller accepted bid (listing sold)
+  REJECTED   // Seller rejected bid
+  COUNTERED  // Seller made counter-offer (new bid created)
+  EXPIRED    // Bid expired before response
 }
 
+/// Delivery tracking states (Phase 4)
 enum DeliveryStatus {
   PENDING
   PICKED_UP
@@ -502,37 +558,43 @@ enum FulfillmentMethod {
   DELIVERY
 }
 
+/// Item condition ratings
+/// Used for setting buyer expectations
 enum ItemCondition {
-  NEW
-  LIKE_NEW
-  GOOD
-  FAIR
-  POOR
+  NEW       // Brand new, never used
+  LIKE_NEW  // Barely used, excellent condition
+  GOOD      // Used but well-maintained
+  FAIR      // Shows wear, fully functional
+  POOR      // Heavy wear, may have issues
 }
 
+/// Product categories for listings
+/// Used for search filtering and organization
 enum ListingCategory {
-  FURNITURE
-  ELECTRONICS
-  CLOTHING
-  BOOKS
-  SPORTS
-  TOYS
-  TOOLS
-  HOME_GARDEN
-  VEHICLES
-  OTHER
+  FURNITURE     // Chairs, tables, sofas, etc.
+  ELECTRONICS   // Laptops, phones, cameras, etc.
+  CLOTHING      // Apparel and accessories
+  BOOKS         // Books and magazines
+  SPORTS        // Sports equipment
+  TOYS          // Toys and games
+  TOOLS         // Hand tools, power tools
+  HOME_GARDEN   // Home decor, garden items
+  VEHICLES      // Cars, bikes, scooters
+  OTHER         // Uncategorized items
 }
 
+/// Listing lifecycle states
+/// Flow: DRAFT → [PENDING_REVIEW] → PUBLISHED → SOLD/REMOVED
 enum ListingStatus {
-  DRAFT
-  PENDING_REVIEW
-  PUBLISHED
-  RESERVED
-  SOLD
-  REMOVED
-  FLAGGED
-  FOR_SALE
-  TENTATIVE
+  DRAFT           // Not yet published
+  PENDING_REVIEW  // Awaiting moderation (Phase 5)
+  PUBLISHED       // Live in marketplace
+  RESERVED        // Item reserved pending pickup
+  SOLD            // Transaction completed
+  REMOVED         // Listing removed (soft delete)
+  FLAGGED         // Flagged for review (Phase 5)
+  FOR_SALE        // Legacy status
+  TENTATIVE       // Legacy status
 }
 
 enum ModerationReason {
@@ -633,11 +695,13 @@ enum SkillExecutionStatus {
   CANCELLED
 }
 
+/// Negotiation thread lifecycle states
+/// Flow: ACTIVE → ACCEPTED/REJECTED/EXPIRED
 enum ThreadStatus {
-  ACTIVE
-  ACCEPTED
-  REJECTED
-  EXPIRED
+  ACTIVE    // Negotiation in progress
+  ACCEPTED  // Bid accepted, deal made
+  REJECTED  // All bids rejected
+  EXPIRED   // Thread expired without resolution
   CLOSED
 }
 

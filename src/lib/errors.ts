@@ -58,6 +58,11 @@ export class AgentError extends AppError {
   }
 }
 
+/**
+ * Error thrown when an agent action requires human approval
+ * @planned Phase 2+ - Agent approval workflows
+ * @example throw new ApprovalRequiredError("create_listing", "Price exceeds $1000")
+ */
 export class ApprovalRequiredError extends AgentError {
   constructor(
     public action: string,
@@ -70,6 +75,11 @@ export class ApprovalRequiredError extends AgentError {
   }
 }
 
+/**
+ * Error thrown when an agent action violates platform policy
+ * @planned Phase 2+ - Trust & Safety system
+ * @example throw new PolicyViolationError("prohibited_items", "Cannot list weapons")
+ */
 export class PolicyViolationError extends AgentError {
   constructor(
     public policy: string,

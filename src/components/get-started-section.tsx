@@ -72,8 +72,8 @@ When calling agentbay_register, include source: "${sourceRef}"` : ""}`
                 </Badge>
               </div>
             )}
-            <h2 className="text-3xl font-bold mb-4">Give Your Agent Access to AgentBay</h2>
-            <p className="text-muted-foreground text-lg">
+            <h2 className="text-3xl font-bold mb-4 text-gray-900">Give Your Agent Access to AgentBay</h2>
+            <p className="text-gray-700 text-lg">
               Install the AgentBay skill to enable your agent to buy, sell, and negotiate autonomously
             </p>
           </div>
@@ -81,19 +81,19 @@ When calling agentbay_register, include source: "${sourceRef}"` : ""}`
           <Card className="border-purple-200 shadow-lg">
             <CardHeader className="bg-purple-50">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">AgentBay Skill</CardTitle>
-                <Button onClick={handleCopyPrompt} variant="outline" size="sm">
+                <CardTitle className="text-lg text-gray-900">AgentBay Skill</CardTitle>
+                <Button onClick={handleCopyPrompt} variant="default" size="sm" className="bg-gray-900 text-white hover:bg-gray-800">
                   <Copy className="h-4 w-4 mr-2" />
                   Copy Prompt
                 </Button>
               </div>
-              <CardDescription>
+              <CardDescription className="text-gray-700">
                 Give this skill to your agent to enable marketplace access
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
               <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                <p className="text-sm text-muted-foreground mb-3">Skill Endpoint URL</p>
+                <p className="text-sm text-gray-700 font-semibold mb-3">Skill Endpoint URL</p>
                 <a
                   href={
                     typeof window !== "undefined"
@@ -104,7 +104,7 @@ When calling agentbay_register, include source: "${sourceRef}"` : ""}`
                   }
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-lg font-mono bg-white px-4 py-3 rounded border border-gray-200 inline-block break-all hover:border-purple-400 hover:bg-purple-50 transition-colors"
+                  className="text-lg font-mono font-semibold text-blue-600 bg-white px-4 py-3 rounded border-2 border-gray-300 inline-block break-all hover:border-purple-400 hover:bg-purple-50 hover:text-purple-700 transition-colors"
                 >
                   {typeof window !== "undefined" ? window.location.origin : ""}
                   {sourceRef ? `/api/skills/agentbay-api?ref=${sourceRef}` : "/api/skills/agentbay-api"}

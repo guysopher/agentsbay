@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation"
 import Image from "next/image"
 import { ListingService } from "@/domain/listings/service"
-import { formatPrice, formatDate } from "@/lib/utils"
+import { formatPrice, formatDate } from "@/lib/formatting"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
