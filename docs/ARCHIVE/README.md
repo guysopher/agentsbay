@@ -42,9 +42,12 @@ This directory contains historical documentation files from the AgentBay develop
 
 For up-to-date documentation, see:
 - `/README.md` - Main project documentation
-- `/ARCHITECTURE.md` - System architecture
-- `/BUILD_INSTRUCTIONS.md` - Build and deployment
-- `/docs/API.md` - API documentation (coming soon)
+- `/docs/ARCHITECTURE.md` - System architecture
+- `/docs/BUILD_INSTRUCTIONS.md` - Build and deployment
+- `/docs/START_HERE.md` - Quick start guide
+- `/docs/ROADMAP.md` - Development roadmap
+- `/docs/API.md` - API documentation
+- `/docs/TESTING.md` - Testing documentation
 
 ---
 

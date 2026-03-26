@@ -60,7 +60,7 @@ All actions are **structured, validated, and auditable**. You maintain full cont
 - 📅 Phase 5: Trust & Safety
 - 📅 Phase 6: Polish & Production
 
-See [ROADMAP.md](ROADMAP.md) for complete vision.
+See [docs/ROADMAP.md](docs/ROADMAP.md) for complete vision.
 
 ---
 
@@ -111,31 +111,24 @@ docker-compose exec app npx tsx prisma/seed.ts
 npm run docker:logs
 ```
 
-See [INSTALLATION.md](INSTALLATION.md) for detailed setup instructions and troubleshooting.
+See [docs/BUILD_INSTRUCTIONS.md](docs/BUILD_INSTRUCTIONS.md) for detailed setup instructions and troubleshooting.
 
 ---
 
 ## 📚 Documentation
 
 ### Getting Started
-- **[INSTALLATION.md](INSTALLATION.md)** - Complete installation guide (3 methods)
-- **[SETUP.md](SETUP.md)** - Quick start and first steps
-- **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Common tasks and commands
+- **[docs/START_HERE.md](docs/START_HERE.md)** - Quick start guide
+- **[docs/BUILD_INSTRUCTIONS.md](docs/BUILD_INSTRUCTIONS.md)** - Complete installation guide
 
 ### Architecture & Design
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System design, data flow, security
-- **[ROADMAP.md](ROADMAP.md)** - 6-phase development plan
-- **[PROJECT_SUMMARY.md](PROJECT_SUMMARY.md)** - Phase 1 complete overview
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System design, data flow, security
+- **[docs/ROADMAP.md](docs/ROADMAP.md)** - 6-phase development plan
 
-### Development
-- **[CONTINUATION_SUMMARY.md](CONTINUATION_SUMMARY.md)** - Infrastructure additions
+### API & Development
+- **[docs/API.md](docs/API.md)** - Complete API reference with examples
+- **[docs/TESTING.md](docs/TESTING.md)** - Test patterns and coverage
 - **[.github/workflows/ci.yml](.github/workflows/ci.yml)** - CI/CD pipeline
-- **[IMPROVEMENTS_IMPLEMENTED.md](IMPROVEMENTS_IMPLEMENTED.md)** - Code review improvements
-
-### Skills System
-- **[SKILLS_DOCUMENTATION.md](SKILLS_DOCUMENTATION.md)** - Complete skills API reference
-- **[CLAUDE_CODE_SKILL_QUICK_START.md](CLAUDE_CODE_SKILL_QUICK_START.md)** - Quick start guide
-- **[SKILLS_IMPLEMENTATION_SUMMARY.md](SKILLS_IMPLEMENTATION_SUMMARY.md)** - Implementation details
 
 ---
 
@@ -173,7 +166,7 @@ AgentBay follows a **layered architecture** with clear separation of concerns:
 - **Type Safety**: TypeScript + Zod validation throughout
 - **Domain-Driven**: Business logic separated from infrastructure
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for deep dive.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for deep dive.
 
 ---
 
@@ -386,7 +379,7 @@ All relationships, indexes, and state machines are fully defined.
 - Monitoring & analytics
 - Documentation polish
 
-See [ROADMAP.md](ROADMAP.md) for detailed checklist.
+See [docs/ROADMAP.md](docs/ROADMAP.md) for detailed checklist.
 
 ---
 
@@ -426,9 +419,9 @@ Built with:
 
 Having issues?
 
-1. Check [INSTALLATION.md](INSTALLATION.md) for setup help
-2. Review [QUICK_REFERENCE.md](QUICK_REFERENCE.md) for common tasks
-3. See [ARCHITECTURE.md](ARCHITECTURE.md) for design questions
+1. Check [docs/BUILD_INSTRUCTIONS.md](docs/BUILD_INSTRUCTIONS.md) for setup help
+2. Review [docs/API.md](docs/API.md) for API reference
+3. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for design questions
 
 ---
 
