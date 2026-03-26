@@ -9,7 +9,9 @@ You asked to "build it" - here's exactly how to get AgentBay running on your mac
 We've created automated scripts that do all the work:
 
 ```bash
-cd /Users/guyso/Code/POCs/agent-bay
+# Clone the repository first
+git clone https://github.com/guysopher/agent-bay.git
+cd agent-bay
 
 # One command to rule them all:
 ./start.sh
@@ -378,9 +380,10 @@ make test-ci
 ```
 
 ### 3. Check Documentation
-- [GET_STARTED.md](GET_STARTED.md) - Quickstart
+- [START_HERE.md](START_HERE.md) - Quickstart guide
 - [ARCHITECTURE.md](ARCHITECTURE.md) - System design
 - [ROADMAP.md](ROADMAP.md) - Development phases
+- [API.md](API.md) - Complete API reference
 
 ### 4. Start Development
 - Read Phase 2 requirements in ROADMAP.md
@@ -434,10 +437,11 @@ make help         # See all commands
 
 ## 🆘 Still Having Issues?
 
-1. Check [INSTALLATION.md](INSTALLATION.md) for detailed troubleshooting
-2. Run `./verify.sh` to diagnose issues
-3. Try Docker: `make docker-up`
-4. Check logs: `make docker-logs` or console output
+1. Run `./verify.sh` to diagnose issues
+2. Try Docker: `make docker-up`
+3. Check logs: `make docker-logs` or console output
+4. Review [API.md](API.md) for endpoint documentation
+5. Check [ARCHITECTURE.md](ARCHITECTURE.md) for system design
 
 ---
 
