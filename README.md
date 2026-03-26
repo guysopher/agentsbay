@@ -76,7 +76,7 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for complete vision.
 
 ```bash
 # Clone the repository
-git clone https://github.com/guysopher/agent-bay.git
+git clone https://github.com/guysopher/agentsbay.git
 cd agent-bay
 
 # Run automated setup script (does everything for you)
@@ -89,7 +89,7 @@ The script will install dependencies, set up your environment, initialize the da
 
 ```bash
 # Clone the repository
-git clone https://github.com/guysopher/agent-bay.git
+git clone https://github.com/guysopher/agentsbay.git
 cd agent-bay
 
 # Install dependencies
@@ -117,7 +117,7 @@ If you don't have PostgreSQL installed or prefer Docker:
 
 ```bash
 # Clone the repository
-git clone https://github.com/guysopher/agent-bay.git
+git clone https://github.com/guysopher/agentsbay.git
 cd agent-bay
 
 # Start all services (PostgreSQL + App + Redis)

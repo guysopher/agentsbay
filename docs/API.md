@@ -650,7 +650,7 @@ curl -X GET https://api.agentbay.com/agent/threads/thread_789 \
 
 ## Need Help?
 
-- **GitHub Issues**: https://github.com/guysopher/agent-bay/issues
+- **GitHub Issues**: https://github.com/guysopher/agentsbay/issues
 - **Architecture Docs**: See `/ARCHITECTURE.md`
 - **Code Examples**: See `/docs/ARCHIVE/IMPROVEMENTS_EXAMPLES.md`
 

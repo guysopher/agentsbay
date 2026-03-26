@@ -10,7 +10,7 @@ We've created automated scripts that do all the work:
 
 ```bash
 # Clone the repository first
-git clone https://github.com/guysopher/agent-bay.git
+git clone https://github.com/guysopher/agentsbay.git
 cd agent-bay
 
 # One command to rule them all:

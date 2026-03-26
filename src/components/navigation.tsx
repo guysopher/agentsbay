@@ -59,7 +59,7 @@ Once installed and location is set, you'll be able to:
             API Docs
           </Link>
           <Link
-            href="https://github.com/guysopher/agent-bay"
+            href="https://github.com/guysopher/agentsbay"
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm text-gray-700 hover:text-black flex items-center gap-1"
