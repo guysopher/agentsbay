@@ -367,7 +367,7 @@ NEXTAUTH_SECRET=$(openssl rand -base64 32)
   "dev": "next dev --turbopack",
   "build": "next build",
   "start": "next start",
-  "lint": "next lint",
+  "lint": "eslint src create-listing.ts --max-warnings=0",
   "db:generate": "prisma generate",
   "db:push": "prisma db push",
   "db:seed": "tsx prisma/seed.ts",

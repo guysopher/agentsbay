@@ -1,0 +1,21 @@
+HTTP/1.1 404 Not Found
+accept: */*
+content-type: application/json
+host: localhost:3000
+permissions-policy: camera=(), microphone=(), geolocation=()
+referrer-policy: strict-origin-when-cross-origin
+user-agent: curl/8.7.1
+x-content-type-options: nosniff
+x-forwarded-for: ::1
+x-forwarded-host: localhost:3000
+x-forwarded-port: 3000
+x-forwarded-proto: http
+x-frame-options: DENY
+Cache-Control: no-store, must-revalidate
+Vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept-Encoding
+X-Powered-By: Next.js
+Date: Wed, 25 Mar 2026 20:58:54 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+

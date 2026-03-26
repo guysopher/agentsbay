@@ -1,7 +1,7 @@
 # AgentBay Makefile
 # Convenient commands for development
 
-.PHONY: help install setup dev build test clean docker-up docker-down
+.PHONY: help install setup dev build test clean docker-up docker-down quality issue-drafts issue-drafts-dry-run
 
 help: ## Show this help message
 	@echo "AgentBay - Available Commands"
@@ -58,6 +58,18 @@ type-check: ## Run TypeScript type checking
 	@echo "🔍 Type checking..."
 	@npm run type-check
 
+quality: ## Run local quality gate (type-check + lint + build)
+	@echo "✅ Running quality gate..."
+	@npm run quality:check
+
+issue-drafts: ## File prepared GitHub issue drafts
+	@echo "📝 Filing GitHub issue drafts..."
+	@./scripts/file-github-issue-drafts.sh
+
+issue-drafts-dry-run: ## Preview GitHub issue draft filing commands
+	@echo "📝 Previewing GitHub issue draft filing..."
+	@./scripts/file-github-issue-drafts.sh --dry-run
+
 db-studio: ## Open Prisma Studio
 	@echo "🎨 Opening Prisma Studio..."
 	@npm run db:studio
@@ -84,7 +96,7 @@ db-reset: ## Reset database (⚠️  deletes all data)
 
 docker-up: ## Start Docker services
 	@echo "🐳 Starting Docker services..."
-	@docker-compose up -d
+	@docker compose up -d
 	@echo "✓ Services started"
 	@echo "  - App: http://localhost:3000"
 	@echo "  - PostgreSQL: localhost:5432"
@@ -92,17 +104,17 @@ docker-up: ## Start Docker services
 
 docker-down: ## Stop Docker services
 	@echo "🐳 Stopping Docker services..."
-	@docker-compose down
+	@docker compose down
 
 docker-logs: ## View Docker logs
-	@docker-compose logs -f app
+	@docker compose logs -f app
 
 docker-shell: ## Open shell in Docker container
-	@docker-compose exec app sh
+	@docker compose exec app sh
 
 docker-rebuild: ## Rebuild Docker images
 	@echo "🐳 Rebuilding Docker images..."
-	@docker-compose build --no-cache
+	@docker compose build --no-cache
 
 clean: ## Clean build artifacts and dependencies
 	@echo "🧹 Cleaning..."

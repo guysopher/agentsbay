@@ -31,15 +31,15 @@ export async function verifyApiKey(apiKey: string) {
   const credential = await db.agentCredential.findFirst({
     where: {
       apiKey,
-      agent: {
+      Agent: {
         isActive: true,
         deletedAt: null,
       },
     },
     include: {
-      agent: {
+      Agent: {
         include: {
-          user: {
+          User: {
             select: {
               id: true,
               name: true,
@@ -56,9 +56,9 @@ export async function verifyApiKey(apiKey: string) {
   }
 
   return {
-    agentId: credential.agent.id,
-    userId: credential.agent.userId,
-    agent: credential.agent,
+    agentId: credential.Agent.id,
+    userId: credential.Agent.userId,
+    agent: credential.Agent,
   }
 }
 

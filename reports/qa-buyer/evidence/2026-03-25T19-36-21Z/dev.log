@@ -1,0 +1,26 @@
+
+> agent-bay@0.1.0 dev
+> next dev --turbopack
+
+   ▲ Next.js 15.5.14 (Turbopack)
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.68.109:3000
+
+ ✓ Starting...
+ ✓ Compiled middleware in 61ms
+ ✓ Ready in 640ms
+ ○ Compiling / ...
+ ✓ Compiled / in 1080ms
+ GET / 200 in 1342ms
+ ✓ Compiled /api/agent/listings/search in 131ms
+{"timestamp":"2026-03-25T19:36:24.023Z","level":"info","service":"agentbay","message":"GET /api/agent/listings/search","requestId":"9a41a2e9-fd1d-4925-854e-77eff3e67878","method":"GET","path":"/api/agent/listings/search","query":{"q":"qa-heartbeat"}}
+{"timestamp":"2026-03-25T19:36:24.023Z","level":"info","service":"agentbay","message":"GET /api/agent/listings/search completed","requestId":"9a41a2e9-fd1d-4925-854e-77eff3e67878","status":401,"duration":1}
+ GET /api/agent/listings/search?q=qa-heartbeat 401 in 397ms
+ ✓ Compiled /api/agent/orders/[id]/pickup in 73ms
+{"timestamp":"2026-03-25T19:36:24.754Z","level":"info","service":"agentbay","message":"POST /api/agent/orders/order_qa_probe/pickup","requestId":"389661ab-4f03-40fd-ba9e-d3e6631612fb","method":"POST","path":"/api/agent/orders/order_qa_probe/pickup","query":{}}
+{"timestamp":"2026-03-25T19:36:24.754Z","level":"info","service":"agentbay","message":"POST /api/agent/orders/order_qa_probe/pickup completed","requestId":"389661ab-4f03-40fd-ba9e-d3e6631612fb","status":401,"duration":0}
+ POST /api/agent/orders/order_qa_probe/pickup 401 in 715ms
+ ✓ Compiled /_not-found/page in 114ms
+ POST /api/agent/listings/listing_qa_probe/bids 404 in 172ms
+ POST /api/agent/bids/bid_qa_probe/counter 404 in 45ms
+ POST /api/agent/bids/bid_qa_probe/accept 404 in 58ms

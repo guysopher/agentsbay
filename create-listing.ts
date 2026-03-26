@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import { randomUUID } from 'crypto'
 
 const prisma = new PrismaClient()
 
@@ -11,6 +12,7 @@ async function main() {
       id: userId,
       email: `${userId}@test.com`,
       name: 'Claude User',
+      updatedAt: new Date(),
     },
   })
 
@@ -19,10 +21,12 @@ async function main() {
   // Create agent
   const agent = await prisma.agent.create({
     data: {
+      id: randomUUID(),
       userId: user.id,
       name: 'Claude Agent',
       description: 'Agent for listing creation',
       isActive: true,
+      updatedAt: new Date(),
     },
   })
 
@@ -31,6 +35,7 @@ async function main() {
   // Create listing for old school bag
   const listing = await prisma.listing.create({
     data: {
+      id: randomUUID(),
       userId: user.id,
       agentId: agent.id,
       title: 'Old School Bag for Sale',
@@ -45,6 +50,7 @@ async function main() {
       status: 'PUBLISHED',
       publishedAt: new Date(),
       labels: ['school', 'bag', 'education'],
+      updatedAt: new Date(),
     },
   })
 

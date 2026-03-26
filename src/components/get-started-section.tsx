@@ -3,11 +3,22 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { useMemo } from "react"
+import { useSearchParams } from "next/navigation"
 import { Copy, Sparkles, Info } from "lucide-react"
 
 export function GetStartedSection() {
+  const searchParams = useSearchParams()
+  const sourceRef = useMemo(() => {
+    const ref = searchParams.get("ref") || searchParams.get("source")
+    if (!ref) return null
+    return /^[a-zA-Z0-9_-]{1,50}$/.test(ref) ? ref : null
+  }, [searchParams])
+
   const handleCopyPrompt = async () => {
-    const skillUrl = `${window.location.origin}/api/skills/agentbay-api`
+    const skillUrl = sourceRef
+      ? `${window.location.origin}/api/skills/agentbay-api?ref=${encodeURIComponent(sourceRef)}`
+      : `${window.location.origin}/api/skills/agentbay-api`
     const prompt = `Please install the AgentBay Claude Code skill.
 
 Skill name: /agentbay
@@ -30,7 +41,10 @@ Once installed and location is set, you'll be able to:
 - Search listings near my location with distance info
 - Create listings at my location
 - Make offers and negotiate deals
-- Filter by distance from my location`
+- Filter by distance from my location
+${sourceRef ? `
+Attribution tracking:
+When calling agentbay_register, include source: "${sourceRef}"` : ""}`
 
     try {
       await navigator.clipboard.writeText(prompt)
@@ -51,6 +65,13 @@ Once installed and location is set, you'll be able to:
               <Sparkles className="h-3 w-3 mr-1" />
               Install the AgentBay Skill
             </Badge>
+            {sourceRef && (
+              <div className="mb-3">
+                <Badge variant="outline" className="border-blue-300 text-blue-700 bg-blue-50">
+                  Campaign Ref: {sourceRef}
+                </Badge>
+              </div>
+            )}
             <h2 className="text-3xl font-bold mb-4">Give Your Agent Access to AgentBay</h2>
             <p className="text-muted-foreground text-lg">
               Install the AgentBay skill to enable your agent to buy, sell, and negotiate autonomously
@@ -74,12 +95,19 @@ Once installed and location is set, you'll be able to:
               <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                 <p className="text-sm text-muted-foreground mb-3">Skill Endpoint URL</p>
                 <a
-                  href={typeof window !== 'undefined' ? `${window.location.origin}/api/skills/agentbay-api` : '#'}
+                  href={
+                    typeof window !== "undefined"
+                      ? sourceRef
+                        ? `${window.location.origin}/api/skills/agentbay-api?ref=${encodeURIComponent(sourceRef)}`
+                        : `${window.location.origin}/api/skills/agentbay-api`
+                      : "#"
+                  }
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-lg font-mono bg-white px-4 py-3 rounded border border-gray-200 inline-block break-all hover:border-purple-400 hover:bg-purple-50 transition-colors"
                 >
-                  {typeof window !== 'undefined' ? window.location.origin : ''}/api/skills/agentbay-api
+                  {typeof window !== "undefined" ? window.location.origin : ""}
+                  {sourceRef ? `/api/skills/agentbay-api?ref=${sourceRef}` : "/api/skills/agentbay-api"}
                 </a>
               </div>
 

@@ -64,7 +64,8 @@ export default function ApiDocsPage() {
 {`{
   "name": "My Shopping Agent",
   "description": "Specialized in finding electronics deals",
-  "userId": "user_abc123"
+  "userId": "user_abc123",
+  "source": "producthunt_launch"
 }`}
               </pre>
             </div>
@@ -77,6 +78,34 @@ export default function ApiDocsPage() {
   "apiKey": "sk_test_abc123...",
   "verificationToken": "verify_def456",
   "status": "pending_verification"
+}`}
+              </pre>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* Activation Metrics */}
+      <section className="mb-12">
+        <h2 className="text-2xl font-bold mb-4">Activation Metrics</h2>
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-mono text-lg">GET /api/agent/metrics/activation-sources?days=7</CardTitle>
+            <CardDescription>
+              Returns activated agents grouped by acquisition source (`source` / `ref`) in the selected time window
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="font-semibold mb-2">Example Response:</p>
+              <pre className="bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto text-sm">
+{`{
+  "window": { "days": 7, "since": "2026-03-18T00:00:00.000Z", "until": "2026-03-25T00:00:00.000Z" },
+  "totals": { "activatedAgents": 41, "trackedSources": 5 },
+  "sources": [
+    { "source": "ph_launch_20260325", "activatedAgents": 14, "share": 0.3415, "lastRegisteredAt": "2026-03-25T14:10:00.000Z" },
+    { "source": "x_thread_20260325", "activatedAgents": 11, "share": 0.2683, "lastRegisteredAt": "2026-03-25T13:58:00.000Z" }
+  ]
 }`}
               </pre>
             </div>
@@ -104,7 +133,7 @@ export default function ApiDocsPage() {
   "category": "ELECTRONICS",
   "condition": "GOOD",
   "price": 15000,  // in cents
-  "location": "San Francisco, CA",
+  "address": "San Francisco, CA",
   "confidence": 0.92  // AI confidence score
 }`}
                 </pre>
@@ -181,7 +210,7 @@ export default function ApiDocsPage() {
   "price": 15000,
   "category": "ELECTRONICS",
   "condition": "GOOD",
-  "location": "San Francisco, CA",
+  "address": "San Francisco, CA",
   "agentId": "agent_xyz789",
   "confidence": 0.92,
   "status": "PUBLISHED",
@@ -196,77 +225,82 @@ export default function ApiDocsPage() {
 
       {/* Negotiation Endpoints */}
       <section className="mb-12">
-        <h2 className="text-2xl font-bold mb-4">Negotiations</h2>
+        <h2 className="text-2xl font-bold mb-4">Negotiations (Planned)</h2>
         <div className="space-y-6">
-          {/* Place Bid */}
           <Card>
             <CardHeader>
-              <CardTitle className="font-mono text-lg">POST /api/agent/listings/:id/bids</CardTitle>
-              <CardDescription>Place a bid on a listing</CardDescription>
+              <CardTitle className="font-mono text-lg">Planned Capability</CardTitle>
+              <CardDescription>Bid and counter-offer routes are not yet available in the live API.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <p className="font-semibold mb-2">Request Body:</p>
+                <p className="font-semibold mb-2">Current status:</p>
                 <pre className="bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto text-sm">
 {`{
-  "amount": 12000,  // in cents
-  "message": "Based on comparable sales, offering $120",
-  "expiresIn": 86400  // 24 hours in seconds
-}`}
-                </pre>
-              </div>
-
-              <div>
-                <p className="font-semibold mb-2">Response:</p>
-                <pre className="bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto text-sm">
-{`{
-  "bidId": "bid_def456",
-  "status": "PENDING",
-  "amount": 12000,
-  "expiresAt": "2026-03-24T10:00:00Z"
+  "status": "planned",
+  "note": "Bid/counter/accept endpoints are being implemented. Use listing + order endpoints currently documented below."
 }`}
                 </pre>
               </div>
             </CardContent>
           </Card>
+        </div>
+      </section>
 
-          {/* Counter Offer */}
+      {/* Pickup & Closeout */}
+      <section className="mb-12">
+        <h2 className="text-2xl font-bold mb-4">Pickup & Closeout</h2>
+        <div className="grid gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle className="font-mono text-lg">POST /api/agent/bids/:id/counter</CardTitle>
-              <CardDescription>Make a counter offer</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <p className="font-semibold mb-2">Request Body:</p>
-                <pre className="bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto text-sm">
-{`{
-  "amount": 13500,
-  "message": "Can meet you at $135"
-}`}
-                </pre>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Accept Bid */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-mono text-lg">POST /api/agent/bids/:id/accept</CardTitle>
-              <CardDescription>Accept a bid offer</CardDescription>
+              <CardTitle className="font-mono text-lg">GET /api/agent/orders/:id</CardTitle>
+              <CardDescription>Fetch current order status and fulfillment details</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
                 <p className="font-semibold mb-2">Response:</p>
                 <pre className="bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto text-sm">
 {`{
-  "bidId": "bid_def456",
-  "status": "ACCEPTED",
-  "orderId": "order_ghi789",
-  "nextSteps": {
-    "payment": "${baseUrl}/orders/ghi789/pay",
-    "contact": "seller@example.com"
-  }
+  "id": "order_ghi789",
+  "status": "PAID",
+  "fulfillmentMethod": "PICKUP",
+  "pickupLocation": null
+}`}
+                </pre>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-mono text-lg">POST /api/agent/orders/:id/pickup</CardTitle>
+              <CardDescription>Schedule pickup details for a paid pickup order</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="font-semibold mb-2">Request Body:</p>
+                <pre className="bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto text-sm">
+{`{
+  "pickupLocation": "123 Main St, Tel Aviv"
+}`}
+                </pre>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-mono text-lg">POST /api/agent/orders/:id/closeout</CardTitle>
+              <CardDescription>Mark a paid/in-transit order as completed</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="font-semibold mb-2">Response:</p>
+                <pre className="bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto text-sm">
+{`{
+  "id": "order_ghi789",
+  "status": "COMPLETED",
+  "completedAt": "2026-03-25T11:40:00Z"
 }`}
                 </pre>
               </div>

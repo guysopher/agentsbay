@@ -6,6 +6,7 @@ import { eventBus } from "@/lib/events"
 import { logError } from "@/lib/errors"
 import { geocodeAddress } from "@/lib/geocoding"
 import { formatPrice } from "@/lib/formatting"
+import { randomUUID } from "crypto"
 
 // Helper to add formatted prices to listing
 function withFormattedPrices<T extends { price: number; priceMax?: number | null; currency: string }>(listing: T) {
@@ -33,9 +34,11 @@ export class ListingService {
       }
 
       const listing = await db.$transaction(async (tx) => {
+        const now = new Date()
         // Create listing
         const listing = await tx.listing.create({
           data: {
+            id: randomUUID(),
             userId,
             agentId,
             title: data.title,
@@ -55,6 +58,7 @@ export class ListingService {
             pickupAvailable: data.pickupAvailable ?? true,
             deliveryAvailable: data.deliveryAvailable ?? false,
             status: ListingStatus.DRAFT,
+            updatedAt: now,
           },
           include: {
             ListingImage: true,
@@ -70,6 +74,7 @@ export class ListingService {
         // Audit log (in same transaction)
         await tx.auditLog.create({
           data: {
+            id: randomUUID(),
             userId,
             agentId,
             action: "listing.created",
@@ -135,6 +140,7 @@ export class ListingService {
 
         await tx.auditLog.create({
           data: {
+            id: randomUUID(),
             userId,
             action: "listing.published",
             entityType: "listing",
@@ -242,7 +248,7 @@ export class ListingService {
             name: true,
           },
         },
-        agent: true,
+        Agent: true,
       },
     })
 
@@ -296,6 +302,7 @@ export class ListingService {
 
         await tx.auditLog.create({
           data: {
+            id: randomUUID(),
             userId,
             action: "listing.updated",
             entityType: "listing",
@@ -342,6 +349,7 @@ export class ListingService {
 
         await tx.auditLog.create({
           data: {
+            id: randomUUID(),
             userId,
             action: "listing.deleted",
             entityType: "listing",

@@ -7,6 +7,7 @@ import type {
   SkillExecutionResult,
 } from "./types"
 import { skillRegistry } from "./registry"
+import { randomUUID } from "crypto"
 
 export class SkillService {
   /**
@@ -44,7 +45,7 @@ export class SkillService {
         isEnabled: true,
       },
       include: {
-        skill: true,
+        Skill: true,
       },
     })
   }
@@ -78,19 +79,22 @@ export class SkillService {
           },
         },
         create: {
+          id: randomUUID(),
           agentId,
           skillId,
           isEnabled: true,
+          updatedAt: new Date(),
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           settings: settings as any,
         },
         update: {
           isEnabled: true,
+          updatedAt: new Date(),
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           settings: settings as any,
         },
         include: {
-          skill: true,
+          Skill: true,
         },
       })
 
@@ -128,6 +132,7 @@ export class SkillService {
         },
         data: {
           isEnabled: false,
+          updatedAt: new Date(),
         },
       })
     } catch (error) {
@@ -155,7 +160,7 @@ export class SkillService {
           },
         },
         include: {
-          skill: true,
+          Skill: true,
         },
       })
 
@@ -164,7 +169,7 @@ export class SkillService {
       }
 
       // Get skill implementation from registry
-      const skillImpl = skillRegistry.get(agentSkill.skill.name)
+      const skillImpl = skillRegistry.get(agentSkill.Skill.name)
       if (!skillImpl) {
         throw new ValidationError("Skill implementation not found")
       }
@@ -180,10 +185,12 @@ export class SkillService {
       // Create execution record
       const execution = await db.skillExecution.create({
         data: {
+          id: randomUUID(),
           agentId,
           skillId,
           input,
           status: SkillExecutionStatus.RUNNING,
+          updatedAt: new Date(),
         },
       })
 
@@ -193,7 +200,7 @@ export class SkillService {
         const duration = Date.now() - startTime
 
         // Calculate cost (if applicable)
-        const cost = agentSkill.skill.costPerExecution
+        const cost = agentSkill.Skill.costPerExecution
 
         // Update execution record
         const updatedExecution = await db.skillExecution.update({
@@ -207,6 +214,7 @@ export class SkillService {
             error: output.error,
             duration,
             cost,
+            updatedAt: new Date(),
           },
         })
 
@@ -238,6 +246,7 @@ export class SkillService {
                 ? executionError.message
                 : "Unknown error",
             duration,
+            updatedAt: new Date(),
           },
         })
 
@@ -277,7 +286,7 @@ export class SkillService {
     return db.skillExecution.findMany({
       where,
       include: {
-        skill: true,
+        Skill: true,
       },
       orderBy: {
         createdAt: "desc",

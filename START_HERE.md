@@ -46,7 +46,7 @@ make dev
 make docker-up
 
 # Seed database (after 30 seconds)
-docker-compose exec app npx tsx prisma/seed.ts
+docker compose exec app npx tsx prisma/seed.ts
 ```
 
 **Then visit**: http://localhost:3000
