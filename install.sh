@@ -156,7 +156,7 @@ install_with_clean || {
     echo "   npm config set registry https://registry.npmmirror.com/"
     echo ""
     echo "3. Use Docker (includes all dependencies):"
-    echo "   docker-compose up -d"
+    echo "   docker compose up -d"
     echo ""
     echo "4. Try on a different network"
     echo ""

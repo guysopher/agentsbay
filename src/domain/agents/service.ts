@@ -3,6 +3,7 @@ import { NotFoundError, ValidationError, logError } from "@/lib/errors"
 import { eventBus } from "@/lib/events"
 import type { Agent } from "@prisma/client"
 import type { CreateAgentInput, UpdateAgentInput } from "./validation"
+import { randomUUID } from "crypto"
 
 /**
  * Service for managing AI agents
@@ -44,8 +45,10 @@ export class AgentService {
       }
 
       const agent = await db.$transaction(async (tx) => {
+        const now = new Date()
         const agent = await tx.agent.create({
           data: {
+            id: randomUUID(),
             userId,
             name: data.name,
             description: data.description,
@@ -58,12 +61,14 @@ export class AgentService {
             requireApproval: data.requireApproval,
             preferredLocation: data.preferredLocation,
             maxDistance: data.maxDistance,
+            updatedAt: now,
           },
         })
 
         // Audit log
         await tx.auditLog.create({
           data: {
+            id: randomUUID(),
             userId,
             agentId: agent.id,
             action: "agent.created",
@@ -161,13 +166,18 @@ export class AgentService {
       const agent = await this.getById(agentId, userId)
 
       const updated = await db.$transaction(async (tx) => {
+        const now = new Date()
         const updated = await tx.agent.update({
           where: { id: agent.id },
-          data,
+          data: {
+            ...data,
+            updatedAt: now,
+          },
         })
 
         await tx.auditLog.create({
           data: {
+            id: randomUUID(),
             userId,
             agentId: agent.id,
             action: "agent.updated",
@@ -205,13 +215,15 @@ export class AgentService {
       const agent = await this.getById(agentId, userId)
 
       const updated = await db.$transaction(async (tx) => {
+        const now = new Date()
         const updated = await tx.agent.update({
           where: { id: agent.id },
-          data: { isActive: !agent.isActive },
+          data: { isActive: !agent.isActive, updatedAt: now },
         })
 
         await tx.auditLog.create({
           data: {
+            id: randomUUID(),
             userId,
             agentId: agent.id,
             action: agent.isActive ? "agent.deactivated" : "agent.activated",
@@ -246,16 +258,19 @@ export class AgentService {
       const agent = await this.getById(agentId, userId)
 
       await db.$transaction(async (tx) => {
+        const now = new Date()
         await tx.agent.update({
           where: { id: agent.id },
           data: {
-            deletedAt: new Date(),
+            deletedAt: now,
             isActive: false,
+            updatedAt: now,
           },
         })
 
         await tx.auditLog.create({
           data: {
+            id: randomUUID(),
             userId,
             agentId: agent.id,
             action: "agent.deleted",

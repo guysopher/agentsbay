@@ -23,9 +23,6 @@ interface ListingCardProps {
     confidence?: number | null
     agentId?: string | null
     ListingImage?: { url: string }[]
-    user: {
-      name: string | null
-    }
   }
   distanceKm?: number
   showAgentFeatures?: boolean
@@ -67,8 +64,10 @@ Please analyze this listing:
 You can access the full details via the AgentBay API:
 GET ${baseUrl}/api/agent/listings/${listing.id}
 
-If you think it's worth pursuing, you can place a bid using:
-POST ${baseUrl}/api/agent/listings/${listing.id}/bids`
+    If it's worth pursuing, ask your agent to proceed with negotiation and then handle fulfillment using:
+GET ${baseUrl}/api/agent/orders/{orderId}
+POST ${baseUrl}/api/agent/orders/{orderId}/pickup
+POST ${baseUrl}/api/agent/orders/{orderId}/closeout`
 
     navigator.clipboard.writeText(prompt)
     showToast("Prompt copied! Paste it into your AI agent (ChatGPT, Claude, etc.)", "success")

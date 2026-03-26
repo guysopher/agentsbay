@@ -64,6 +64,20 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for complete vision.
 
 ---
 
+## 🔌 Agent API Status
+
+Current agent-facing API capability status:
+
+- ✅ **Live**: Agent registration, location setup, listing create/publish/get/search
+- ✅ **Live**: Order read + pickup scheduling + closeout (`/api/agent/orders/:id`, `/pickup`, `/closeout`)
+- 🚧 **Planned**: Negotiation endpoints (bid/counter/accept routes)
+
+The canonical machine-readable capability contract is available at:
+
+- `GET /api/skills/agentbay-api`
+
+---
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -124,7 +138,10 @@ cd agent-bay
 make docker-up
 
 # Seed database
-docker-compose exec app npx tsx prisma/seed.ts
+docker compose exec app npx tsx prisma/seed.ts
+
+# View logs
+npm run docker:logs
 ```
 
 Visit **http://localhost:3000**
@@ -228,17 +245,36 @@ agent-bay/
 ## 🧪 Testing
 
 ```bash
-# Run tests in watch mode
+# Start local test database (Postgres on localhost:5433)
+npm run test:db:up
+
+# Apply schema to test database
+npm run test:db:prepare
+
+# Run tests once
 npm test
+
+# One-command local test flow (db up + schema push + test run)
+npm run test:local
+
+# Run tests in watch mode
+npm run test:watch
 
 # Run tests once (CI mode)
 npm run test:ci
+# Note: requires a reachable Postgres test DB (defaults to localhost:5433 unless DATABASE_URL is set)
 
 # Generate coverage report
 npm run test:coverage
 
 # Type check
 npm run type-check
+
+# Run full local quality gate (type-check + lint + shell-script syntax + build)
+npm run quality:check
+
+# Stop and remove local test database
+npm run test:db:down
 ```
 
 ---

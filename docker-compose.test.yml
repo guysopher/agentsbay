@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: agentbay-test-db
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: agentbay_test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test -d agentbay_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 10

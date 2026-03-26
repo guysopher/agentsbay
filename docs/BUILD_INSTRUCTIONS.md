@@ -126,7 +126,7 @@ make docker-up
 sleep 30
 
 # Seed the database
-docker-compose exec app npx tsx prisma/seed.ts
+docker compose exec app npx tsx prisma/seed.ts
 
 # View logs
 make docker-logs
@@ -136,16 +136,16 @@ make docker-logs
 
 ```bash
 # Build and start
-docker-compose up -d
+docker compose up -d
 
 # Check status
-docker-compose ps
+docker compose ps
 
 # View logs
-docker-compose logs -f app
+docker compose logs -f app
 
 # Stop
-docker-compose down
+docker compose down
 ```
 
 **Access the app**: http://localhost:3000

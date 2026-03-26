@@ -1,9 +1,21 @@
 import { createApiHandler, successResponse } from "@/lib/api-handler"
 
-// Agents Bay skill in OpenAI function calling format
-const agentBaySkill = {
+function sanitizeRef(value?: string | null): string | undefined {
+  if (!value) return undefined
+  const isValid = /^[a-zA-Z0-9_-]{1,50}$/.test(value)
+  return isValid ? value : undefined
+}
+
+function buildAgentBaySkill(ref?: string) {
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000")
+  const registrationEndpoint = ref ? `/api/agent/register?source=${encodeURIComponent(ref)}` : "/api/agent/register"
+
+  // Agents Bay skill in OpenAI function calling format
+  return {
   name: "agentbay_api",
-  description: "Access the Agents Bay marketplace to buy, sell, and negotiate items autonomously. Enables listing creation, search, bidding, and negotiation. IMPORTANT: Always call agentbay_set_location first to configure user's location for proximity-based search.",
+  description: "Access the Agents Bay marketplace to buy and sell items autonomously. Enables listing creation, search, publishing, and order fulfillment actions. IMPORTANT: Always call agentbay_set_location first to configure user's location for proximity-based search.",
   tools: [
     {
       type: "function",
@@ -24,6 +36,12 @@ const agentBaySkill = {
             userId: {
               type: "string",
               description: "User ID to associate with agent (optional - auto-generated if not provided)"
+            },
+            source: {
+              type: "string",
+              description: ref
+                ? `Acquisition source tag for attribution (optional). Recommended value for this install: ${ref}`
+                : "Acquisition source tag for attribution (optional). Example: producthunt, x_launch, newsletter_2026q1"
             }
           },
           required: []
@@ -196,25 +214,55 @@ const agentBaySkill = {
     {
       type: "function",
       function: {
-        name: "agentbay_place_bid",
-        description: "Place a bid on a listing. Requires API key via Authorization: Bearer <key> header.",
+        name: "agentbay_get_order",
+        description: "Get details for a specific order (status, fulfillment state, and delivery metadata). Requires API key via Authorization: Bearer <key> header.",
         parameters: {
           type: "object",
           properties: {
-            listingId: {
+            orderId: {
               type: "string",
-              description: "Listing ID"
-            },
-            amount: {
-              type: "number",
-              description: "Bid amount in minor currency units (cents for USD/EUR, etc.)"
-            },
-            message: {
-              type: "string",
-              description: "Optional message to seller"
+              description: "Order ID to fetch"
             }
           },
-          required: ["listingId", "amount"]
+          required: ["orderId"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "agentbay_schedule_pickup",
+        description: "Schedule pickup details for a paid pickup order. Requires API key via Authorization: Bearer <key> header.",
+        parameters: {
+          type: "object",
+          properties: {
+            orderId: {
+              type: "string",
+              description: "Order ID to update"
+            },
+            pickupLocation: {
+              type: "string",
+              description: "Pickup location/address for meetup"
+            }
+          },
+          required: ["orderId", "pickupLocation"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "agentbay_closeout_order",
+        description: "Close out a paid/in-transit order as completed. Requires API key via Authorization: Bearer <key> header.",
+        parameters: {
+          type: "object",
+          properties: {
+            orderId: {
+              type: "string",
+              description: "Order ID to close out"
+            }
+          },
+          required: ["orderId"]
         }
       }
     },
@@ -336,16 +384,23 @@ const agentBaySkill = {
   ],
   metadata: {
     version: "1.0.0",
-    base_url: process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000"),
+    base_url: baseUrl,
     documentation: "/api-docs",
 
     authentication: {
       type: "api_key",
-      header: "X-Agent-Key",
+      header: "Authorization",
       registration: "Call agentbay_register to get your API key",
       usage: "Include API key in Authorization: Bearer <key> header",
-      registration_endpoint: "/api/agent/register"
+      registration_endpoint: registrationEndpoint
     },
+    attribution: ref
+      ? {
+          recommended_source: ref,
+          propagation:
+            "Pass source in agentbay_register or use x-agentbay-ref header to attribute activated agents.",
+        }
+      : undefined,
 
     address_format: {
       description: "Physical street address or city only - NO apartment/unit numbers",
@@ -388,6 +443,15 @@ const agentBaySkill = {
         "4. Accept bids or negotiate deals"
       ],
       important: "MUST publish listings after creation or they won't be visible to buyers"
+    },
+
+    order_workflow: {
+      description: "Order fulfillment endpoints currently support pickup scheduling and closeout once payment/fulfillment preconditions are met.",
+      workflow: [
+        "1. Ensure order is PAID",
+        "2. For pickup orders, call agentbay_schedule_pickup with orderId + pickupLocation",
+        "3. Call agentbay_closeout_order when handoff is complete (or delivery is delivered)"
+      ]
     },
 
     negotiation_workflow: {
@@ -467,9 +531,11 @@ const agentBaySkill = {
     }
   ]
 }
+}
 
 export const { GET } = createApiHandler({
-  GET: async () => {
-    return successResponse(agentBaySkill)
+  GET: async (req) => {
+    const ref = sanitizeRef(req.nextUrl.searchParams.get("ref"))
+    return successResponse(buildAgentBaySkill(ref))
   },
 })

@@ -114,7 +114,7 @@ If you prefer Docker or have network issues:
 make docker-up
 
 # 2. Seed database (in container)
-docker-compose exec app npx tsx prisma/seed.ts
+docker compose exec app npx tsx prisma/seed.ts
 
 # 3. View logs
 make docker-logs

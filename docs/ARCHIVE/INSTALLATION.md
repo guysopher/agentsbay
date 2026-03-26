@@ -162,7 +162,7 @@ echo "NEXTAUTH_SECRET=$NEXTAUTH_SECRET" >> .env
 npm run docker:up
 
 # Or manually:
-docker-compose up -d
+docker compose up -d
 ```
 
 This will:
@@ -180,14 +180,14 @@ This will:
 npm run docker:logs
 
 # Or manually:
-docker-compose logs -f app
+docker compose logs -f app
 ```
 
 ### Step 4: Seed Database
 
 ```bash
 # Execute seed script in container
-docker-compose exec app npx tsx prisma/seed.ts
+docker compose exec app npx tsx prisma/seed.ts
 ```
 
 ### Step 5: Access the App
@@ -201,16 +201,16 @@ Visit http://localhost:3000
 npm run docker:down
 
 # Restart services
-docker-compose restart
+docker compose restart
 
 # View running containers
-docker-compose ps
+docker compose ps
 
 # Access database
-docker-compose exec postgres psql -U agentbay -d agentbay
+docker compose exec postgres psql -U agentbay -d agentbay
 
 # Access app shell
-docker-compose exec app sh
+docker compose exec app sh
 ```
 
 ---
@@ -335,7 +335,7 @@ rm -rf .next
 **Solutions**:
 ```bash
 # Rebuild without cache
-docker-compose build --no-cache
+docker compose build --no-cache
 
 # Check Docker memory allocation (increase if needed)
 # Docker Desktop → Settings → Resources → Memory
@@ -425,7 +425,7 @@ If you're still having issues:
 1. Check all environment variables are set correctly in `.env`
 2. Ensure PostgreSQL is running and accessible
 3. Try Docker installation as it's more isolated
-4. Review logs: `docker-compose logs -f` or console output
+4. Review logs: `docker compose logs -f` or console output
 5. Open an issue with:
    - Installation method tried
    - Error messages
