@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "@jest/globals"
+import { beforeEach, describe, expect, it, jest } from "@jest/globals"
 import {
   DeliveryStatus,
   FulfillmentMethod,
@@ -10,6 +10,7 @@ import {
 } from "@prisma/client"
 import { randomUUID } from "crypto"
 import { OrderService } from "@/domain/orders/service"
+import { db } from "@/lib/db"
 import { cleanDatabase, createTestUser, testDb } from "../../setup"
 
 describe("OrderService", () => {
@@ -109,5 +110,59 @@ describe("OrderService", () => {
     await expect(OrderService.closeout(order.id, buyer.id)).rejects.toThrow(
       "Delivery order must be delivered before closeout"
     )
+  })
+
+  it("schedulePickup: rejects when concurrent status change happens inside transaction", async () => {
+    const { order, buyer } = await createOrderFixture(FulfillmentMethod.PICKUP)
+
+    const txSpy = jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+      return fn({
+        order: {
+          findFirst: jest.fn().mockResolvedValueOnce({
+            ...order,
+            status: OrderStatus.COMPLETED,
+            Listing: {},
+          }),
+          update: jest.fn(),
+        },
+        auditLog: { create: jest.fn() },
+      })
+    })
+
+    try {
+      await expect(
+        OrderService.schedulePickup(order.id, buyer.id, { pickupLocation: "123 Main St" })
+      ).rejects.toThrow("Pickup can only be scheduled for paid or in-transit orders")
+    } finally {
+      txSpy.mockRestore()
+    }
+  })
+
+  it("closeout: rejects when concurrent status change happens inside transaction", async () => {
+    const { order, buyer } = await createOrderFixture(FulfillmentMethod.PICKUP)
+
+    const txSpy = jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+      return fn({
+        order: {
+          findFirst: jest.fn().mockResolvedValueOnce({
+            ...order,
+            status: OrderStatus.COMPLETED,
+            DeliveryRequest: null,
+            Listing: {},
+          }),
+          update: jest.fn(),
+        },
+        listing: { update: jest.fn() },
+        auditLog: { create: jest.fn() },
+      })
+    })
+
+    try {
+      await expect(
+        OrderService.closeout(order.id, buyer.id)
+      ).rejects.toThrow("Order cannot be closed out from current status")
+    } finally {
+      txSpy.mockRestore()
+    }
   })
 })

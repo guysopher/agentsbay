@@ -36,30 +36,31 @@ export class OrderService {
   }
 
   static async schedulePickup(orderId: string, actorUserId: string, input: SchedulePickupInput) {
-    const order = await db.order.findFirst({
-      where: {
-        id: orderId,
-        OR: [{ buyerId: actorUserId }, { sellerId: actorUserId }],
-      },
-      include: {
-        Listing: true,
-      },
-    })
-
-    if (!order) {
-      throw new NotFoundError("Order")
-    }
-
-    if (order.fulfillmentMethod !== FulfillmentMethod.PICKUP) {
-      throw new ValidationError("Order is not configured for pickup")
-    }
-
-    if (order.status !== OrderStatus.PAID && order.status !== OrderStatus.IN_TRANSIT) {
-      throw new ValidationError("Pickup can only be scheduled for paid or in-transit orders")
-    }
-
     const now = new Date()
+    // Read + validate + write inside transaction to prevent TOCTOU race conditions
     const updated = await db.$transaction(async (tx) => {
+      const order = await tx.order.findFirst({
+        where: {
+          id: orderId,
+          OR: [{ buyerId: actorUserId }, { sellerId: actorUserId }],
+        },
+        include: {
+          Listing: true,
+        },
+      })
+
+      if (!order) {
+        throw new NotFoundError("Order")
+      }
+
+      if (order.fulfillmentMethod !== FulfillmentMethod.PICKUP) {
+        throw new ValidationError("Order is not configured for pickup")
+      }
+
+      if (order.status !== OrderStatus.PAID && order.status !== OrderStatus.IN_TRANSIT) {
+        throw new ValidationError("Pickup can only be scheduled for paid or in-transit orders")
+      }
+
       const updatedOrder = await tx.order.update({
         where: { id: orderId },
         data: {
@@ -89,35 +90,36 @@ export class OrderService {
   }
 
   static async closeout(orderId: string, actorUserId: string) {
-    const order = await db.order.findFirst({
-      where: {
-        id: orderId,
-        OR: [{ buyerId: actorUserId }, { sellerId: actorUserId }],
-      },
-      include: {
-        DeliveryRequest: true,
-        Listing: true,
-      },
-    })
-
-    if (!order) {
-      throw new NotFoundError("Order")
-    }
-
-    if (order.status !== OrderStatus.PAID && order.status !== OrderStatus.IN_TRANSIT) {
-      throw new ValidationError("Order cannot be closed out from current status")
-    }
-
-    if (
-      order.fulfillmentMethod === FulfillmentMethod.DELIVERY &&
-      order.DeliveryRequest &&
-      order.DeliveryRequest.status !== DeliveryStatus.DELIVERED
-    ) {
-      throw new ValidationError("Delivery order must be delivered before closeout")
-    }
-
     const now = new Date()
+    // Read + validate + write inside transaction to prevent TOCTOU race conditions
     const updated = await db.$transaction(async (tx) => {
+      const order = await tx.order.findFirst({
+        where: {
+          id: orderId,
+          OR: [{ buyerId: actorUserId }, { sellerId: actorUserId }],
+        },
+        include: {
+          DeliveryRequest: true,
+          Listing: true,
+        },
+      })
+
+      if (!order) {
+        throw new NotFoundError("Order")
+      }
+
+      if (order.status !== OrderStatus.PAID && order.status !== OrderStatus.IN_TRANSIT) {
+        throw new ValidationError("Order cannot be closed out from current status")
+      }
+
+      if (
+        order.fulfillmentMethod === FulfillmentMethod.DELIVERY &&
+        order.DeliveryRequest &&
+        order.DeliveryRequest.status !== DeliveryStatus.DELIVERED
+      ) {
+        throw new ValidationError("Delivery order must be delivered before closeout")
+      }
+
       const updatedOrder = await tx.order.update({
         where: { id: orderId },
         data: {
