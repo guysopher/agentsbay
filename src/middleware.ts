@@ -1,55 +1,33 @@
+import { auth } from "@/lib/auth"
 import { NextResponse } from "next/server"
-import type { NextRequest } from "next/server"
 
-// This middleware runs on every request
-export function middleware(request: NextRequest) {
-  // const { pathname } = request.nextUrl
+const protectedRoutes = ["/profile", "/dashboard", "/orders", "/listings/new"]
 
-  // Add security headers
-  const headers = new Headers(request.headers)
-  headers.set("X-Frame-Options", "DENY")
-  headers.set("X-Content-Type-Options", "nosniff")
-  headers.set("Referrer-Policy", "strict-origin-when-cross-origin")
-  headers.set(
+export default auth((req) => {
+  const { pathname } = req.nextUrl
+
+  // Redirect unauthenticated users away from protected routes
+  const isProtected = protectedRoutes.some((route) => pathname.startsWith(route))
+  if (isProtected && !req.auth) {
+    const signInUrl = new URL("/auth/signin", req.url)
+    signInUrl.searchParams.set("callbackUrl", pathname)
+    return NextResponse.redirect(signInUrl)
+  }
+
+  // Add security headers to all responses
+  const response = NextResponse.next()
+  response.headers.set("X-Frame-Options", "DENY")
+  response.headers.set("X-Content-Type-Options", "nosniff")
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin")
+  response.headers.set(
     "Permissions-Policy",
     "camera=(), microphone=(), geolocation=()"
   )
+  return response
+})
 
-  // Protected routes (will be enabled in Phase 2 after auth is complete)
-  // const protectedRoutes = [
-  //   "/dashboard",
-  //   "/agents",
-  //   "/listings/new",
-  //   "/wanted",
-  //   "/orders",
-  // ]
-
-  // const isProtectedRoute = protectedRoutes.some((route) =>
-  //   pathname.startsWith(route)
-  // )
-
-  // TODO: Uncomment after implementing auth in Phase 2
-  // if (isProtectedRoute) {
-  //   const token = request.cookies.get("next-auth.session-token")
-  //   if (!token) {
-  //     return NextResponse.redirect(new URL("/auth/signin", request.url))
-  //   }
-  // }
-
-  return NextResponse.next({ headers })
-}
-
-// Configure which routes to run middleware on
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api/auth (auth API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
     "/((?!api/auth|_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.jpg$|.*\\.svg$).*)",
   ],
 }
