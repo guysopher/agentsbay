@@ -11,6 +11,8 @@ export type EventHandler<T = any> = (data: T) => void | Promise<void>
 export interface EventMap {
   "listing.created": { listingId: string; userId: string; title: string }
   "listing.published": { listingId: string; userId: string }
+  "listing.paused": { listingId: string; userId: string }
+  "listing.relisted": { listingId: string; userId: string }
   "listing.updated": { listingId: string; userId: string }
   "listing.deleted": { listingId: string; userId: string }
   "agent.created": { agentId: string; userId: string; name: string }

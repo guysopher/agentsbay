@@ -1,7 +1,8 @@
 // Example test file for ListingService
 import { describe, it, expect, beforeEach } from "@jest/globals"
 import { ListingService } from "@/domain/listings/service"
-import { testDb, cleanDatabase, createTestUser } from "../../setup"
+import { testDb, cleanDatabase, createTestUser, createTestListing } from "../../setup"
+import { randomUUID } from "crypto"
 
 describe("ListingService", () => {
   let testUser: any
@@ -94,7 +95,7 @@ describe("ListingService", () => {
       const listing = await ListingService.create(testUser.id, data)
       await ListingService.publish(listing.id, testUser.id)
 
-      const results = await ListingService.search({})
+      const { items: results } = await ListingService.search({})
 
       expect(results).toHaveLength(1)
       expect(results[0].title).toBe(data.title)
@@ -123,7 +124,7 @@ describe("ListingService", () => {
       })
       await ListingService.publish(electronics.id, testUser.id)
 
-      const results = await ListingService.search({ category: "FURNITURE" })
+      const { items: results } = await ListingService.search({ category: "FURNITURE" })
 
       expect(results).toHaveLength(1)
       expect(results[0].category).toBe("FURNITURE")
@@ -150,7 +151,7 @@ describe("ListingService", () => {
       })
       await ListingService.publish(listing2.id, testUser.id)
 
-      const results = await ListingService.search({
+      const { items: results } = await ListingService.search({
         minPrice: 10000,
         maxPrice: 60000,
       })
@@ -220,6 +221,93 @@ describe("ListingService", () => {
     })
   })
 
+  describe("pause", () => {
+    it("should pause a published listing", async () => {
+      const listing = await createTestListing(testUser.id, { status: "PUBLISHED" })
+      const paused = await ListingService.pause(listing.id, testUser.id)
+
+      expect(paused.status).toBe("PAUSED")
+    })
+
+    it("should create audit log entry for pause", async () => {
+      const listing = await createTestListing(testUser.id, { status: "PUBLISHED" })
+      await ListingService.pause(listing.id, testUser.id)
+
+      const log = await testDb.auditLog.findFirst({
+        where: { entityId: listing.id, action: "listing.paused" },
+      })
+      expect(log).toBeDefined()
+      expect(log?.userId).toBe(testUser.id)
+    })
+
+    it("should throw ValidationError when pausing a non-published listing", async () => {
+      const listing = await createTestListing(testUser.id, { status: "DRAFT" })
+
+      await expect(
+        ListingService.pause(listing.id, testUser.id)
+      ).rejects.toThrow("Cannot pause a listing with status DRAFT")
+    })
+
+    it("should throw NotFoundError for non-existent listing", async () => {
+      await expect(
+        ListingService.pause("non-existent-id", testUser.id)
+      ).rejects.toThrow("Listing not found")
+    })
+
+    it("should throw NotFoundError when user does not own the listing", async () => {
+      const otherUser = await createTestUser({ email: "other@example.com" })
+      const listing = await createTestListing(otherUser.id, { status: "PUBLISHED" })
+
+      await expect(
+        ListingService.pause(listing.id, testUser.id)
+      ).rejects.toThrow("Listing not found")
+    })
+  })
+
+  describe("relist", () => {
+    it("should relist a paused listing", async () => {
+      const listing = await createTestListing(testUser.id, { status: "PAUSED" })
+      const relisted = await ListingService.relist(listing.id, testUser.id)
+
+      expect(relisted.status).toBe("PUBLISHED")
+      expect(relisted.publishedAt).toBeDefined()
+    })
+
+    it("should create audit log entry for relist", async () => {
+      const listing = await createTestListing(testUser.id, { status: "PAUSED" })
+      await ListingService.relist(listing.id, testUser.id)
+
+      const log = await testDb.auditLog.findFirst({
+        where: { entityId: listing.id, action: "listing.relisted" },
+      })
+      expect(log).toBeDefined()
+      expect(log?.userId).toBe(testUser.id)
+    })
+
+    it("should throw ValidationError when relisting a non-paused listing", async () => {
+      const listing = await createTestListing(testUser.id, { status: "PUBLISHED" })
+
+      await expect(
+        ListingService.relist(listing.id, testUser.id)
+      ).rejects.toThrow("Cannot relist a listing with status PUBLISHED")
+    })
+
+    it("should throw NotFoundError for non-existent listing", async () => {
+      await expect(
+        ListingService.relist("non-existent-id", testUser.id)
+      ).rejects.toThrow("Listing not found")
+    })
+
+    it("should throw NotFoundError when user does not own the listing", async () => {
+      const otherUser = await createTestUser({ email: "other2@example.com" })
+      const listing = await createTestListing(otherUser.id, { status: "PAUSED" })
+
+      await expect(
+        ListingService.relist(listing.id, testUser.id)
+      ).rejects.toThrow("Listing not found")
+    })
+  })
+
   describe("update", () => {
     it("should update listing fields", async () => {
       const created = await ListingService.create(testUser.id, {
@@ -246,6 +334,34 @@ describe("ListingService", () => {
         ListingService.update("non-existent-id", testUser.id, { title: "Test" })
       ).rejects.toThrow("Listing not found")
     })
+
+    it("should allow update on DRAFT listing", async () => {
+      const listing = await createTestListing(testUser.id, { status: "DRAFT" })
+      const updated = await ListingService.update(listing.id, testUser.id, { title: "New Title" })
+      expect(updated.title).toBe("New Title")
+    })
+
+    it("should allow update on PAUSED listing", async () => {
+      const listing = await createTestListing(testUser.id, { status: "PAUSED" })
+      const updated = await ListingService.update(listing.id, testUser.id, { title: "New Title" })
+      expect(updated.title).toBe("New Title")
+    })
+
+    it("should throw ValidationError when editing a SOLD listing", async () => {
+      const listing = await createTestListing(testUser.id, { status: "SOLD" })
+
+      await expect(
+        ListingService.update(listing.id, testUser.id, { title: "New Title" })
+      ).rejects.toThrow("Cannot edit a listing with status SOLD")
+    })
+
+    it("should throw ValidationError when editing a RESERVED listing", async () => {
+      const listing = await createTestListing(testUser.id, { status: "RESERVED" })
+
+      await expect(
+        ListingService.update(listing.id, testUser.id, { title: "New Title" })
+      ).rejects.toThrow("Cannot edit a listing with status RESERVED")
+    })
   })
 
   describe("delete", () => {
@@ -271,6 +387,46 @@ describe("ListingService", () => {
       await expect(
         ListingService.delete("non-existent-id", testUser.id)
       ).rejects.toThrow("Listing not found")
+    })
+
+    it("should throw ValidationError when deleting a SOLD listing", async () => {
+      const listing = await createTestListing(testUser.id, { status: "SOLD" })
+
+      await expect(
+        ListingService.delete(listing.id, testUser.id)
+      ).rejects.toThrow("Cannot delete a listing with status SOLD")
+    })
+
+    it("should throw ValidationError when deleting a REMOVED listing", async () => {
+      const listing = await createTestListing(testUser.id, {
+        status: "REMOVED",
+        deletedAt: new Date(),
+      })
+
+      await expect(
+        ListingService.delete(listing.id, testUser.id)
+      ).rejects.toThrow("Cannot delete a listing with status REMOVED")
+    })
+
+    it("should throw ValidationError when listing has active bids", async () => {
+      const listing = await createTestListing(testUser.id, { status: "PUBLISHED" })
+      const buyer = await createTestUser({ email: "buyer@example.com" })
+
+      // Create an active NegotiationThread
+      await testDb.negotiationThread.create({
+        data: {
+          id: randomUUID(),
+          listingId: listing.id,
+          buyerId: buyer.id,
+          sellerId: testUser.id,
+          status: "ACTIVE",
+          updatedAt: new Date(),
+        },
+      })
+
+      await expect(
+        ListingService.delete(listing.id, testUser.id)
+      ).rejects.toThrow("Cannot delete listing with active bids")
     })
   })
 })

@@ -1,5 +1,5 @@
 import { db } from "@/lib/db"
-import { ListingStatus, Prisma } from "@prisma/client"
+import { ListingStatus, ThreadStatus, Prisma } from "@prisma/client"
 import type { CreateListingInput, SearchListingsInput } from "./validation"
 import { NotFoundError, ValidationError } from "@/lib/errors"
 import { eventBus } from "@/lib/events"
@@ -345,12 +345,123 @@ export class ListingService {
   }
 
   /**
+   * Pause a published listing (move from PUBLISHED to PAUSED status)
+   * @param listingId - ID of the listing to pause
+   * @param userId - ID of the user (must be listing owner)
+   * @returns Paused listing with formatted prices
+   * @throws {NotFoundError} If listing doesn't exist or doesn't belong to user
+   * @throws {ValidationError} If listing is not in PUBLISHED status
+   * @emits listing.paused
+   */
+  static async pause(listingId: string, userId: string) {
+    try {
+      const listing = await db.listing.findFirst({
+        where: { id: listingId, userId },
+      })
+
+      if (!listing) {
+        throw new NotFoundError("Listing")
+      }
+
+      if (listing.status !== ListingStatus.PUBLISHED) {
+        throw new ValidationError(`Cannot pause a listing with status ${listing.status}`)
+      }
+
+      const updated = await db.$transaction(async (tx) => {
+        const updated = await tx.listing.update({
+          where: { id: listingId },
+          data: { status: ListingStatus.PAUSED },
+          include: {
+            ListingImage: true,
+            User: { select: { id: true, name: true } },
+          },
+        })
+
+        await tx.auditLog.create({
+          data: {
+            id: randomUUID(),
+            userId,
+            action: "listing.paused",
+            entityType: "listing",
+            entityId: listingId,
+          },
+        })
+
+        return updated
+      })
+
+      await eventBus.emit("listing.paused", { listingId, userId })
+
+      return withFormattedPrices(updated)
+    } catch (error) {
+      logError(error, { listingId, userId })
+      throw error
+    }
+  }
+
+  /**
+   * Relist a paused listing (move from PAUSED back to PUBLISHED status)
+   * @param listingId - ID of the listing to relist
+   * @param userId - ID of the user (must be listing owner)
+   * @returns Relisted listing with formatted prices
+   * @throws {NotFoundError} If listing doesn't exist or doesn't belong to user
+   * @throws {ValidationError} If listing is not in PAUSED status
+   * @emits listing.relisted
+   */
+  static async relist(listingId: string, userId: string) {
+    try {
+      const listing = await db.listing.findFirst({
+        where: { id: listingId, userId },
+      })
+
+      if (!listing) {
+        throw new NotFoundError("Listing")
+      }
+
+      if (listing.status !== ListingStatus.PAUSED) {
+        throw new ValidationError(`Cannot relist a listing with status ${listing.status}`)
+      }
+
+      const updated = await db.$transaction(async (tx) => {
+        const updated = await tx.listing.update({
+          where: { id: listingId },
+          data: { status: ListingStatus.PUBLISHED, publishedAt: new Date() },
+          include: {
+            ListingImage: true,
+            User: { select: { id: true, name: true } },
+          },
+        })
+
+        await tx.auditLog.create({
+          data: {
+            id: randomUUID(),
+            userId,
+            action: "listing.relisted",
+            entityType: "listing",
+            entityId: listingId,
+          },
+        })
+
+        return updated
+      })
+
+      await eventBus.emit("listing.relisted", { listingId, userId })
+
+      return withFormattedPrices(updated)
+    } catch (error) {
+      logError(error, { listingId, userId })
+      throw error
+    }
+  }
+
+  /**
    * Update an existing listing (partial update supported)
    * @param listingId - ID of the listing to update
    * @param userId - ID of the user (must be listing owner)
    * @param data - Partial listing data to update
    * @returns Updated listing with formatted prices
    * @throws {NotFoundError} If listing doesn't exist or doesn't belong to user
+   * @throws {ValidationError} If listing status does not allow edits
    * @example
    * ```ts
    * await ListingService.update(listingId, userId, {
@@ -370,6 +481,11 @@ export class ListingService {
 
       if (!listing) {
         throw new NotFoundError("Listing")
+      }
+
+      const editableStatuses: ListingStatus[] = [ListingStatus.DRAFT, ListingStatus.PUBLISHED, ListingStatus.PAUSED]
+      if (!editableStatuses.includes(listing.status)) {
+        throw new ValidationError(`Cannot edit a listing with status ${listing.status}`)
       }
 
       const updated = await db.$transaction(async (tx) => {
@@ -419,15 +535,25 @@ export class ListingService {
   static async delete(listingId: string, userId: string) {
     try {
       const listing = await db.listing.findFirst({
-        where: {
-          id: listingId,
-          userId,
-          deletedAt: null,
+        where: { id: listingId, userId },
+        include: {
+          NegotiationThread: {
+            where: { status: ThreadStatus.ACTIVE },
+            select: { id: true },
+          },
         },
       })
 
       if (!listing) {
         throw new NotFoundError("Listing")
+      }
+
+      if (listing.status === ListingStatus.SOLD || listing.status === ListingStatus.REMOVED) {
+        throw new ValidationError(`Cannot delete a listing with status ${listing.status}`)
+      }
+
+      if (listing.NegotiationThread.length > 0) {
+        throw new ValidationError("Cannot delete listing with active bids")
       }
 
       const deleted = await db.$transaction(async (tx) => {
