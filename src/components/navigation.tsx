@@ -67,6 +67,12 @@ export function Navigation() {
               >
                 Negotiations
               </Link>
+              <Link
+                href="/orders"
+                className="text-sm text-gray-700 hover:text-black"
+              >
+                My Orders
+              </Link>
               <NotificationBell />
               <Link
                 href="/profile"
