@@ -1,8 +1,10 @@
 import { db } from "@/lib/db"
 import { BidStatus, ThreadStatus, Prisma } from "@prisma/client"
-import { NotFoundError, ValidationError } from "@/lib/errors"
+import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors"
 import { eventBus } from "@/lib/events"
 import { logError } from "@/lib/errors"
+import { randomUUID } from "crypto"
+import { canTransition, InvalidTransitionError, type BidState } from "./engine"
 
 export interface CreateBidInput {
   listingId: string
@@ -17,6 +19,12 @@ export interface CounterBidInput {
   amount: number
   message?: string
   expiresIn?: number
+  agentId?: string
+}
+
+export interface SendMessageInput {
+  content: string
+  isAgent: boolean
 }
 
 /**
@@ -91,6 +99,7 @@ export class NegotiationService {
         if (!thread) {
           thread = await tx.negotiationThread.create({
             data: {
+              id: randomUUID(),
               listingId: input.listingId,
               buyerId: input.buyerId,
               sellerId: listing.userId,
@@ -108,8 +117,10 @@ export class NegotiationService {
         // Create bid
         const bid = await tx.bid.create({
           data: {
+            id: randomUUID(),
             threadId: thread.id,
             agentId: input.buyerAgentId,
+            placedByUserId: input.buyerId,
             amount: input.amount,
             message: input.message,
             status: BidStatus.PENDING,
@@ -192,7 +203,12 @@ export class NegotiationService {
 
       // Verify user is buyer or seller
       if (thread.buyerId !== userId && thread.sellerId !== userId) {
-        throw new ValidationError("Not authorized for this thread")
+        throw new ForbiddenError("Not authorized for this thread")
+      }
+
+      // Turn enforcement: only the party that did NOT place this bid can counter it
+      if (originalBid.placedByUserId && originalBid.placedByUserId === userId) {
+        throw new ForbiddenError("Cannot counter your own bid — waiting for the other party")
       }
 
       // Verify thread is active
@@ -200,9 +216,9 @@ export class NegotiationService {
         throw new ValidationError(`Thread is ${thread.status}`)
       }
 
-      // Verify original bid is pending
-      if (originalBid.status !== BidStatus.PENDING) {
-        throw new ValidationError(`Bid is already ${originalBid.status}`)
+      // Validate state transition via engine
+      if (!canTransition(originalBid.status as BidState, "COUNTER")) {
+        throw new InvalidTransitionError(originalBid.status as BidState, "COUNTER")
       }
 
       const expiresAt = input.expiresIn
@@ -222,8 +238,10 @@ export class NegotiationService {
         // Create counter bid
         const counterBid = await tx.bid.create({
           data: {
+            id: randomUUID(),
             threadId: thread.id,
-            agentId: null, // Could pass agentId if available
+            agentId: input.agentId ?? null,
+            placedByUserId: userId,
             amount: input.amount,
             message: input.message,
             status: BidStatus.PENDING,
@@ -292,12 +310,17 @@ export class NegotiationService {
 
       // Verify user is authorized (buyer or seller)
       if (thread.buyerId !== userId && thread.sellerId !== userId) {
-        throw new ValidationError("Not authorized for this thread")
+        throw new ForbiddenError("Not authorized for this thread")
       }
 
-      // Verify bid is pending
-      if (bid.status !== BidStatus.PENDING) {
-        throw new ValidationError(`Bid is ${bid.status}`)
+      // Turn enforcement: only the party that did NOT place this bid can accept it
+      if (bid.placedByUserId && bid.placedByUserId === userId) {
+        throw new ForbiddenError("Cannot accept your own bid — waiting for the other party")
+      }
+
+      // Validate state transition via engine
+      if (!canTransition(bid.status as BidState, "ACCEPT")) {
+        throw new InvalidTransitionError(bid.status as BidState, "ACCEPT")
       }
 
       // Check if expired
@@ -350,6 +373,7 @@ export class NegotiationService {
         // Create order
         const order = await tx.order.create({
           data: {
+            id: randomUUID(),
             listingId: thread.listingId,
             buyerId: thread.buyerId,
             sellerId: thread.sellerId,
@@ -411,11 +435,12 @@ export class NegotiationService {
 
       // Verify user is authorized
       if (thread.buyerId !== userId && thread.sellerId !== userId) {
-        throw new ValidationError("Not authorized for this thread")
+        throw new ForbiddenError("Not authorized for this thread")
       }
 
-      if (bid.status !== BidStatus.PENDING) {
-        throw new ValidationError(`Bid is ${bid.status}`)
+      // Validate state transition via engine
+      if (!canTransition(bid.status as BidState, "REJECT")) {
+        throw new InvalidTransitionError(bid.status as BidState, "REJECT")
       }
 
       const result = await db.$transaction(async (tx) => {
@@ -446,6 +471,86 @@ export class NegotiationService {
       return result
     } catch (error) {
       logError(error, { bidId, userId })
+      throw error
+    }
+  }
+
+  /**
+   * Send a direct message to a seller about a listing.
+   * Creates a negotiation thread when the buyer is contacting the seller for the first time.
+   */
+  static async sendMessage(
+    listingId: string,
+    userId: string,
+    input: SendMessageInput
+  ) {
+    try {
+      const listing = await db.listing.findUnique({
+        where: { id: listingId },
+      })
+
+      if (!listing) {
+        throw new NotFoundError("Listing")
+      }
+
+      if (listing.userId === userId) {
+        throw new ValidationError("Cannot message your own listing")
+      }
+
+      if (listing.status !== "PUBLISHED" && listing.status !== "RESERVED") {
+        throw new ValidationError("Cannot message an unavailable listing")
+      }
+
+      const result = await db.$transaction(async (tx) => {
+        let thread = await tx.negotiationThread.findUnique({
+          where: {
+            listingId_buyerId: {
+              listingId,
+              buyerId: userId,
+            },
+          },
+        })
+
+        if (!thread) {
+          thread = await tx.negotiationThread.create({
+            data: {
+              id: randomUUID(),
+              listingId,
+              buyerId: userId,
+              sellerId: listing.userId,
+              status: ThreadStatus.ACTIVE,
+              updatedAt: new Date(),
+            },
+          })
+        } else if (thread.status !== ThreadStatus.ACTIVE) {
+          throw new ValidationError(`Thread is ${thread.status}`)
+        }
+
+        const message = await tx.negotiationMessage.create({
+          data: {
+            id: randomUUID(),
+            threadId: thread.id,
+            content: input.content,
+            isAgent: input.isAgent,
+          },
+        })
+
+        await tx.negotiationThread.update({
+          where: { id: thread.id },
+          data: { updatedAt: message.createdAt },
+        })
+
+        return { thread, message }
+      })
+
+      await eventBus.emit("negotiation.started", {
+        threadId: result.thread.id,
+        listingId,
+      })
+
+      return result
+    } catch (error) {
+      logError(error, { listingId, userId, input })
       throw error
     }
   }
@@ -486,7 +591,7 @@ export class NegotiationService {
 
     // Verify user is authorized
     if (thread.buyerId !== userId && thread.sellerId !== userId) {
-      throw new ValidationError("Not authorized for this thread")
+      throw new ForbiddenError("Not authorized for this thread")
     }
 
     return thread

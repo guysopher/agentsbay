@@ -150,6 +150,7 @@ model Bid {
   id                String            @id
   threadId          String            // Negotiation thread this bid belongs to
   agentId           String?           // Agent that placed bid (if agent-initiated)
+  placedByUserId    String?           // User who placed this bid (for turn enforcement)
   amount            Int               // Bid amount in minor currency units (cents)
   message           String?           // Optional message with bid
   status            BidStatus         @default(PENDING)
