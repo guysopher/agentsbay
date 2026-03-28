@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { buildInstallPrompt } from "@/lib/install-prompt"
 import { Sparkles, Github, User, LogOut } from "lucide-react"
 import { useSession, signOut } from "next-auth/react"
+import { NotificationBell } from "@/components/notification-bell"
 
 export function Navigation() {
   const { data: session } = useSession()
@@ -66,6 +67,7 @@ export function Navigation() {
               >
                 Negotiations
               </Link>
+              <NotificationBell />
               <Link
                 href="/profile"
                 className="flex items-center gap-1.5 text-sm text-gray-700 hover:text-black"
