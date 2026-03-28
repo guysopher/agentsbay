@@ -355,19 +355,20 @@ export class ListingService {
    */
   static async pause(listingId: string, userId: string) {
     try {
-      const listing = await db.listing.findFirst({
-        where: { id: listingId, userId },
-      })
-
-      if (!listing) {
-        throw new NotFoundError("Listing")
-      }
-
-      if (listing.status !== ListingStatus.PUBLISHED) {
-        throw new ValidationError(`Cannot pause a listing with status ${listing.status}`)
-      }
-
+      // Read + validate + write inside transaction to prevent TOCTOU race conditions
       const updated = await db.$transaction(async (tx) => {
+        const listing = await tx.listing.findFirst({
+          where: { id: listingId, userId },
+        })
+
+        if (!listing) {
+          throw new NotFoundError("Listing")
+        }
+
+        if (listing.status !== ListingStatus.PUBLISHED) {
+          throw new ValidationError(`Cannot pause a listing with status ${listing.status}`)
+        }
+
         const updated = await tx.listing.update({
           where: { id: listingId },
           data: { status: ListingStatus.PAUSED },
@@ -410,19 +411,20 @@ export class ListingService {
    */
   static async relist(listingId: string, userId: string) {
     try {
-      const listing = await db.listing.findFirst({
-        where: { id: listingId, userId },
-      })
-
-      if (!listing) {
-        throw new NotFoundError("Listing")
-      }
-
-      if (listing.status !== ListingStatus.PAUSED) {
-        throw new ValidationError(`Cannot relist a listing with status ${listing.status}`)
-      }
-
+      // Read + validate + write inside transaction to prevent TOCTOU race conditions
       const updated = await db.$transaction(async (tx) => {
+        const listing = await tx.listing.findFirst({
+          where: { id: listingId, userId },
+        })
+
+        if (!listing) {
+          throw new NotFoundError("Listing")
+        }
+
+        if (listing.status !== ListingStatus.PAUSED) {
+          throw new ValidationError(`Cannot relist a listing with status ${listing.status}`)
+        }
+
         const updated = await tx.listing.update({
           where: { id: listingId },
           data: { status: ListingStatus.PUBLISHED, publishedAt: new Date() },
@@ -472,23 +474,25 @@ export class ListingService {
    */
   static async update(listingId: string, userId: string, data: Partial<CreateListingInput>) {
     try {
-      const listing = await db.listing.findFirst({
-        where: {
-          id: listingId,
-          userId,
-        },
-      })
-
-      if (!listing) {
-        throw new NotFoundError("Listing")
-      }
-
-      const editableStatuses: ListingStatus[] = [ListingStatus.DRAFT, ListingStatus.PUBLISHED, ListingStatus.PAUSED]
-      if (!editableStatuses.includes(listing.status)) {
-        throw new ValidationError(`Cannot edit a listing with status ${listing.status}`)
-      }
-
+      // Read + validate + write inside transaction to prevent TOCTOU race conditions
       const updated = await db.$transaction(async (tx) => {
+        const listing = await tx.listing.findFirst({
+          where: {
+            id: listingId,
+            userId,
+            deletedAt: null,
+          },
+        })
+
+        if (!listing) {
+          throw new NotFoundError("Listing")
+        }
+
+        const editableStatuses: ListingStatus[] = [ListingStatus.DRAFT, ListingStatus.PUBLISHED, ListingStatus.PAUSED]
+        if (!editableStatuses.includes(listing.status)) {
+          throw new ValidationError(`Cannot edit a listing with status ${listing.status}`)
+        }
+
         const updated = await tx.listing.update({
           where: { id: listingId },
           data,
@@ -534,29 +538,31 @@ export class ListingService {
    */
   static async delete(listingId: string, userId: string) {
     try {
-      const listing = await db.listing.findFirst({
-        where: { id: listingId, userId },
-        include: {
-          NegotiationThread: {
-            where: { status: ThreadStatus.ACTIVE },
-            select: { id: true },
-          },
-        },
-      })
-
-      if (!listing) {
-        throw new NotFoundError("Listing")
-      }
-
-      if (listing.status === ListingStatus.SOLD || listing.status === ListingStatus.REMOVED) {
-        throw new ValidationError(`Cannot delete a listing with status ${listing.status}`)
-      }
-
-      if (listing.NegotiationThread.length > 0) {
-        throw new ValidationError("Cannot delete listing with active bids")
-      }
-
+      // Read + validate + write inside transaction to prevent TOCTOU race conditions
+      // (including the active-bid check, which must be atomic with the delete)
       const deleted = await db.$transaction(async (tx) => {
+        const listing = await tx.listing.findFirst({
+          where: { id: listingId, userId },
+          include: {
+            NegotiationThread: {
+              where: { status: ThreadStatus.ACTIVE },
+              select: { id: true },
+            },
+          },
+        })
+
+        if (!listing) {
+          throw new NotFoundError("Listing")
+        }
+
+        if (listing.status === ListingStatus.SOLD || listing.status === ListingStatus.REMOVED) {
+          throw new ValidationError(`Cannot delete a listing with status ${listing.status}`)
+        }
+
+        if (listing.NegotiationThread.length > 0) {
+          throw new ValidationError("Cannot delete listing with active bids")
+        }
+
         const deleted = await tx.listing.update({
           where: { id: listingId },
           data: {

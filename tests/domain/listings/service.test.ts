@@ -20,7 +20,7 @@ describe("ListingService", () => {
         category: "FURNITURE" as const,
         condition: "GOOD" as const,
         price: 12000,
-        location: "San Francisco, CA",
+        address: "San Francisco, CA",
       }
 
       const listing = await ListingService.create(testUser.id, data)
@@ -38,7 +38,7 @@ describe("ListingService", () => {
         category: "FURNITURE" as const,
         condition: "GOOD" as const,
         price: 12000,
-        location: "San Francisco, CA",
+        address: "San Francisco, CA",
       }
 
       const listing = await ListingService.create(testUser.id, data)
@@ -63,7 +63,7 @@ describe("ListingService", () => {
         category: "FURNITURE" as const,
         condition: "GOOD" as const,
         price: 12000,
-        location: "San Francisco, CA",
+        address: "San Francisco, CA",
       }
 
       const listing = await ListingService.create(testUser.id, data)
@@ -89,7 +89,7 @@ describe("ListingService", () => {
         category: "FURNITURE" as const,
         condition: "GOOD" as const,
         price: 12000,
-        location: "San Francisco, CA",
+        address: "San Francisco, CA",
       }
 
       const listing = await ListingService.create(testUser.id, data)
@@ -109,7 +109,7 @@ describe("ListingService", () => {
         category: "FURNITURE" as const,
         condition: "GOOD" as const,
         price: 10000,
-        location: "SF",
+        address: "SF, CA",
       })
       await ListingService.publish(furniture.id, testUser.id)
 
@@ -120,7 +120,7 @@ describe("ListingService", () => {
         category: "ELECTRONICS" as const,
         condition: "GOOD" as const,
         price: 50000,
-        location: "SF",
+        address: "SF, CA",
       })
       await ListingService.publish(electronics.id, testUser.id)
 
@@ -137,7 +137,7 @@ describe("ListingService", () => {
         category: "FURNITURE" as const,
         condition: "GOOD" as const,
         price: 5000, // $50
-        location: "SF",
+        address: "SF, CA",
       })
       await ListingService.publish(listing1.id, testUser.id)
 
@@ -147,7 +147,7 @@ describe("ListingService", () => {
         category: "FURNITURE" as const,
         condition: "GOOD" as const,
         price: 50000, // $500
-        location: "SF",
+        address: "SF, CA",
       })
       await ListingService.publish(listing2.id, testUser.id)
 
@@ -221,6 +221,9 @@ describe("ListingService", () => {
     })
   })
 
+  // Race condition note: pause/relist/update/delete all perform findFirst + validation + update
+  // inside a single $transaction block. This prevents TOCTOU races where a concurrent request
+  // could change listing status between the read and the write (AGE-45).
   describe("pause", () => {
     it("should pause a published listing", async () => {
       const listing = await createTestListing(testUser.id, { status: "PUBLISHED" })
