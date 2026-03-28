@@ -585,11 +585,12 @@ enum ListingCategory {
 }
 
 /// Listing lifecycle states
-/// Flow: DRAFT → [PENDING_REVIEW] → PUBLISHED → SOLD/REMOVED
+/// Flow: DRAFT → [PENDING_REVIEW] → PUBLISHED ⇄ PAUSED → SOLD/REMOVED
 enum ListingStatus {
   DRAFT           // Not yet published
   PENDING_REVIEW  // Awaiting moderation (Phase 5)
   PUBLISHED       // Live in marketplace
+  PAUSED          // Seller temporarily paused listing
   RESERVED        // Item reserved pending pickup
   SOLD            // Transaction completed
   REMOVED         // Listing removed (soft delete)
