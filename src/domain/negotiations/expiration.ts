@@ -16,36 +16,40 @@ export async function checkExpiredBids(): Promise<ExpiredBidsSummary> {
   try {
     const now = new Date()
 
-    // Find all PENDING bids that have passed their expiry
-    const expiredBids = await db.bid.findMany({
-      where: {
-        status: BidStatus.PENDING,
-        expiresAt: { lt: now },
-      },
-      select: {
-        id: true,
-        threadId: true,
-        NegotiationThread: {
-          select: { listingId: true },
+    // Wrap findMany + updateMany in a transaction to avoid race conditions
+    // where a bid is accepted/rejected between the two calls.
+    const result = await db.$transaction(async (tx) => {
+      const expiredBids = await tx.bid.findMany({
+        where: {
+          status: BidStatus.PENDING,
+          expiresAt: { lte: now },
         },
-      },
+        select: {
+          id: true,
+          threadId: true,
+          NegotiationThread: {
+            select: { listingId: true },
+          },
+        },
+      })
+
+      if (expiredBids.length === 0) {
+        return { processed: 0, expired: 0, bids: [] as typeof expiredBids }
+      }
+
+      const ids = expiredBids.map((b) => b.id)
+
+      const { count } = await tx.bid.updateMany({
+        where: { id: { in: ids }, status: BidStatus.PENDING },
+        data: { status: BidStatus.EXPIRED, updatedAt: now },
+      })
+
+      return { processed: expiredBids.length, expired: count, bids: expiredBids }
     })
 
-    if (expiredBids.length === 0) {
-      return { processed: 0, expired: 0 }
-    }
-
-    const ids = expiredBids.map((b) => b.id)
-
-    // Batch update all expired bids
-    const { count } = await db.bid.updateMany({
-      where: { id: { in: ids } },
-      data: { status: BidStatus.EXPIRED, updatedAt: now },
-    })
-
-    // Emit events for each expired bid
+    // Emit events after transaction commits
     await Promise.all(
-      expiredBids.map((bid) =>
+      result.bids.map((bid) =>
         eventBus.emit("bid.expired", {
           bidId: bid.id,
           threadId: bid.threadId,
@@ -54,7 +58,7 @@ export async function checkExpiredBids(): Promise<ExpiredBidsSummary> {
       )
     )
 
-    return { processed: expiredBids.length, expired: count }
+    return { processed: result.processed, expired: result.expired }
   } catch (error) {
     logError(error, { context: "checkExpiredBids" })
     throw error
