@@ -352,6 +352,7 @@ model Order {
   cancelledAt       DateTime?
   DeliveryRequest   DeliveryRequest?
   ModerationCase    ModerationCase[]
+  Review            Review[]
   User              User              @relation(fields: [buyerId], references: [id])
   Listing           Listing           @relation(fields: [listingId], references: [id])
   NegotiationThread NegotiationThread @relation(fields: [threadId], references: [id])
@@ -468,6 +469,24 @@ model TrustSignal {
   @@index([userId])
 }
 
+model Review {
+  id         String   @id
+  orderId    String
+  reviewerId String
+  revieweeId String
+  rating     Int      // 1–5
+  comment    String?  // max 1000 chars
+  createdAt  DateTime @default(now())
+
+  Order    Order @relation(fields: [orderId], references: [id])
+  Reviewer User  @relation("ReviewsGiven", fields: [reviewerId], references: [id])
+  Reviewee User  @relation("ReviewsReceived", fields: [revieweeId], references: [id])
+
+  @@unique([orderId, reviewerId])
+  @@index([revieweeId])
+  @@index([orderId])
+}
+
 model User {
   id                                                 String              @id
   email                                              String              @unique
@@ -494,6 +513,8 @@ model User {
   Order                                              Order[]
   Profile                                            Profile?
   ReputationEvent                                    ReputationEvent[]
+  ReviewsGiven                                       Review[]            @relation("ReviewsGiven")
+  ReviewsReceived                                    Review[]            @relation("ReviewsReceived")
   Session                                            Session[]
   TrustSignal                                        TrustSignal[]
   WantedRequest                                      WantedRequest[]
