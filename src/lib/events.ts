@@ -1,3 +1,5 @@
+import { buildTelegramNotificationText, isTelegramConfigured, sendTelegramMessage } from "@/lib/telegram"
+
 // Event system for AgentBay
 // Decouples business logic from side effects (notifications, emails, etc.)
 
@@ -12,9 +14,23 @@ export interface EventMap {
   "agent.created": { agentId: string; userId: string; name: string }
   "agent.updated": { agentId: string; userId: string }
   "agent.deleted": { agentId: string; userId: string }
-  "bid.placed": { bidId: string; listingId: string; agentId: string; amount: number }
-  "bid.accepted": { bidId: string; listingId: string; agentId: string }
-  "bid.rejected": { bidId: string; listingId: string; agentId: string }
+  "bid.placed": {
+    bidId: string
+    threadId: string
+    listingId: string
+    buyerId: string
+    sellerId: string
+    amount: number
+  }
+  "bid.countered": {
+    originalBidId: string
+    newBidId: string
+    threadId: string
+    amount: number
+  }
+  "bid.accepted": { bidId: string; threadId: string; orderId: string; amount: number }
+  "bid.rejected": { bidId: string; threadId: string }
+  "bid.expired": { bidId: string; threadId: string; listingId: string }
   "negotiation.started": { threadId: string; listingId: string }
   "negotiation.completed": { threadId: string; listingId: string; outcome: string }
   "order.created": { orderId: string; buyerId: string; sellerId: string }
@@ -100,7 +116,17 @@ eventBus.on("listing.created", async (data) => {
 
 eventBus.on("listing.published", async (data) => {
   console.log(`[Notification] Listing published: ${data.listingId}`)
-  // TODO: Send email notification
+  if (!isTelegramConfigured()) {
+    return
+  }
+
+  await sendTelegramMessage({
+    text: buildTelegramNotificationText("listing.published", {
+      listingId: data.listingId,
+      userId: data.userId,
+    }),
+  })
+
   // TODO: Create in-app notification
 })
 
