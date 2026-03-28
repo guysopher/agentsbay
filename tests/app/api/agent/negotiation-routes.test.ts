@@ -429,6 +429,56 @@ describe("negotiation API routes", () => {
     expect(response.status).toBe(403)
   })
 
+  it("returns 403 when seller tries to accept their own counter-bid (AGE-37)", async () => {
+    jest.spyOn(db.agentCredential, "findFirst").mockResolvedValue({
+      Agent: {
+        id: "agent-1",
+        userId: "seller-1",
+      },
+    } as never)
+    jest
+      .spyOn(NegotiationService, "acceptBid")
+      .mockRejectedValue(new ForbiddenError("Cannot accept your own bid"))
+
+    const response = await acceptBidPOST(
+      new NextRequest("http://localhost/api/agent/bids/bid-1/accept", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer sk_test_123",
+        },
+      }),
+      createContext("bid-1")
+    )
+
+    expect(response.status).toBe(403)
+  })
+
+  it("returns 403 when buyer tries to counter their own bid (AGE-37)", async () => {
+    jest.spyOn(db.agentCredential, "findFirst").mockResolvedValue({
+      Agent: {
+        id: "agent-2",
+        userId: "buyer-1",
+      },
+    } as never)
+    jest
+      .spyOn(NegotiationService, "counterBid")
+      .mockRejectedValue(new ForbiddenError("Cannot counter your own bid"))
+
+    const response = await counterBidPOST(
+      new NextRequest("http://localhost/api/agent/bids/bid-1/counter", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer sk_test_123",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ amount: 8000 }),
+      }),
+      createContext("bid-1")
+    )
+
+    expect(response.status).toBe(403)
+  })
+
   // ── POST /api/agent/bids/[id]/reject ─────────────────────────────────────
 
   it("rejects a bid successfully (200)", async () => {

@@ -355,12 +355,34 @@ describe("ListingService", () => {
       ).rejects.toThrow("Cannot edit a listing with status SOLD")
     })
 
+    it("should allow update on PUBLISHED listing", async () => {
+      const listing = await createTestListing(testUser.id, { status: "PUBLISHED" })
+      const updated = await ListingService.update(listing.id, testUser.id, { title: "Updated Title" })
+      expect(updated.title).toBe("Updated Title")
+    })
+
     it("should throw ValidationError when editing a RESERVED listing", async () => {
       const listing = await createTestListing(testUser.id, { status: "RESERVED" })
 
       await expect(
         ListingService.update(listing.id, testUser.id, { title: "New Title" })
       ).rejects.toThrow("Cannot edit a listing with status RESERVED")
+    })
+
+    it("should throw ValidationError when editing a REMOVED listing", async () => {
+      const listing = await createTestListing(testUser.id, { status: "REMOVED", deletedAt: new Date() })
+
+      await expect(
+        ListingService.update(listing.id, testUser.id, { title: "New Title" })
+      ).rejects.toThrow("Listing not found")
+    })
+
+    it("should throw ValidationError when editing a FLAGGED listing", async () => {
+      const listing = await createTestListing(testUser.id, { status: "FLAGGED" })
+
+      await expect(
+        ListingService.update(listing.id, testUser.id, { title: "New Title" })
+      ).rejects.toThrow("Cannot edit a listing with status FLAGGED")
     })
   })
 
@@ -381,6 +403,20 @@ describe("ListingService", () => {
       await expect(
         ListingService.getById(created.id)
       ).rejects.toThrow("Listing not found")
+    })
+
+    it("should delete a DRAFT listing", async () => {
+      const listing = await createTestListing(testUser.id, { status: "DRAFT", publishedAt: null })
+      const result = await ListingService.delete(listing.id, testUser.id)
+      expect(result.status).toBe("REMOVED")
+      expect(result.deletedAt).toBeDefined()
+    })
+
+    it("should delete a PAUSED listing", async () => {
+      const listing = await createTestListing(testUser.id, { status: "PAUSED" })
+      const result = await ListingService.delete(listing.id, testUser.id)
+      expect(result.status).toBe("REMOVED")
+      expect(result.deletedAt).toBeDefined()
     })
 
     it("should throw error when deleting non-existent listing", async () => {

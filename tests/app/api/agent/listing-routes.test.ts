@@ -17,6 +17,8 @@ import { POST as createListingPOST } from "@/app/api/agent/listings/route"
 import { GET as getListingGET, PATCH as patchListingPATCH, DELETE as deleteListingDELETE } from "@/app/api/agent/listings/[id]/route"
 import { GET as searchListingsGET } from "@/app/api/agent/listings/search/route"
 import { POST as publishListingPOST } from "@/app/api/agent/listings/[id]/publish/route"
+import { POST as pauseListingPOST } from "@/app/api/agent/listings/[id]/pause/route"
+import { POST as relistListingPOST } from "@/app/api/agent/listings/[id]/relist/route"
 import { ValidationError, NotFoundError } from "@/lib/errors"
 
 function createContext(id: string) {
@@ -796,6 +798,269 @@ describe("seller listing API routes (AGE-6)", () => {
           headers: { Authorization: "Bearer sk_test_123" },
         }),
         createContext("does-not-exist")
+      )
+
+      expect(response.status).toBe(404)
+    })
+  })
+
+  // ─── POST /api/agent/listings/[id]/pause ─────────────────────────────────────
+
+  describe("POST pause listing", () => {
+    beforeEach(() => {
+      jest.spyOn(db.agentCredential, "findFirst").mockResolvedValue({
+        Agent: MOCK_AGENT,
+      } as never)
+    })
+
+    it("returns 401 without auth", async () => {
+      const response = await pauseListingPOST(
+        new NextRequest("http://localhost/api/agent/listings/listing-abc-123/pause", {
+          method: "POST",
+        }),
+        createContext("listing-abc-123")
+      )
+      expect(response.status).toBe(401)
+    })
+
+    it("returns 200 with PAUSED listing on success", async () => {
+      const pausedListing = { ...MOCK_PUBLISHED_LISTING, status: "PAUSED" }
+      jest.spyOn(ListingService, "pause").mockResolvedValue(pausedListing as never)
+
+      const response = await pauseListingPOST(
+        new NextRequest("http://localhost/api/agent/listings/listing-abc-123/pause", {
+          method: "POST",
+          headers: { Authorization: "Bearer sk_test_123" },
+        }),
+        createContext("listing-abc-123")
+      )
+
+      const body = await response.json()
+      expect(response.status).toBe(200)
+      expect(body.data.status).toBe("PAUSED")
+      expect(body.meta.timestamp).toBeDefined()
+    })
+
+    it("passes correct userId and listingId to ListingService.pause", async () => {
+      const pauseSpy = jest.spyOn(ListingService, "pause").mockResolvedValue(
+        { ...MOCK_PUBLISHED_LISTING, status: "PAUSED" } as never
+      )
+
+      await pauseListingPOST(
+        new NextRequest("http://localhost/api/agent/listings/listing-abc-123/pause", {
+          method: "POST",
+          headers: { Authorization: "Bearer sk_test_123" },
+        }),
+        createContext("listing-abc-123")
+      )
+
+      expect(pauseSpy).toHaveBeenCalledWith("listing-abc-123", "user-seller-1")
+    })
+
+    it("returns 400 when listing is not PUBLISHED", async () => {
+      jest.spyOn(ListingService, "pause").mockRejectedValue(
+        new ValidationError("Cannot pause a listing with status DRAFT")
+      )
+
+      const response = await pauseListingPOST(
+        new NextRequest("http://localhost/api/agent/listings/listing-abc-123/pause", {
+          method: "POST",
+          headers: { Authorization: "Bearer sk_test_123" },
+        }),
+        createContext("listing-abc-123")
+      )
+
+      const body = await response.json()
+      expect(response.status).toBe(400)
+      expect(body.error).toBeDefined()
+    })
+
+    it("returns 404 for non-existent listing", async () => {
+      jest.spyOn(ListingService, "pause").mockRejectedValue(
+        new NotFoundError("Listing")
+      )
+
+      const response = await pauseListingPOST(
+        new NextRequest("http://localhost/api/agent/listings/does-not-exist/pause", {
+          method: "POST",
+          headers: { Authorization: "Bearer sk_test_123" },
+        }),
+        createContext("does-not-exist")
+      )
+
+      expect(response.status).toBe(404)
+    })
+  })
+
+  // ─── POST /api/agent/listings/[id]/relist ────────────────────────────────────
+
+  describe("POST relist listing", () => {
+    beforeEach(() => {
+      jest.spyOn(db.agentCredential, "findFirst").mockResolvedValue({
+        Agent: MOCK_AGENT,
+      } as never)
+    })
+
+    it("returns 401 without auth", async () => {
+      const response = await relistListingPOST(
+        new NextRequest("http://localhost/api/agent/listings/listing-abc-123/relist", {
+          method: "POST",
+        }),
+        createContext("listing-abc-123")
+      )
+      expect(response.status).toBe(401)
+    })
+
+    it("returns 200 with PUBLISHED listing and updated publishedAt on success", async () => {
+      const newPublishedAt = new Date("2026-03-28T14:00:00.000Z")
+      const relistedListing = { ...MOCK_PUBLISHED_LISTING, status: "PUBLISHED", publishedAt: newPublishedAt }
+      jest.spyOn(ListingService, "relist").mockResolvedValue(relistedListing as never)
+
+      const response = await relistListingPOST(
+        new NextRequest("http://localhost/api/agent/listings/listing-abc-123/relist", {
+          method: "POST",
+          headers: { Authorization: "Bearer sk_test_123" },
+        }),
+        createContext("listing-abc-123")
+      )
+
+      const body = await response.json()
+      expect(response.status).toBe(200)
+      expect(body.data.status).toBe("PUBLISHED")
+      expect(body.data.publishedAt).toBeDefined()
+      expect(body.meta.timestamp).toBeDefined()
+    })
+
+    it("passes correct userId and listingId to ListingService.relist", async () => {
+      const relistSpy = jest.spyOn(ListingService, "relist").mockResolvedValue(
+        MOCK_PUBLISHED_LISTING as never
+      )
+
+      await relistListingPOST(
+        new NextRequest("http://localhost/api/agent/listings/listing-abc-123/relist", {
+          method: "POST",
+          headers: { Authorization: "Bearer sk_test_123" },
+        }),
+        createContext("listing-abc-123")
+      )
+
+      expect(relistSpy).toHaveBeenCalledWith("listing-abc-123", "user-seller-1")
+    })
+
+    it("returns 400 when listing is not PAUSED", async () => {
+      jest.spyOn(ListingService, "relist").mockRejectedValue(
+        new ValidationError("Cannot relist a listing with status PUBLISHED")
+      )
+
+      const response = await relistListingPOST(
+        new NextRequest("http://localhost/api/agent/listings/listing-abc-123/relist", {
+          method: "POST",
+          headers: { Authorization: "Bearer sk_test_123" },
+        }),
+        createContext("listing-abc-123")
+      )
+
+      const body = await response.json()
+      expect(response.status).toBe(400)
+      expect(body.error).toBeDefined()
+    })
+
+    it("returns 404 for non-existent listing", async () => {
+      jest.spyOn(ListingService, "relist").mockRejectedValue(
+        new NotFoundError("Listing")
+      )
+
+      const response = await relistListingPOST(
+        new NextRequest("http://localhost/api/agent/listings/does-not-exist/relist", {
+          method: "POST",
+          headers: { Authorization: "Bearer sk_test_123" },
+        }),
+        createContext("does-not-exist")
+      )
+
+      expect(response.status).toBe(404)
+    })
+  })
+
+  // ─── Ownership enforcement ────────────────────────────────────────────────────
+
+  describe("ownership enforcement — seller cannot modify another seller's listing", () => {
+    const MOCK_AGENT_SELLER_B = {
+      ...MOCK_AGENT,
+      id: "agent-seller-2",
+      userId: "user-seller-2",
+      name: "Seller B Agent",
+    }
+
+    beforeEach(() => {
+      jest.spyOn(db.agentCredential, "findFirst").mockResolvedValue({
+        Agent: MOCK_AGENT_SELLER_B,
+      } as never)
+    })
+
+    it("returns 404 when seller B tries to PATCH seller A's listing", async () => {
+      jest.spyOn(ListingService, "update").mockRejectedValue(
+        new NotFoundError("Listing")
+      )
+
+      const response = await patchListingPATCH(
+        new NextRequest("http://localhost/api/agent/listings/listing-abc-123", {
+          method: "PATCH",
+          headers: {
+            Authorization: "Bearer sk_test_123",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ title: "Hijacked Title" }),
+        }),
+        createContext("listing-abc-123")
+      )
+
+      expect(response.status).toBe(404)
+    })
+
+    it("returns 404 when seller B tries to DELETE seller A's listing", async () => {
+      jest.spyOn(ListingService, "delete").mockRejectedValue(
+        new NotFoundError("Listing")
+      )
+
+      const response = await deleteListingDELETE(
+        new NextRequest("http://localhost/api/agent/listings/listing-abc-123", {
+          method: "DELETE",
+          headers: { Authorization: "Bearer sk_test_123" },
+        }),
+        createContext("listing-abc-123")
+      )
+
+      expect(response.status).toBe(404)
+    })
+
+    it("returns 404 when seller B tries to pause seller A's listing", async () => {
+      jest.spyOn(ListingService, "pause").mockRejectedValue(
+        new NotFoundError("Listing")
+      )
+
+      const response = await pauseListingPOST(
+        new NextRequest("http://localhost/api/agent/listings/listing-abc-123/pause", {
+          method: "POST",
+          headers: { Authorization: "Bearer sk_test_123" },
+        }),
+        createContext("listing-abc-123")
+      )
+
+      expect(response.status).toBe(404)
+    })
+
+    it("returns 404 when seller B tries to relist seller A's listing", async () => {
+      jest.spyOn(ListingService, "relist").mockRejectedValue(
+        new NotFoundError("Listing")
+      )
+
+      const response = await relistListingPOST(
+        new NextRequest("http://localhost/api/agent/listings/listing-abc-123/relist", {
+          method: "POST",
+          headers: { Authorization: "Bearer sk_test_123" },
+        }),
+        createContext("listing-abc-123")
       )
 
       expect(response.status).toBe(404)
