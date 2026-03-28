@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { NegotiationService } from "@/domain/negotiations/service"
 import { z, ZodError } from "zod"
+import { NotFoundError, ValidationError } from "@/lib/errors"
 
 const sendMessageSchema = z.object({
   content: z.string().min(1).max(2000),
@@ -40,9 +41,11 @@ export async function POST(
         { status: 400 }
       )
     }
-    if (error instanceof Error) {
-      const status = error.message.includes("not found") ? 404 : 400
-      return NextResponse.json({ error: { message: error.message } }, { status })
+    if (error instanceof NotFoundError) {
+      return NextResponse.json({ error: { message: error.message } }, { status: 404 })
+    }
+    if (error instanceof ValidationError) {
+      return NextResponse.json({ error: { message: error.message } }, { status: 400 })
     }
     return NextResponse.json({ error: { message: "Failed to send message" } }, { status: 500 })
   }

@@ -1,21 +1,16 @@
 import { createApiHandler, successResponse, errorResponse } from "@/lib/api-handler"
-import { verifyApiKey, extractBearerToken } from "@/lib/agent-auth"
+import { authenticateAgentRequest } from "@/lib/agent-auth"
 import { NegotiationService } from "@/domain/negotiations/service"
+import { ForbiddenError, NotFoundError } from "@/lib/errors"
 
 export const { GET } = createApiHandler({
   GET: async (req, context) => {
     try {
-      const authHeader = req.headers.get("Authorization")
-      const apiKey = extractBearerToken(authHeader)
-
-      if (!apiKey) {
-        return errorResponse("Missing or invalid Authorization header", 401)
+      const authResult = await authenticateAgentRequest(req)
+      if (authResult.response) {
+        return authResult.response
       }
-
-      const auth = await verifyApiKey(apiKey)
-      if (!auth) {
-        return errorResponse("Invalid API key", 401)
-      }
+      const { auth } = authResult
 
       const params = await context.params
       const threadId = params.id
@@ -53,8 +48,8 @@ export const { GET } = createApiHandler({
         })),
         messages: thread.NegotiationMessage.map(msg => ({
           id: msg.id,
-          senderId: msg.senderId,
           content: msg.content,
+          isAgent: msg.isAgent,
           createdAt: msg.createdAt
         })),
         createdAt: thread.createdAt,
@@ -64,11 +59,11 @@ export const { GET } = createApiHandler({
     } catch (error: unknown) {
       console.error("Agent get thread error:", error)
 
-      if (error instanceof Error && error.message.includes("not found")) {
-        return errorResponse("Thread not found", 404)
+      if (error instanceof NotFoundError) {
+        return errorResponse(error.message, 404)
       }
 
-      if (error instanceof Error && error.message.includes("Not authorized")) {
+      if (error instanceof ForbiddenError) {
         return errorResponse(error.message, 403)
       }
 

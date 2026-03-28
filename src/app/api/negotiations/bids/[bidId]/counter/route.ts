@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { NegotiationService } from "@/domain/negotiations/service"
 import { z, ZodError } from "zod"
+import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors"
 
 const counterSchema = z.object({
   amount: z.number().int().positive().min(100),
@@ -33,11 +34,14 @@ export async function POST(
         { status: 400 }
       )
     }
-    if (error instanceof Error) {
-      const status = error.message.includes("not found") ? 404
-        : error.message.includes("authorized") ? 403
-        : 400
-      return NextResponse.json({ error: { message: error.message } }, { status })
+    if (error instanceof NotFoundError) {
+      return NextResponse.json({ error: { message: error.message } }, { status: 404 })
+    }
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ error: { message: error.message } }, { status: 403 })
+    }
+    if (error instanceof ValidationError) {
+      return NextResponse.json({ error: { message: error.message } }, { status: 400 })
     }
     return NextResponse.json({ error: { message: "Failed to counter bid" } }, { status: 500 })
   }

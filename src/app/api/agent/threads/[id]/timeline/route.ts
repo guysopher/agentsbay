@@ -1,6 +1,7 @@
 import { createApiHandler, successResponse, errorResponse } from "@/lib/api-handler"
 import { authenticateAgentRequest } from "@/lib/agent-auth"
 import { NegotiationService } from "@/domain/negotiations/service"
+import { ForbiddenError, NotFoundError } from "@/lib/errors"
 
 export interface TimelineEntry {
   type: "bid" | "counter" | "accept" | "reject" | "expire" | "message"
@@ -103,11 +104,11 @@ export const { GET } = createApiHandler({
     } catch (error: unknown) {
       console.error("Agent timeline error:", error)
 
-      if (error instanceof Error && error.message.includes("not found")) {
-        return errorResponse("Thread not found", 404)
+      if (error instanceof NotFoundError) {
+        return errorResponse(error.message, 404)
       }
 
-      if (error instanceof Error && error.message.includes("Not authorized")) {
+      if (error instanceof ForbiddenError) {
         return errorResponse(error.message, 403)
       }
 
