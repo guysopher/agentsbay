@@ -359,6 +359,12 @@ export class ListingService {
       const updated = await db.$transaction(async (tx) => {
         const listing = await tx.listing.findFirst({
           where: { id: listingId, userId },
+          include: {
+            NegotiationThread: {
+              where: { status: ThreadStatus.ACTIVE },
+              select: { id: true },
+            },
+          },
         })
 
         if (!listing) {
@@ -367,6 +373,10 @@ export class ListingService {
 
         if (listing.status !== ListingStatus.PUBLISHED) {
           throw new ValidationError(`Cannot pause a listing with status ${listing.status}`)
+        }
+
+        if (listing.NegotiationThread.length > 0) {
+          throw new ValidationError("Cannot pause listing with active negotiations")
         }
 
         const updated = await tx.listing.update({
@@ -555,7 +565,11 @@ export class ListingService {
           throw new NotFoundError("Listing")
         }
 
-        if (listing.status === ListingStatus.SOLD || listing.status === ListingStatus.REMOVED) {
+        if (
+          listing.status === ListingStatus.SOLD ||
+          listing.status === ListingStatus.REMOVED ||
+          listing.status === ListingStatus.RESERVED
+        ) {
           throw new ValidationError(`Cannot delete a listing with status ${listing.status}`)
         }
 

@@ -265,6 +265,45 @@ describe("ListingService", () => {
         ListingService.pause(listing.id, testUser.id)
       ).rejects.toThrow("Listing not found")
     })
+
+    it("should throw ValidationError when pausing a listing with active negotiations", async () => {
+      const listing = await createTestListing(testUser.id, { status: "PUBLISHED" })
+      const buyer = await createTestUser({ email: "buyer-pause@example.com" })
+
+      await testDb.negotiationThread.create({
+        data: {
+          id: randomUUID(),
+          listingId: listing.id,
+          buyerId: buyer.id,
+          sellerId: testUser.id,
+          status: "ACTIVE",
+          updatedAt: new Date(),
+        },
+      })
+
+      await expect(
+        ListingService.pause(listing.id, testUser.id)
+      ).rejects.toThrow("Cannot pause listing with active negotiations")
+    })
+
+    it("should pause a listing when all threads are completed or rejected", async () => {
+      const listing = await createTestListing(testUser.id, { status: "PUBLISHED" })
+      const buyer = await createTestUser({ email: "buyer-done@example.com" })
+
+      await testDb.negotiationThread.create({
+        data: {
+          id: randomUUID(),
+          listingId: listing.id,
+          buyerId: buyer.id,
+          sellerId: testUser.id,
+          status: "COMPLETED",
+          updatedAt: new Date(),
+        },
+      })
+
+      const paused = await ListingService.pause(listing.id, testUser.id)
+      expect(paused.status).toBe("PAUSED")
+    })
   })
 
   describe("relist", () => {
@@ -445,6 +484,14 @@ describe("ListingService", () => {
       await expect(
         ListingService.delete(listing.id, testUser.id)
       ).rejects.toThrow("Cannot delete a listing with status REMOVED")
+    })
+
+    it("should throw ValidationError when deleting a RESERVED listing", async () => {
+      const listing = await createTestListing(testUser.id, { status: "RESERVED" })
+
+      await expect(
+        ListingService.delete(listing.id, testUser.id)
+      ).rejects.toThrow("Cannot delete a listing with status RESERVED")
     })
 
     it("should throw ValidationError when listing has active bids", async () => {
