@@ -10,6 +10,7 @@ import {
 } from "@prisma/client"
 import { randomUUID } from "crypto"
 import { OrderService } from "@/domain/orders/service"
+import { NotFoundError } from "@/lib/errors"
 import { db } from "@/lib/db"
 import { cleanDatabase, createTestUser, testDb } from "../../setup"
 
@@ -81,9 +82,9 @@ describe("OrderService", () => {
   })
 
   it("closes out order and marks listing sold", async () => {
-    const { order, buyer, listing } = await createOrderFixture(FulfillmentMethod.PICKUP)
+    const { order, seller, listing } = await createOrderFixture(FulfillmentMethod.PICKUP)
 
-    const closed = await OrderService.closeout(order.id, buyer.id)
+    const closed = await OrderService.closeout(order.id, seller.id)
 
     expect(closed.status).toBe(OrderStatus.COMPLETED)
     expect(closed.completedAt).toBeDefined()
@@ -93,8 +94,14 @@ describe("OrderService", () => {
     expect(updatedListing?.soldAt).toBeDefined()
   })
 
+  it("rejects buyer closeout with not found error", async () => {
+    const { order, buyer } = await createOrderFixture(FulfillmentMethod.PICKUP)
+
+    await expect(OrderService.closeout(order.id, buyer.id)).rejects.toThrow(NotFoundError)
+  })
+
   it("rejects closeout for undelivered delivery order", async () => {
-    const { order, buyer } = await createOrderFixture(FulfillmentMethod.DELIVERY)
+    const { order, seller } = await createOrderFixture(FulfillmentMethod.DELIVERY)
 
     await testDb.deliveryRequest.create({
       data: {
@@ -107,7 +114,7 @@ describe("OrderService", () => {
       },
     })
 
-    await expect(OrderService.closeout(order.id, buyer.id)).rejects.toThrow(
+    await expect(OrderService.closeout(order.id, seller.id)).rejects.toThrow(
       "Delivery order must be delivered before closeout"
     )
   })

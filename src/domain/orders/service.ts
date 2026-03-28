@@ -7,7 +7,77 @@ interface SchedulePickupInput {
   pickupLocation: string
 }
 
+interface ListByUserFilters {
+  status?: OrderStatus[]
+  cursor?: string
+  limit?: number
+}
+
+interface ListByUserResult {
+  items: Array<{
+    id: string
+    status: OrderStatus
+    listingId: string
+    listingTitle: string
+    amount: number
+    fulfillmentMethod: FulfillmentMethod
+    pickupLocation: string | null
+    deliveryAddress: string | null
+    buyerId: string
+    sellerId: string
+    createdAt: Date
+    updatedAt: Date
+  }>
+  nextCursor: string | null
+  hasMore: boolean
+}
+
 export class OrderService {
+  static async listByUser(userId: string, filters: ListByUserFilters = {}): Promise<ListByUserResult> {
+    const limit = filters.limit ?? 20
+
+    const orders = await db.order.findMany({
+      where: {
+        OR: [{ buyerId: userId }, { sellerId: userId }],
+        ...(filters.status && filters.status.length > 0 && { status: { in: filters.status } }),
+      },
+      include: {
+        Listing: {
+          select: { id: true, title: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: limit + 1,
+      ...(filters.cursor && {
+        cursor: { id: filters.cursor },
+        skip: 1,
+      }),
+    })
+
+    const hasMore = orders.length > limit
+    const results = hasMore ? orders.slice(0, limit) : orders
+    const nextCursor = hasMore ? results[results.length - 1].id : null
+
+    return {
+      items: results.map((o) => ({
+        id: o.id,
+        status: o.status,
+        listingId: o.listingId,
+        listingTitle: o.Listing.title,
+        amount: o.amount,
+        fulfillmentMethod: o.fulfillmentMethod,
+        pickupLocation: o.pickupLocation,
+        deliveryAddress: o.deliveryAddress,
+        buyerId: o.buyerId,
+        sellerId: o.sellerId,
+        createdAt: o.createdAt,
+        updatedAt: o.updatedAt,
+      })),
+      nextCursor,
+      hasMore,
+    }
+  }
+
   static async getById(orderId: string, actorUserId: string) {
     const order = await db.order.findFirst({
       where: {

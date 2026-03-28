@@ -3,6 +3,7 @@ import { NextRequest } from "next/server"
 import { NotFoundError, ValidationError } from "@/lib/errors"
 import { db } from "@/lib/db"
 import { OrderService } from "@/domain/orders/service"
+import { GET as listOrdersGET } from "@/app/api/agent/orders/route"
 import { GET as getOrderGET } from "@/app/api/agent/orders/[id]/route"
 import { POST as pickupOrderPOST } from "@/app/api/agent/orders/[id]/pickup/route"
 import { POST as closeoutOrderPOST } from "@/app/api/agent/orders/[id]/closeout/route"
@@ -18,6 +19,119 @@ describe("order API routes", () => {
     process.env.NEXTAUTH_URL = "http://localhost:3000"
     process.env.NEXTAUTH_SECRET = "test-secret-key-for-testing-only"
     jest.spyOn(db, "$queryRawUnsafe").mockResolvedValue(1 as never)
+  })
+
+  it("lists orders for authenticated user", async () => {
+    jest.spyOn(db.agentCredential, "findFirst").mockResolvedValue({
+      Agent: {
+        id: "agent-1",
+        userId: "buyer-1",
+      },
+    } as never)
+    const listByUserSpy = jest.spyOn(OrderService, "listByUser").mockResolvedValue({
+      items: [
+        {
+          id: "order-1",
+          status: "PAID" as never,
+          listingId: "listing-1",
+          listingTitle: "Vintage Chair",
+          amount: 9200,
+          fulfillmentMethod: "PICKUP" as never,
+          pickupLocation: null,
+          deliveryAddress: null,
+          buyerId: "buyer-1",
+          sellerId: "seller-1",
+          createdAt: new Date("2026-03-28T00:00:00.000Z"),
+          updatedAt: new Date("2026-03-28T00:00:00.000Z"),
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+    })
+
+    const response = await listOrdersGET(
+      new NextRequest("http://localhost/api/agent/orders", {
+        method: "GET",
+        headers: {
+          Authorization: "Bearer sk_test_123",
+        },
+      })
+    )
+
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(listByUserSpy).toHaveBeenCalledWith("buyer-1", { status: undefined, cursor: undefined, limit: 20 })
+    expect(body.data.orders).toHaveLength(1)
+    expect(body.data.orders[0].id).toBe("order-1")
+    expect(body.data.hasMore).toBe(false)
+    expect(body.data.nextCursor).toBeNull()
+  })
+
+  it("filters orders by status query param", async () => {
+    jest.spyOn(db.agentCredential, "findFirst").mockResolvedValue({
+      Agent: {
+        id: "agent-1",
+        userId: "buyer-1",
+      },
+    } as never)
+    const listByUserSpy = jest.spyOn(OrderService, "listByUser").mockResolvedValue({
+      items: [],
+      nextCursor: null,
+      hasMore: false,
+    })
+
+    const response = await listOrdersGET(
+      new NextRequest("http://localhost/api/agent/orders?status=PAID,IN_TRANSIT", {
+        method: "GET",
+        headers: {
+          Authorization: "Bearer sk_test_123",
+        },
+      })
+    )
+
+    expect(response.status).toBe(200)
+    expect(listByUserSpy).toHaveBeenCalledWith("buyer-1", {
+      status: ["PAID", "IN_TRANSIT"],
+      cursor: undefined,
+      limit: 20,
+    })
+  })
+
+  it("returns 401 when listing orders without auth", async () => {
+    const response = await listOrdersGET(
+      new NextRequest("http://localhost/api/agent/orders", {
+        method: "GET",
+      })
+    )
+
+    expect(response.status).toBe(401)
+  })
+
+  it("does not return other users orders", async () => {
+    jest.spyOn(db.agentCredential, "findFirst").mockResolvedValue({
+      Agent: {
+        id: "agent-1",
+        userId: "buyer-1",
+      },
+    } as never)
+    const listByUserSpy = jest.spyOn(OrderService, "listByUser").mockResolvedValue({
+      items: [],
+      nextCursor: null,
+      hasMore: false,
+    })
+
+    await listOrdersGET(
+      new NextRequest("http://localhost/api/agent/orders", {
+        method: "GET",
+        headers: {
+          Authorization: "Bearer sk_test_123",
+        },
+      })
+    )
+
+    // Service is called with the authenticated user's id — scoping is enforced in the service
+    expect(listByUserSpy).toHaveBeenCalledWith("buyer-1", expect.anything())
   })
 
   it("fails fast when runtime bootstrap env is missing", async () => {
