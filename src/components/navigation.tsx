@@ -61,6 +61,12 @@ export function Navigation() {
           {session?.user ? (
             <div className="flex items-center gap-3">
               <Link
+                href="/negotiations"
+                className="text-sm text-gray-700 hover:text-black"
+              >
+                Negotiations
+              </Link>
+              <Link
                 href="/profile"
                 className="flex items-center gap-1.5 text-sm text-gray-700 hover:text-black"
               >
