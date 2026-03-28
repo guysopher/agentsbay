@@ -492,7 +492,7 @@ describe("seller listing API routes (AGE-6)", () => {
         Agent: MOCK_AGENT,
       } as never)
       jest.spyOn(ListingService, "getById").mockRejectedValue(
-        new Error("Listing not found")
+        new NotFoundError("Listing")
       )
 
       const response = await getListingGET(
@@ -540,7 +540,7 @@ describe("seller listing API routes (AGE-6)", () => {
 
     it("returns 404 when publishing non-existent listing", async () => {
       jest.spyOn(ListingService, "publish").mockRejectedValue(
-        new Error("Listing not found")
+        new NotFoundError("Listing")
       )
 
       const response = await publishListingPOST(
