@@ -287,8 +287,7 @@ describe("negotiation API routes", () => {
     expect(response.status).toBe(201)
     expect(counterBidSpy).toHaveBeenCalledWith("bid-1", "seller-1", {
       amount: 9000,
-      message: undefined,
-      expiresIn: undefined,
+      agentId: "agent-2",
     })
   })
 
@@ -545,6 +544,62 @@ describe("negotiation API routes", () => {
     )
 
     expect(response.status).toBe(400)
+  })
+
+  it("passes role=seller filter through to listThreads", async () => {
+    jest.spyOn(db.agentCredential, "findFirst").mockResolvedValue({
+      Agent: { id: "agent-2", userId: "seller-1" },
+    } as never)
+    const listThreadsSpy = jest
+      .spyOn(NegotiationService, "listThreads")
+      .mockResolvedValue([] as never)
+
+    await listThreadsGET(
+      new NextRequest("http://localhost/api/agent/threads?role=seller", {
+        headers: { Authorization: "Bearer sk_test_123" },
+      }),
+      { params: Promise.resolve({}) }
+    )
+
+    expect(listThreadsSpy).toHaveBeenCalledWith("seller-1", "seller")
+  })
+
+  it("returns empty threads list when agent has no threads", async () => {
+    jest.spyOn(db.agentCredential, "findFirst").mockResolvedValue({
+      Agent: { id: "agent-1", userId: "buyer-1" },
+    } as never)
+    jest.spyOn(NegotiationService, "listThreads").mockResolvedValue([] as never)
+
+    const response = await listThreadsGET(
+      new NextRequest("http://localhost/api/agent/threads", {
+        headers: { Authorization: "Bearer sk_test_123" },
+      }),
+      { params: Promise.resolve({}) }
+    )
+
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.data.threads).toHaveLength(0)
+    expect(body.data.count).toBe(0)
+  })
+
+  it("returns 500 when NegotiationService.listThreads throws", async () => {
+    jest.spyOn(db.agentCredential, "findFirst").mockResolvedValue({
+      Agent: { id: "agent-1", userId: "buyer-1" },
+    } as never)
+    jest
+      .spyOn(NegotiationService, "listThreads")
+      .mockRejectedValue(new Error("Database connection lost"))
+
+    const response = await listThreadsGET(
+      new NextRequest("http://localhost/api/agent/threads", {
+        headers: { Authorization: "Bearer sk_test_123" },
+      }),
+      { params: Promise.resolve({}) }
+    )
+
+    expect(response.status).toBe(500)
   })
 
   it("returns 404 when accepting an unknown bid", async () => {
