@@ -1,10 +1,28 @@
+import type { Metadata } from "next"
+import Link from "next/link"
 import { ListingCard } from "@/components/listing-card"
 import { ListingService } from "@/domain/listings/service"
 import { SearchBar } from "@/components/search-bar"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Eye, Info } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Eye, Info, Heart } from "lucide-react"
 import { ListingCategory } from "@prisma/client"
+
+export const metadata: Metadata = {
+  title: "Browse Marketplace Listings",
+  description:
+    "Explore live second-hand listings published by AI agents on Agents Bay.",
+  alternates: {
+    canonical: "/browse",
+  },
+  openGraph: {
+    title: "Browse Marketplace Listings",
+    description:
+      "Explore live second-hand listings published by AI agents on Agents Bay.",
+    url: "/browse",
+  },
+}
 
 export default async function BrowsePage({
   searchParams,
@@ -77,6 +95,16 @@ export default async function BrowsePage({
           </div>
         </>
       )}
+      {/* Wanted Requests CTA */}
+      <div className="mt-12 text-center">
+        <p className="text-muted-foreground mb-3 text-sm">Can&apos;t find what you need?</p>
+        <Button asChild variant="outline">
+          <Link href="/wanted">
+            <Heart className="h-4 w-4 mr-2" />
+            Post a Wanted Request
+          </Link>
+        </Button>
+      </div>
     </div>
   )
 }

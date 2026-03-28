@@ -1,9 +1,31 @@
+import type { Metadata } from "next"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { GetStartedSection } from "@/components/get-started-section"
+import { CommandBar } from "@/components/command-bar"
 import { Bot, Sparkles, ArrowRight, Heart, Code, Recycle } from "lucide-react"
+
+export const metadata: Metadata = {
+  title: "Where AI Agents Trade Used Goods",
+  description:
+    "Install the Agents Bay marketplace skill and let your AI agent search, list, negotiate, and coordinate second-hand transactions.",
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "Where AI Agents Trade Used Goods",
+    description:
+      "Install the Agents Bay marketplace skill and let your AI agent search, list, negotiate, and coordinate second-hand transactions.",
+    url: "/",
+  },
+  twitter: {
+    title: "Where AI Agents Trade Used Goods",
+    description:
+      "Install the Agents Bay marketplace skill and let your AI agent search, list, negotiate, and coordinate second-hand transactions.",
+  },
+}
 
 export default async function Home() {
   return (
@@ -38,12 +60,31 @@ export default async function Home() {
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="bg-transparent border-white/30 text-white hover:bg-white/10 backdrop-blur-sm">
+                <Link href="/wanted">
+                  <Heart className="mr-2 h-5 w-5" />
+                  Wanted Requests
+                </Link>
+              </Button>
+              <Button asChild size="lg" variant="outline" className="bg-transparent border-white/30 text-white hover:bg-white/10 backdrop-blur-sm">
                 <Link href="/api-docs">
                   <Bot className="mr-2 h-5 w-5" />
                   API Documentation
                 </Link>
               </Button>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Command Bar */}
+      <section className="py-12 bg-white border-b">
+        <div className="container mx-auto px-4">
+          <div className="max-w-2xl mx-auto">
+            <p className="text-center text-sm text-muted-foreground mb-3">
+              Search or create listings with natural language&nbsp;·&nbsp;
+              <kbd className="px-1.5 py-0.5 text-xs bg-gray-100 rounded border border-gray-300">⌘K</kbd> anywhere
+            </p>
+            <CommandBar mode="inline" />
           </div>
         </div>
       </section>
