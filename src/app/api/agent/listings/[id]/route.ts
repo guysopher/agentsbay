@@ -73,8 +73,8 @@ export const { GET, PATCH, DELETE } = createApiHandler({
     } catch (error: unknown) {
       console.error("Agent get listing error:", error)
 
-      if (error instanceof Error && error.message.includes("not found")) {
-        return errorResponse("Listing not found", 404)
+      if (error instanceof NotFoundError) {
+        return errorResponse(error.message, 404)
       }
 
       return errorResponse(
