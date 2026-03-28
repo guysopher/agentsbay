@@ -7,6 +7,7 @@ import { POST as placeBidPOST } from "@/app/api/agent/listings/[id]/bids/route"
 import { POST as sendMessagePOST } from "@/app/api/agent/listings/[id]/messages/route"
 import { POST as counterBidPOST } from "@/app/api/agent/bids/[id]/counter/route"
 import { POST as acceptBidPOST } from "@/app/api/agent/bids/[id]/accept/route"
+import { POST as rejectBidPOST } from "@/app/api/agent/bids/[id]/reject/route"
 import { GET as listThreadsGET } from "@/app/api/agent/threads/route"
 
 function createContext(id: string) {
@@ -426,6 +427,119 @@ describe("negotiation API routes", () => {
     )
 
     expect(response.status).toBe(403)
+  })
+
+  // ── POST /api/agent/bids/[id]/reject ─────────────────────────────────────
+
+  it("rejects a bid successfully (200)", async () => {
+    jest.spyOn(db.agentCredential, "findFirst").mockResolvedValue({
+      Agent: {
+        id: "agent-2",
+        userId: "seller-1",
+      },
+    } as never)
+    const rejectBidSpy = jest.spyOn(NegotiationService, "rejectBid").mockResolvedValue({
+      id: "bid-1",
+      status: "REJECTED",
+    } as never)
+
+    const response = await rejectBidPOST(
+      new NextRequest("http://localhost/api/agent/bids/bid-1/reject", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer sk_test_123",
+        },
+      }),
+      createContext("bid-1")
+    )
+
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(rejectBidSpy).toHaveBeenCalledWith("bid-1", "seller-1")
+    expect(body.data.bidId).toBe("bid-1")
+    expect(body.data.status).toBe("REJECTED")
+  })
+
+  it("rejects reject bid without auth (401)", async () => {
+    const response = await rejectBidPOST(
+      new NextRequest("http://localhost/api/agent/bids/bid-1/reject", {
+        method: "POST",
+      }),
+      createContext("bid-1")
+    )
+
+    expect(response.status).toBe(401)
+  })
+
+  it("returns 404 when rejecting an unknown bid", async () => {
+    jest.spyOn(db.agentCredential, "findFirst").mockResolvedValue({
+      Agent: {
+        id: "agent-2",
+        userId: "seller-1",
+      },
+    } as never)
+    jest.spyOn(NegotiationService, "rejectBid").mockRejectedValue(new NotFoundError("Bid"))
+
+    const response = await rejectBidPOST(
+      new NextRequest("http://localhost/api/agent/bids/missing/reject", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer sk_test_123",
+        },
+      }),
+      createContext("missing")
+    )
+
+    expect(response.status).toBe(404)
+  })
+
+  it("returns 403 when a non-participant rejects a bid", async () => {
+    jest.spyOn(db.agentCredential, "findFirst").mockResolvedValue({
+      Agent: {
+        id: "agent-3",
+        userId: "outsider-1",
+      },
+    } as never)
+    jest
+      .spyOn(NegotiationService, "rejectBid")
+      .mockRejectedValue(new ForbiddenError("Not authorized for this thread"))
+
+    const response = await rejectBidPOST(
+      new NextRequest("http://localhost/api/agent/bids/bid-1/reject", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer sk_test_123",
+        },
+      }),
+      createContext("bid-1")
+    )
+
+    expect(response.status).toBe(403)
+  })
+
+  it("returns 400 when rejecting a bid already in a terminal state", async () => {
+    jest.spyOn(db.agentCredential, "findFirst").mockResolvedValue({
+      Agent: {
+        id: "agent-2",
+        userId: "seller-1",
+      },
+    } as never)
+    jest
+      .spyOn(NegotiationService, "rejectBid")
+      .mockRejectedValue(new ValidationError("Bid is already ACCEPTED"))
+
+    const response = await rejectBidPOST(
+      new NextRequest("http://localhost/api/agent/bids/bid-1/reject", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer sk_test_123",
+        },
+      }),
+      createContext("bid-1")
+    )
+
+    expect(response.status).toBe(400)
   })
 
   // ── GET /api/agent/threads ────────────────────────────────────────────────
