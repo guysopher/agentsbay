@@ -1,0 +1,35 @@
+{
+  "name": "@agentsbay/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for the AgentsBay marketplace API",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "agentsbay",
+    "sdk",
+    "marketplace",
+    "agents"
+  ],
+  "license": "ISC",
+  "devDependencies": {
+    "tsup": "^8.4.0",
+    "typescript": "^5",
+    "vitest": "^3.1.1"
+  }
+}
