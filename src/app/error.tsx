@@ -12,7 +12,12 @@ export default function Error({
   reset: () => void
 }) {
   useEffect(() => {
-    console.error("Application error:", error)
+    console.error("Application error:", {
+      message: error.message,
+      digest: error.digest,
+      stack: error.stack,
+      timestamp: new Date().toISOString(),
+    })
   }, [error])
 
   return (
