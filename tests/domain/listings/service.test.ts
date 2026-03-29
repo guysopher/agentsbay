@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals"
 import { ListingStatus } from "@prisma/client"
 import { db } from "@/lib/db"
 import { ListingService } from "@/domain/listings/service"
-import { NotFoundError, ValidationError } from "@/lib/errors"
+import { NotFoundError, ValidationError, ConflictError } from "@/lib/errors"
 
 jest.mock("@/lib/events", () => ({
   eventBus: { emit: jest.fn().mockResolvedValue(undefined) },
@@ -86,6 +86,7 @@ describe("ListingService", () => {
   describe("create", () => {
     it("should create a listing with DRAFT status", async () => {
       const createdListing = makeListing()
+      jest.spyOn(db.listing, "findMany").mockResolvedValueOnce([] as never)
       jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
         return fn({
           listing: { create: jest.fn().mockResolvedValue(createdListing) },
@@ -110,6 +111,7 @@ describe("ListingService", () => {
 
     it("should include formatted prices", async () => {
       const createdListing = makeListing()
+      jest.spyOn(db.listing, "findMany").mockResolvedValueOnce([] as never)
       jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
         return fn({
           listing: { create: jest.fn().mockResolvedValue(createdListing) },
@@ -127,6 +129,81 @@ describe("ListingService", () => {
       })
 
       expect((listing as any).priceFormatted).toBeDefined()
+    })
+  })
+
+  // ── duplicate detection ────────────────────────────────────────────────────
+
+  describe("duplicate detection", () => {
+    const baseInput = {
+      title: "Office Chair",
+      description: "Great condition",
+      category: "FURNITURE",
+      condition: "GOOD",
+      price: 12000,
+      address: "San Francisco, CA",
+    }
+
+    it("should reject an identical title posted by same seller within 24h", async () => {
+      jest.spyOn(db.listing, "findMany").mockResolvedValueOnce([
+        { id: "existing-1", title: "Office Chair" },
+      ] as never)
+
+      await expect(
+        ListingService.create(USER_ID, baseInput)
+      ).rejects.toThrow(ConflictError)
+    })
+
+    it("should reject a near-identical title (>80% similarity)", async () => {
+      jest.spyOn(db.listing, "findMany").mockResolvedValueOnce([
+        { id: "existing-1", title: "Office Chair" },
+      ] as never)
+
+      await expect(
+        ListingService.create(USER_ID, { ...baseInput, title: "office chair" })
+      ).rejects.toThrow(ConflictError)
+    })
+
+    it("should allow a sufficiently different title from same seller", async () => {
+      const createdListing = makeListing({ title: "Standing Desk" })
+      jest.spyOn(db.listing, "findMany").mockResolvedValueOnce([
+        { id: "existing-1", title: "Office Chair" },
+      ] as never)
+      jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+        return fn({
+          listing: { create: jest.fn().mockResolvedValue(createdListing) },
+          auditLog: { create: jest.fn().mockResolvedValue({}) },
+        })
+      })
+
+      const result = await ListingService.create(USER_ID, { ...baseInput, title: "Standing Desk" })
+
+      expect((result as any).title).toBe("Standing Desk")
+    })
+
+    it("should allow creation when no recent listings exist", async () => {
+      const createdListing = makeListing()
+      jest.spyOn(db.listing, "findMany").mockResolvedValueOnce([] as never)
+      jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+        return fn({
+          listing: { create: jest.fn().mockResolvedValue(createdListing) },
+          auditLog: { create: jest.fn().mockResolvedValue({}) },
+        })
+      })
+
+      const result = await ListingService.create(USER_ID, baseInput)
+
+      expect(result).toBeDefined()
+    })
+
+    it("should include the existing listing id in the conflict error message", async () => {
+      jest.spyOn(db.listing, "findMany").mockResolvedValueOnce([
+        { id: "existing-abc", title: "Office Chair" },
+      ] as never)
+
+      await expect(
+        ListingService.create(USER_ID, baseInput)
+      ).rejects.toThrow("existing-abc")
     })
   })
 

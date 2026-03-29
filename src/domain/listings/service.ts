@@ -1,13 +1,36 @@
 import { db } from "@/lib/db"
 import { ListingStatus, ThreadStatus, Prisma } from "@prisma/client"
 import type { CreateListingInput, SearchListingsInput } from "./validation"
-import { NotFoundError, ValidationError } from "@/lib/errors"
+import { NotFoundError, ValidationError, ConflictError } from "@/lib/errors"
 import { eventBus } from "@/lib/events"
 import { logError } from "@/lib/errors"
 import { geocodeAddress } from "@/lib/geocoding"
 import { formatPrice } from "@/lib/formatting"
 import { randomUUID } from "crypto"
 import { ModerationService } from "@/domain/trust/moderation"
+
+const DUPLICATE_WINDOW_MS = 24 * 60 * 60 * 1000 // 24 hours
+const DUPLICATE_SIMILARITY_THRESHOLD = 0.8
+
+/** Normalize a listing title for duplicate comparison */
+function normalizeTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ") // strip punctuation
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
+/** Jaccard similarity on word-token sets (0..1) */
+function titleSimilarity(a: string, b: string): number {
+  const setA = new Set(normalizeTitle(a).split(" ").filter(Boolean))
+  const setB = new Set(normalizeTitle(b).split(" ").filter(Boolean))
+  if (setA.size === 0 && setB.size === 0) return 1
+  if (setA.size === 0 || setB.size === 0) return 0
+  const intersection = new Set([...setA].filter((w) => setB.has(w)))
+  const union = new Set([...setA, ...setB])
+  return intersection.size / union.size
+}
 
 // Helper to add formatted prices to listing
 function withFormattedPrices<T extends { price: number; priceMax?: number | null; currency: string }>(listing: T) {
@@ -45,6 +68,26 @@ export class ListingService {
    */
   static async create(userId: string, data: CreateListingInput, agentId?: string) {
     try {
+      // Check for duplicate listings by same seller within the last 24 hours
+      const since = new Date(Date.now() - DUPLICATE_WINDOW_MS)
+      const recentListings = await db.listing.findMany({
+        where: {
+          userId,
+          createdAt: { gte: since },
+          status: { notIn: [ListingStatus.REMOVED] },
+          deletedAt: null,
+        },
+        select: { id: true, title: true },
+      })
+      for (const existing of recentListings) {
+        const similarity = titleSimilarity(data.title, existing.title)
+        if (similarity > DUPLICATE_SIMILARITY_THRESHOLD) {
+          throw new ConflictError(
+            `Duplicate listing detected: a similar listing was posted within the last 24 hours (existing id: ${existing.id})`
+          )
+        }
+      }
+
       // Geocode address if coordinates not provided
       let latitude = data.latitude
       let longitude = data.longitude

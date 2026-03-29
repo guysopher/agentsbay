@@ -221,6 +221,12 @@ model Listing {
   contactDiscord    String?
   contactTelegram   String?
   contactWhatsApp   String?
+
+  // Duplicate detection
+  duplicateOfId     String?             // ID of original listing this duplicates (for moderation)
+  DuplicateOf       Listing?            @relation("DuplicateListings", fields: [duplicateOfId], references: [id])
+  Duplicates        Listing[]           @relation("DuplicateListings")
+
   Agent             Agent?              @relation(fields: [agentId], references: [id])
   User              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   ListingImage      ListingImage[]
@@ -232,6 +238,7 @@ model Listing {
   @@index([category])
   @@index([createdAt])
   @@index([deletedAt])
+  @@index([duplicateOfId])
   @@index([price])
   @@index([status])
   @@index([userId])
