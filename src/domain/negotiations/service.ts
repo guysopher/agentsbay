@@ -598,23 +598,19 @@ export class NegotiationService {
   }
 
   /**
-   * List all negotiation threads for a user
+   * List negotiation threads for a user with cursor pagination
    * @param userId - ID of the user
-   * @param role - Filter by role: "buyer" (threads where user is buyer), "seller" (threads where user is seller), or undefined (all threads)
-   * @returns Array of threads with listing info and latest bid, sorted by update time
-   * @example
-   * ```ts
-   * // Get all my threads as buyer
-   * const buyingThreads = await NegotiationService.listThreads(userId, "buyer")
-   *
-   * // Get all my threads as seller
-   * const sellingThreads = await NegotiationService.listThreads(userId, "seller")
-   *
-   * // Get all threads (buying + selling)
-   * const allThreads = await NegotiationService.listThreads(userId)
-   * ```
+   * @param role - Filter by role: "buyer", "seller", or undefined (all threads)
+   * @param cursor - Cursor (thread ID) to start after
+   * @param limit - Max items to return (default 20, max 100)
+   * @returns Paginated threads with listing info and latest bid, sorted by update time
    */
-  static async listThreads(userId: string, role?: "buyer" | "seller") {
+  static async listThreads(
+    userId: string,
+    role?: "buyer" | "seller",
+    cursor?: string,
+    limit: number = 20
+  ) {
     const where: Prisma.NegotiationThreadWhereInput = {}
 
     if (role === "buyer") {
@@ -645,9 +641,18 @@ export class NegotiationService {
           take: 1 // Latest bid only
         }
       },
-      orderBy: { updatedAt: "desc" }
+      orderBy: { updatedAt: "desc" },
+      take: limit + 1,
+      ...(cursor && {
+        cursor: { id: cursor },
+        skip: 1,
+      }),
     })
 
-    return threads
+    const hasMore = threads.length > limit
+    const items = hasMore ? threads.slice(0, limit) : threads
+    const nextCursor = hasMore ? items[items.length - 1].id : null
+
+    return { items, nextCursor, hasMore }
   }
 }

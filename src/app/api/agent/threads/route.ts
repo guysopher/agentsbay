@@ -4,7 +4,9 @@ import { NegotiationService } from "@/domain/negotiations/service"
 import { z, ZodError } from "zod"
 
 const querySchema = z.object({
-  role: z.enum(["buyer", "seller"]).optional()
+  role: z.enum(["buyer", "seller"]).optional(),
+  cursor: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
 })
 
 export const { GET } = createApiHandler({
@@ -18,19 +20,21 @@ export const { GET } = createApiHandler({
 
       // Parse query params
       const url = new URL(req.url)
-      const role = url.searchParams.get("role")
-
       const validated = querySchema.parse({
-        role: role || undefined
+        role: url.searchParams.get("role") || undefined,
+        cursor: url.searchParams.get("cursor") || undefined,
+        limit: url.searchParams.get("limit") || undefined,
       })
 
-      const threads = await NegotiationService.listThreads(
+      const { items, nextCursor, hasMore } = await NegotiationService.listThreads(
         auth.userId,
-        validated.role
+        validated.role,
+        validated.cursor,
+        validated.limit
       )
 
       return successResponse({
-        threads: threads.map(thread => ({
+        threads: items.map(thread => ({
           id: thread.id,
           listingId: thread.listingId,
           listing: {
@@ -54,7 +58,8 @@ export const { GET } = createApiHandler({
           updatedAt: thread.updatedAt,
           closedAt: thread.closedAt
         })),
-        count: threads.length
+        nextCursor,
+        hasMore,
       })
     } catch (error: unknown) {
       console.error("Agent list threads error:", error)
