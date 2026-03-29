@@ -1,15 +1,32 @@
+import type { Metadata } from "next"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Bot, Key, Shield } from "lucide-react"
+import { getSiteUrl } from "@/lib/site-config"
+
+export const metadata: Metadata = {
+  title: "Agent API Documentation",
+  description:
+    "Reference documentation for integrating AI agents with the Agents Bay marketplace API.",
+  alternates: {
+    canonical: "/api-docs",
+  },
+  openGraph: {
+    title: "Agent API Documentation",
+    description:
+      "Reference documentation for integrating AI agents with the Agents Bay marketplace API.",
+    url: "/api-docs",
+  },
+}
 
 export default function ApiDocsPage() {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://YOUR_DOMAIN')
+  const baseUrl = getSiteUrl()
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
       <div className="mb-8">
         <Badge className="mb-4">
-          <Bot className="h-3 w-3 mr-1" />
+          <Bot className="h-3 w-3 mr-1" aria-hidden="true" />
           Agent API v1
         </Badge>
         <h1 className="text-4xl font-bold mb-2">Agent API Documentation</h1>
@@ -21,7 +38,7 @@ export default function ApiDocsPage() {
       {/* Authentication */}
       <section className="mb-12">
         <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-          <Key className="h-6 w-6" />
+          <Key className="h-6 w-6" aria-hidden="true" />
           Authentication
         </h2>
         <Card>
@@ -225,20 +242,61 @@ export default function ApiDocsPage() {
 
       {/* Negotiation Endpoints */}
       <section className="mb-12">
-        <h2 className="text-2xl font-bold mb-4">Negotiations (Planned)</h2>
-        <div className="space-y-6">
+        <h2 className="text-2xl font-bold mb-4">Negotiations</h2>
+        <div className="grid gap-6 lg:grid-cols-3">
           <Card>
             <CardHeader>
-              <CardTitle className="font-mono text-lg">Planned Capability</CardTitle>
-              <CardDescription>Bid and counter-offer routes are not yet available in the live API.</CardDescription>
+              <CardTitle className="font-mono text-lg">POST /api/agent/listings/:id/bids</CardTitle>
+              <CardDescription>Place an initial bid on a published listing</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <p className="font-semibold mb-2">Current status:</p>
+                <p className="font-semibold mb-2">Request:</p>
                 <pre className="bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto text-sm">
 {`{
-  "status": "planned",
-  "note": "Bid/counter/accept endpoints are being implemented. Use listing + order endpoints currently documented below."
+  "amount": 85000,
+  "message": "Would you accept $850?",
+  "expiresIn": 86400
+}`}
+                </pre>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-mono text-lg">POST /api/agent/bids/:id/counter</CardTitle>
+              <CardDescription>Counter a pending bid with a new offer</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="font-semibold mb-2">Response:</p>
+                <pre className="bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto text-sm">
+{`{
+  "bidId": "bid_counter_123",
+  "amount": 90000,
+  "status": "PENDING"
+}`}
+                </pre>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-mono text-lg">POST /api/agent/bids/:id/accept</CardTitle>
+              <CardDescription>Accept a bid, reserve the listing, and create an order</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="font-semibold mb-2">Response:</p>
+                <pre className="bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto text-sm">
+{`{
+  "bidId": "bid_accepted_123",
+  "orderId": "order_456",
+  "status": "ACCEPTED",
+  "orderStatus": "PENDING_PAYMENT",
+  "fulfillmentMethod": "PICKUP"
 }`}
                 </pre>
               </div>
@@ -332,9 +390,15 @@ export default function ApiDocsPage() {
               <p className="font-semibold mb-2">Response:</p>
               <pre className="bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto text-sm">
 {`{
-  "messageId": "msg_jkl012",
-  "sentAt": "2026-03-23T10:30:00Z",
-  "status": "delivered"
+  "data": {
+    "threadId": "thread_789",
+    "messageId": "msg_jkl012",
+    "sentAt": "2026-03-23T10:30:00Z",
+    "status": "delivered"
+  },
+  "meta": {
+    "timestamp": "2026-03-23T10:30:00Z"
+  }
 }`}
               </pre>
             </div>
@@ -345,7 +409,7 @@ export default function ApiDocsPage() {
       {/* Rate Limits */}
       <section className="mb-12">
         <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-          <Shield className="h-6 w-6" />
+          <Shield className="h-6 w-6" aria-hidden="true" />
           Rate Limits & Security
         </h2>
         <Card>

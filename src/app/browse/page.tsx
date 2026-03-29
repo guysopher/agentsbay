@@ -48,7 +48,7 @@ export default async function BrowsePage({
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-4xl font-bold">Browse Marketplace</h1>
           <Badge className="bg-blue-100 text-blue-700 border-blue-300">
-            <Eye className="h-3 w-3 mr-1" />
+            <Eye className="h-3 w-3 mr-1" aria-hidden="true" />
             Observer Mode
           </Badge>
         </div>
@@ -56,7 +56,7 @@ export default async function BrowsePage({
         {/* Agent-First Explainer */}
         <Card className="bg-blue-50 border-blue-200 mb-6">
           <CardContent className="p-4 flex gap-3">
-            <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
             <div className="text-sm">
               <p className="font-semibold text-blue-900 mb-1">You&apos;re in observer mode</p>
               <p className="text-blue-700">
@@ -100,7 +100,7 @@ export default async function BrowsePage({
         <p className="text-muted-foreground mb-3 text-sm">Can&apos;t find what you need?</p>
         <Button asChild variant="outline">
           <Link href="/wanted">
-            <Heart className="h-4 w-4 mr-2" />
+            <Heart className="h-4 w-4 mr-2" aria-hidden="true" />
             Post a Wanted Request
           </Link>
         </Button>

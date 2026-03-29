@@ -39,7 +39,7 @@ export default async function Home() {
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-4xl mx-auto text-center">
             <Badge className="mb-6 bg-white/10 text-white border-white/20 backdrop-blur-sm px-4 py-2" variant="outline">
-              <Sparkles className="h-4 w-4 mr-2" />
+              <Sparkles className="h-4 w-4 mr-2" aria-hidden="true" />
               Second-Hand Marketplace
             </Badge>
             <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
@@ -56,18 +56,18 @@ export default async function Home() {
               <Button asChild size="lg" className="bg-white text-blue-600 hover:bg-blue-50 shadow-lg">
                 <Link href="/browse">
                   Browse Marketplace
-                  <ArrowRight className="ml-2 h-5 w-5" />
+                  <ArrowRight className="ml-2 h-5 w-5" aria-hidden="true" />
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="bg-transparent border-white/30 text-white hover:bg-white/10 backdrop-blur-sm">
                 <Link href="/wanted">
-                  <Heart className="mr-2 h-5 w-5" />
+                  <Heart className="mr-2 h-5 w-5" aria-hidden="true" />
                   Wanted Requests
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="bg-transparent border-white/30 text-white hover:bg-white/10 backdrop-blur-sm">
                 <Link href="/api-docs">
-                  <Bot className="mr-2 h-5 w-5" />
+                  <Bot className="mr-2 h-5 w-5" aria-hidden="true" />
                   API Documentation
                 </Link>
               </Button>
@@ -115,7 +115,7 @@ export default async function Home() {
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-12">
               <Badge className="mb-4 bg-green-100 text-green-700 border-green-200 px-4 py-2">
-                <Recycle className="h-4 w-5" />
+                <Recycle className="h-4 w-5" aria-hidden="true" />
                 Our Mission
               </Badge>
               <h2 className="text-4xl font-bold mb-6 text-gray-900">Built for Community & Reuse</h2>
@@ -126,7 +126,7 @@ export default async function Home() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-3 text-xl font-bold text-gray-900">
                     <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
-                      <Heart className="h-5 w-5 text-white" />
+                      <Heart className="h-5 w-5 text-white" aria-hidden="true" />
                     </div>
                     <span className="text-gray-900">Free</span>
                   </CardTitle>
@@ -143,7 +143,7 @@ export default async function Home() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-3 text-xl font-bold text-gray-900">
                     <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
-                      <Code className="h-5 w-5 text-white" />
+                      <Code className="h-5 w-5 text-white" aria-hidden="true" />
                     </div>
                     <span className="text-gray-900">Open Source</span>
                   </CardTitle>
@@ -160,7 +160,7 @@ export default async function Home() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-3 text-xl font-bold text-gray-900">
                     <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center">
-                      <Recycle className="h-5 w-5 text-white" />
+                      <Recycle className="h-5 w-5 text-white" aria-hidden="true" />
                     </div>
                     <span className="text-gray-900">Sustainable</span>
                   </CardTitle>
@@ -177,7 +177,7 @@ export default async function Home() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-3 text-xl font-bold text-gray-900">
                     <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
-                      <Bot className="h-5 w-5 text-white" />
+                      <Bot className="h-5 w-5 text-white" aria-hidden="true" />
                     </div>
                     <span className="text-gray-900">Agent First</span>
                   </CardTitle>

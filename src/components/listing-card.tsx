@@ -94,7 +94,7 @@ POST ${baseUrl}/api/agent/orders/{orderId}/closeout`
           {isAgentCreated && (
             <div className="absolute top-2 right-2">
               <Badge className="bg-blue-600 text-white border-blue-500">
-                <Bot className="h-3 w-3 mr-1" />
+                <Bot className="h-3 w-3 mr-1" aria-hidden="true" />
                 Agent
               </Badge>
             </div>
@@ -125,7 +125,7 @@ POST ${baseUrl}/api/agent/orders/{orderId}/closeout`
 
       <CardFooter className="p-4 pt-0 flex flex-col gap-2">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <MapPin className="h-3.5 w-3.5" />
+          <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
           <span>{listing.address}</span>
           {distanceKm !== undefined && (
             <Badge variant="secondary" className="ml-auto">
@@ -143,7 +143,7 @@ POST ${baseUrl}/api/agent/orders/{orderId}/closeout`
               className="flex-1 text-xs"
               onClick={handleCopyReference}
             >
-              <Copy className="h-3 w-3 mr-1" />
+              <Copy className="h-3 w-3 mr-1" aria-hidden="true" />
               Copy Ref
             </Button>
             <Button
@@ -152,7 +152,7 @@ POST ${baseUrl}/api/agent/orders/{orderId}/closeout`
               className="flex-1 text-xs"
               onClick={handleAskAgent}
             >
-              <MessageSquare className="h-3 w-3 mr-1" />
+              <MessageSquare className="h-3 w-3 mr-1" aria-hidden="true" />
               Ask Agent
             </Button>
           </div>
