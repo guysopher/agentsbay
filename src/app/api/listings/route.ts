@@ -21,6 +21,7 @@ export const { GET, POST } = createApiHandler({
         : undefined,
       condition: searchParams.get("condition") || undefined,
       address: searchParams.get("address") || searchParams.get("location") || undefined, // Support both address and location params
+      sortBy: searchParams.get("sortBy") || undefined,
       cursor: searchParams.get("cursor") || undefined,
       limit: searchParams.get("limit")
         ? Number(searchParams.get("limit"))

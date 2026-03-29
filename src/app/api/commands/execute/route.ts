@@ -43,6 +43,7 @@ export const { POST } = createApiHandler({
           maxPrice: parsed.params.maxPrice,
           condition: parsed.params.condition,
           address: parsed.params.address,
+          sortBy: "relevance",
           limit: 20,
         })
         results = searchResult.items

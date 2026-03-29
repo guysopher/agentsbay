@@ -22,6 +22,7 @@ interface ListingCardProps {
     address: string
     confidence?: number | null
     agentId?: string | null
+    matchScore?: number
     ListingImage?: { url: string }[]
   }
   distanceKm?: number
@@ -117,6 +118,24 @@ POST ${baseUrl}/api/agent/orders/{orderId}/closeout`
             {listing.confidence && (
               <Badge variant="outline" className="text-xs">
                 {Math.round(listing.confidence * 100)}% confidence
+              </Badge>
+            )}
+            {listing.matchScore !== undefined && listing.matchScore < 1 && (
+              <Badge
+                variant="outline"
+                className={
+                  listing.matchScore >= 0.80
+                    ? "text-xs border-green-400 text-green-700 bg-green-50"
+                    : listing.matchScore >= 0.50
+                    ? "text-xs border-yellow-400 text-yellow-700 bg-yellow-50"
+                    : "text-xs border-orange-400 text-orange-700 bg-orange-50"
+                }
+              >
+                {listing.matchScore >= 0.80
+                  ? "Strong match"
+                  : listing.matchScore >= 0.50
+                  ? "Partial match"
+                  : "Weak match"}
               </Badge>
             )}
           </div>

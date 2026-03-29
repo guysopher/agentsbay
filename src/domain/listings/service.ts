@@ -42,6 +42,45 @@ function withFormattedPrices<T extends { price: number; priceMax?: number | null
 }
 
 /**
+ * Compute a match quality score (0–1) for a listing against a search query.
+ * Higher = stronger match. Used to drive relevance sort and UI indicators.
+ *
+ * Scoring tiers:
+ *  1.00 – exact title match
+ *  0.95 – title starts with query
+ *  0.90 – title contains full query phrase
+ *  0.80 – all query words present in title
+ *  0.60–0.74 – some query words in title (proportional)
+ *  0.50 – description contains full query phrase
+ *  0.30–0.44 – some query words in description (proportional)
+ *  0.25 – match via labels only
+ */
+function computeMatchScore(query: string, title: string, description: string, labels: string[]): number {
+  const q = query.toLowerCase().trim()
+  if (!q) return 1
+
+  const t = title.toLowerCase()
+  const d = description.toLowerCase()
+  const words = q.split(/\s+/).filter(Boolean)
+
+  if (t === q) return 1.0
+  if (t.startsWith(q)) return 0.95
+  if (t.includes(q)) return 0.90
+
+  const titleMatches = words.filter((w) => t.includes(w)).length
+  if (titleMatches === words.length) return 0.80
+  if (titleMatches > 0) return 0.60 + (titleMatches / words.length) * 0.14
+
+  if (d.includes(q)) return 0.50
+  const descMatches = words.filter((w) => d.includes(w)).length
+  if (descMatches > 0) return 0.30 + (descMatches / words.length) * 0.14
+
+  if (labels.some((l) => l.toLowerCase().includes(q))) return 0.25
+
+  return 0.10
+}
+
+/**
  * Service for managing marketplace listings
  * Handles creation, publication, search, and lifecycle management of listings
  */
@@ -265,14 +304,32 @@ export class ListingService {
   static async search(params: SearchListingsInput) {
     const where: Prisma.ListingWhereInput = {
       status: ListingStatus.PUBLISHED,
-      deletedAt: null, // Exclude soft-deleted listings
+      deletedAt: null,
     }
 
     if (params.query) {
-      where.OR = [
-        { title: { contains: params.query, mode: "insensitive" } },
-        { description: { contains: params.query, mode: "insensitive" } },
-      ]
+      // Split into words and require ALL words to match somewhere in title or description.
+      // This gives significantly better multi-word results than a single whole-phrase ILIKE.
+      const words = params.query
+        .split(/\s+/)
+        .map((w) => w.trim())
+        .filter(Boolean)
+
+      if (words.length === 1) {
+        where.OR = [
+          { title: { contains: words[0], mode: "insensitive" } },
+          { description: { contains: words[0], mode: "insensitive" } },
+          { labels: { has: words[0].toLowerCase() } },
+        ]
+      } else {
+        // AND across words — each word must appear in title OR description
+        where.AND = words.map((word) => ({
+          OR: [
+            { title: { contains: word, mode: "insensitive" } },
+            { description: { contains: word, mode: "insensitive" } },
+          ],
+        }))
+      }
     }
 
     if (params.category) {
@@ -294,6 +351,27 @@ export class ListingService {
     }
 
     const limit = params.limit || 20
+    const sortBy = params.sortBy ?? "newest"
+
+    let orderBy: Prisma.ListingOrderByWithRelationInput
+    switch (sortBy) {
+      case "oldest":
+        orderBy = { createdAt: "asc" }
+        break
+      case "price_asc":
+        orderBy = { price: "asc" }
+        break
+      case "price_desc":
+        orderBy = { price: "desc" }
+        break
+      case "relevance":
+        // Title matches rank higher — achieved by fetching then re-sorting in app code below
+        orderBy = { createdAt: "desc" }
+        break
+      case "newest":
+      default:
+        orderBy = { createdAt: "desc" }
+    }
 
     const listings = await db.listing.findMany({
       where,
@@ -306,25 +384,34 @@ export class ListingService {
           },
         },
       },
-      orderBy: {
-        createdAt: "desc",
-      },
-      take: limit + 1, // Fetch one extra to check if there's more
+      orderBy,
+      take: limit + 1,
       ...(params.cursor && {
-        cursor: {
-          id: params.cursor,
-        },
-        skip: 1, // Skip the cursor itself
+        cursor: { id: params.cursor },
+        skip: 1,
       }),
     })
 
-    // Check if there are more results
     const hasMore = listings.length > limit
-    const results = hasMore ? listings.slice(0, limit) : listings
-    const nextCursor = hasMore ? results[results.length - 1].id : null
+    let results = hasMore ? listings.slice(0, limit) : listings
+
+    // Compute match score for every result (1 when no query active)
+    const scored = results.map((listing) => ({
+      ...withFormattedPrices(listing),
+      matchScore: params.query
+        ? computeMatchScore(params.query, listing.title, listing.description, listing.labels)
+        : 1,
+    }))
+
+    // For relevance sort: rank by match score descending
+    if (sortBy === "relevance" && params.query) {
+      scored.sort((a, b) => b.matchScore - a.matchScore)
+    }
+
+    const nextCursor = hasMore ? scored[scored.length - 1].id : null
 
     return {
-      items: results.map(withFormattedPrices),
+      items: scored,
       nextCursor,
       hasMore,
     }
