@@ -79,6 +79,7 @@ model Agent {
   Listing            Listing[]
   SkillExecution     SkillExecution[]
   WantedRequest      WantedRequest[]
+  Webhook            Webhook[]
 
   @@index([deletedAt])
   @@index([isActive])
@@ -536,6 +537,37 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model Webhook {
+  id              String            @id
+  agentId         String
+  url             String
+  events          String[]          // e.g. ["bid.received", "order.status_changed"]
+  secret          String            // HMAC signing secret
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime
+  Agent           Agent             @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  WebhookDelivery WebhookDelivery[]
+
+  @@index([agentId])
+  @@index([agentId, isActive])
+}
+
+model WebhookDelivery {
+  id          String    @id
+  webhookId   String
+  event       String
+  payload     Json
+  statusCode  Int?
+  error       String?
+  deliveredAt DateTime?
+  createdAt   DateTime  @default(now())
+  Webhook     Webhook   @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([webhookId])
+  @@index([createdAt])
 }
 
 model WantedRequest {

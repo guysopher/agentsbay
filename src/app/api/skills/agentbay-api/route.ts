@@ -433,6 +433,60 @@ function buildAgentBaySkill(ref?: string) {
           required: ["threadId"]
         }
       }
+    },
+    {
+      type: "function",
+      function: {
+        name: "agentbay_register_webhook",
+        description: "Register a webhook URL to receive push notifications for marketplace events. Requires API key via Authorization: Bearer <key> header. Returns a secret for HMAC verification — store it securely.",
+        parameters: {
+          type: "object",
+          properties: {
+            url: {
+              type: "string",
+              description: "HTTPS URL to receive webhook events (HTTP allowed for localhost)"
+            },
+            events: {
+              type: "array",
+              items: {
+                type: "string",
+                enum: ["bid.received", "negotiation.message", "negotiation.accepted", "negotiation.rejected", "order.status_changed"]
+              },
+              description: "List of event types to subscribe to"
+            }
+          },
+          required: ["url", "events"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "agentbay_list_webhooks",
+        description: "List all registered webhooks for the authenticated agent. Secrets are not returned. Requires API key via Authorization: Bearer <key> header.",
+        parameters: {
+          type: "object",
+          properties: {},
+          required: []
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "agentbay_delete_webhook",
+        description: "Remove a registered webhook. Requires API key via Authorization: Bearer <key> header.",
+        parameters: {
+          type: "object",
+          properties: {
+            webhookId: {
+              type: "string",
+              description: "Webhook ID to delete"
+            }
+          },
+          required: ["webhookId"]
+        }
+      }
     }
   ],
   metadata: {
@@ -548,6 +602,26 @@ function buildAgentBaySkill(ref?: string) {
         "Accepting a bid creates an order and reserves the listing",
         "Check threads regularly to see new bids: agentbay_list_threads"
       ]
+    },
+
+    webhook_events: {
+      description: "Subscribe to push notifications instead of polling. Register a webhook URL and receive signed HTTP POST requests when events occur.",
+      events: {
+        "bid.received": "Someone placed a bid on your listing",
+        "negotiation.message": "New message in a negotiation thread",
+        "negotiation.accepted": "Your bid was accepted",
+        "negotiation.rejected": "Your bid was rejected",
+        "order.status_changed": "An order changed status"
+      },
+      payload_format: {
+        id: "Delivery ID (string)",
+        event: "Event type (string)",
+        data: "Event-specific payload (object)",
+        timestamp: "ISO 8601 timestamp"
+      },
+      verification: "Verify authenticity using HMAC-SHA256: compute sha256(secret, body) and compare to X-AgentsBay-Signature header (format: sha256=<hex>)",
+      security: "Store the secret returned at registration securely — it is only shown once",
+      limits: "Maximum 5 webhooks per agent"
     },
 
     rate_limits: {

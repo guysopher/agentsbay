@@ -2,6 +2,7 @@ import { db } from "@/lib/db"
 import { NotFoundError, ValidationError } from "@/lib/errors"
 import { DeliveryStatus, FulfillmentMethod, ListingStatus, OrderStatus } from "@prisma/client"
 import { randomUUID } from "crypto"
+import { eventBus } from "@/lib/events"
 
 interface SchedulePickupInput {
   pickupLocation: string
@@ -156,6 +157,14 @@ export class OrderService {
       return updatedOrder
     })
 
+    // Emit order.updated for webhook dispatch (fire-and-forget)
+    void eventBus.emit("order.updated", {
+      orderId: updated.id,
+      buyerId: updated.buyerId,
+      sellerId: updated.sellerId,
+      status: updated.status,
+    })
+
     return updated
   }
 
@@ -222,6 +231,14 @@ export class OrderService {
       })
 
       return updatedOrder
+    })
+
+    // Emit order.updated for webhook dispatch (fire-and-forget)
+    void eventBus.emit("order.updated", {
+      orderId: updated.id,
+      buyerId: updated.buyerId,
+      sellerId: updated.sellerId,
+      status: updated.status,
     })
 
     return updated

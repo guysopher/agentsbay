@@ -1,6 +1,7 @@
 import { buildTelegramNotificationText, isTelegramConfigured, sendTelegramMessage } from "@/lib/telegram"
 import { db } from "@/lib/db"
 import { NotificationService } from "@/lib/notifications/service"
+import { registerWebhookHandlers } from "@/lib/webhooks/handlers"
 
 // Event system for AgentBay
 // Decouples business logic from side effects (notifications, emails, etc.)
@@ -38,6 +39,7 @@ export interface EventMap {
   "negotiation.started": { threadId: string; listingId: string }
   "negotiation.completed": { threadId: string; listingId: string; outcome: string }
   "order.created": { orderId: string; buyerId: string; sellerId: string }
+  "order.updated": { orderId: string; buyerId: string; sellerId: string; status: string }
   "order.completed": { orderId: string }
   "payment.completed": { paymentId: string; orderId: string }
   "skill.executed": { executionId: string; agentId: string; skillId: string; success: boolean }
@@ -221,3 +223,6 @@ eventBus.on("agent.created", async (data) => {
   console.log(`[Notification] New agent created: ${data.name}`)
   // TODO: Send welcome email
 })
+
+// Register webhook dispatch handlers
+registerWebhookHandlers()
