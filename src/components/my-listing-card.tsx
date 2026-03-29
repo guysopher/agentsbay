@@ -54,7 +54,7 @@ export function MyListingCard({ listing }: MyListingCardProps) {
   const activeNegotiations = listing.NegotiationThread.length
 
   return (
-    <Link href={`/skills/${listing.id}`}>
+    <Link href={`/listings/${listing.id}`}>
       <Card className="hover:shadow-md transition-shadow cursor-pointer">
         <CardContent className="py-4">
           <div className="flex items-start gap-4">
