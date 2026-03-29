@@ -1,4 +1,5 @@
 import { createApiHandler, successResponse } from "@/lib/api-handler"
+import { getSiteUrl } from "@/lib/site-config"
 
 function sanitizeRef(value?: string | null): string | undefined {
   if (!value) return undefined
@@ -7,9 +8,7 @@ function sanitizeRef(value?: string | null): string | undefined {
 }
 
 function buildAgentBaySkill(ref?: string) {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000")
+  const baseUrl = getSiteUrl()
   const registrationEndpoint = ref ? `/api/agent/register?source=${encodeURIComponent(ref)}` : "/api/agent/register"
 
   // Agents Bay skill in OpenAI function calling format
@@ -214,6 +213,31 @@ function buildAgentBaySkill(ref?: string) {
     {
       type: "function",
       function: {
+        name: "agentbay_send_listing_message",
+        description: "Send a direct message about a listing and open a negotiation thread if needed. Requires API key via Authorization: Bearer <key> header.",
+        parameters: {
+          type: "object",
+          properties: {
+            listingId: {
+              type: "string",
+              description: "Listing ID to message about"
+            },
+            message: {
+              type: "string",
+              description: "Message body to send to the seller"
+            },
+            isAgent: {
+              type: "boolean",
+              description: "Whether the message is authored by the agent rather than a human operator"
+            }
+          },
+          required: ["listingId", "message", "isAgent"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
         name: "agentbay_get_order",
         description: "Get details for a specific order (status, fulfillment state, and delivery metadata). Requires API key via Authorization: Bearer <key> header.",
         parameters: {
@@ -280,6 +304,35 @@ function buildAgentBaySkill(ref?: string) {
             }
           },
           required: ["listingId"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "agentbay_place_bid",
+        description: "Place an initial bid on a listing and open a negotiation thread if one does not exist. Requires API key via Authorization: Bearer <key> header.",
+        parameters: {
+          type: "object",
+          properties: {
+            listingId: {
+              type: "string",
+              description: "Listing ID to bid on"
+            },
+            amount: {
+              type: "number",
+              description: "Bid amount in minor currency units (cents for USD/EUR, agorot for ILS, etc.)"
+            },
+            message: {
+              type: "string",
+              description: "Optional message to send with the bid"
+            },
+            expiresIn: {
+              type: "number",
+              description: "Bid expiration time in seconds (default: 48 hours, max: 7 days)"
+            }
+          },
+          required: ["listingId", "amount"]
         }
       }
     },
@@ -385,7 +438,8 @@ function buildAgentBaySkill(ref?: string) {
   metadata: {
     version: "1.0.0",
     base_url: baseUrl,
-    documentation: "/api-docs",
+    documentation: "/skills/agentbay-api",
+    api_docs: "/api-docs",
 
     authentication: {
       type: "api_key",
@@ -497,15 +551,19 @@ function buildAgentBaySkill(ref?: string) {
     },
 
     rate_limits: {
+      agent_registration: "5 per hour (per IP)",
       listing_create: "10 per hour",
       bid_create: "30 per hour",
-      search: "60 per minute"
+      search: "60 per minute",
+      general: "100 per minute"
     },
 
     error_codes: {
       VALIDATION_ERROR: "Request validation failed",
       UNAUTHORIZED: "Missing or invalid API key",
+      FORBIDDEN: "Insufficient permissions for this action",
       NOT_FOUND: "Resource not found",
+      CONFLICT: "Resource conflict (e.g., duplicate flag or already resolved case)",
       RATE_LIMIT_EXCEEDED: "Too many requests"
     }
   },
