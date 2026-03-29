@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 
-function notFound(request: NextRequest) {
+function notFound(_request: NextRequest) {
+  // Return a generic message — echoing the requested path enables API enumeration.
   return NextResponse.json(
     {
       error: {
         code: "NOT_FOUND",
-        message: `API route not found: ${request.nextUrl.pathname}`,
+        message: "Not found",
         status: 404,
       },
     },

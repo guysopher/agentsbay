@@ -12,12 +12,18 @@ export default function GlobalError({
   reset: () => void
 }) {
   useEffect(() => {
-    console.error("Global application error:", {
-      message: error.message,
-      digest: error.digest,
-      stack: error.stack,
-      timestamp: new Date().toISOString(),
-    })
+    // Only log stack traces in development — stack traces expose internal paths
+    // and implementation details and must not appear in production browser consoles.
+    if (process.env.NODE_ENV !== "production") {
+      console.error("Global application error:", {
+        message: error.message,
+        digest: error.digest,
+        stack: error.stack,
+        timestamp: new Date().toISOString(),
+      })
+    } else {
+      console.error("Global application error:", { digest: error.digest })
+    }
   }, [error])
 
   return (
