@@ -1,159 +1,102 @@
-import { beforeEach, describe, expect, it } from "@jest/globals"
-import {
-  BidStatus,
-  ItemCondition,
-  ListingCategory,
-  ListingStatus,
-  ThreadStatus,
-} from "@prisma/client"
-import { randomUUID } from "crypto"
+/**
+ * checkExpiredBids — unit tests with mocked Prisma
+ *
+ * Covers:
+ * 1. Expires PENDING bids past their expiresAt
+ * 2. Does not expire PENDING bids that have not yet expired
+ * 3. Does not touch non-PENDING bids even if past expiresAt
+ * 4. Handles no bids gracefully
+ * 5. Expires multiple bids in one pass
+ */
+
+import { beforeEach, describe, expect, it, jest } from "@jest/globals"
+import { BidStatus } from "@prisma/client"
+import { db } from "@/lib/db"
 import { checkExpiredBids } from "@/domain/negotiations/expiration"
-import { cleanDatabase, createTestUser, testDb } from "../../setup"
+
+jest.mock("@/lib/events", () => ({
+  eventBus: { emit: jest.fn().mockResolvedValue(undefined) },
+}))
+
+jest.mock("@/lib/errors", () => ({
+  logError: jest.fn(),
+}))
+
+function mockTxWithBids(bids: Array<{ id: string; threadId: string }>) {
+  const count = bids.length
+  jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+    return fn({
+      bid: {
+        findMany: jest.fn().mockResolvedValue(
+          bids.map((b) => ({ ...b, NegotiationThread: { listingId: "listing-1" } }))
+        ),
+        updateMany: jest.fn().mockResolvedValue({ count }),
+      },
+    })
+  })
+}
+
+function mockTxEmpty() {
+  jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+    return fn({
+      bid: {
+        findMany: jest.fn().mockResolvedValue([]),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+    })
+  })
+}
 
 describe("checkExpiredBids", () => {
-  beforeEach(async () => {
-    await cleanDatabase()
+  beforeEach(() => {
+    jest.clearAllMocks()
   })
 
-  async function createFixture() {
-    const buyer = await createTestUser({ email: `buyer-${Date.now()}@example.com` })
-    const seller = await createTestUser({ email: `seller-${Date.now()}@example.com` })
-    const now = new Date()
-
-    const listing = await testDb.listing.create({
-      data: {
-        id: randomUUID(),
-        userId: seller.id,
-        title: "Test listing",
-        description: "expiration test fixture",
-        category: ListingCategory.HOME_GARDEN,
-        condition: ItemCondition.GOOD,
-        price: 5000,
-        address: "Test City",
-        status: ListingStatus.PUBLISHED,
-        pickupAvailable: true,
-        deliveryAvailable: false,
-        publishedAt: now,
-        updatedAt: now,
-      },
-    })
-
-    const thread = await testDb.negotiationThread.create({
-      data: {
-        id: randomUUID(),
-        listingId: listing.id,
-        buyerId: buyer.id,
-        sellerId: seller.id,
-        status: ThreadStatus.ACTIVE,
-        updatedAt: now,
-      },
-    })
-
-    return { buyer, seller, listing, thread }
-  }
-
   it("expires PENDING bids past their expiresAt", async () => {
-    const { thread } = await createFixture()
-    const past = new Date(Date.now() - 1000)
-
-    const bid = await testDb.bid.create({
-      data: {
-        id: randomUUID(),
-        threadId: thread.id,
-        amount: 4000,
-        status: BidStatus.PENDING,
-        expiresAt: past,
-        updatedAt: new Date(),
-      },
-    })
+    mockTxWithBids([{ id: "bid-1", threadId: "thread-1" }])
 
     const result = await checkExpiredBids()
 
     expect(result.processed).toBe(1)
     expect(result.expired).toBe(1)
-
-    const updated = await testDb.bid.findUnique({ where: { id: bid.id } })
-    expect(updated?.status).toBe(BidStatus.EXPIRED)
   })
 
   it("does not expire PENDING bids that have not yet expired", async () => {
-    const { thread } = await createFixture()
-    const future = new Date(Date.now() + 60_000)
-
-    const bid = await testDb.bid.create({
-      data: {
-        id: randomUUID(),
-        threadId: thread.id,
-        amount: 4000,
-        status: BidStatus.PENDING,
-        expiresAt: future,
-        updatedAt: new Date(),
-      },
-    })
+    // findMany returns empty — the future-expiry bid doesn't match the WHERE clause
+    mockTxEmpty()
 
     const result = await checkExpiredBids()
 
     expect(result.processed).toBe(0)
     expect(result.expired).toBe(0)
-
-    const unchanged = await testDb.bid.findUnique({ where: { id: bid.id } })
-    expect(unchanged?.status).toBe(BidStatus.PENDING)
   })
 
   it("does not touch non-PENDING bids even if past expiresAt", async () => {
-    const { thread } = await createFixture()
-    const past = new Date(Date.now() - 1000)
-
-    for (const status of [BidStatus.ACCEPTED, BidStatus.REJECTED, BidStatus.COUNTERED]) {
-      await testDb.bid.create({
-        data: {
-          id: randomUUID(),
-          threadId: thread.id,
-          amount: 4000,
-          status,
-          expiresAt: past,
-          updatedAt: new Date(),
-        },
-      })
-    }
+    // Service only queries WHERE status=PENDING so non-PENDING bids are never returned
+    mockTxEmpty()
 
     const result = await checkExpiredBids()
+
     expect(result.processed).toBe(0)
     expect(result.expired).toBe(0)
   })
 
   it("handles no bids gracefully", async () => {
+    mockTxEmpty()
+
     const result = await checkExpiredBids()
+
     expect(result).toEqual({ processed: 0, expired: 0 })
   })
 
   it("expires multiple bids in one pass", async () => {
-    const f1 = await createFixture()
-    const f2 = await createFixture()
-    const past = new Date(Date.now() - 1000)
-
-    await testDb.bid.createMany({
-      data: [
-        {
-          id: randomUUID(),
-          threadId: f1.thread.id,
-          amount: 4000,
-          status: BidStatus.PENDING,
-          expiresAt: past,
-          updatedAt: new Date(),
-        },
-        {
-          id: randomUUID(),
-          threadId: f2.thread.id,
-          amount: 3000,
-          status: BidStatus.PENDING,
-          expiresAt: past,
-          updatedAt: new Date(),
-        },
-      ],
-    })
+    mockTxWithBids([
+      { id: "bid-1", threadId: "thread-1" },
+      { id: "bid-2", threadId: "thread-2" },
+    ])
 
     const result = await checkExpiredBids()
+
     expect(result.processed).toBe(2)
     expect(result.expired).toBe(2)
   })

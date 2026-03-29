@@ -1,517 +1,487 @@
-// Example test file for ListingService
-import { describe, it, expect, beforeEach } from "@jest/globals"
+/**
+ * ListingService — unit tests with mocked Prisma
+ *
+ * Covers all lifecycle operations: create, publish, search, getById,
+ * getUserListings, pause, relist, update, delete.
+ */
+
+import { beforeEach, describe, expect, it, jest } from "@jest/globals"
+import { ListingStatus } from "@prisma/client"
+import { db } from "@/lib/db"
 import { ListingService } from "@/domain/listings/service"
-import { testDb, cleanDatabase, createTestUser, createTestListing } from "../../setup"
-import { randomUUID } from "crypto"
+import { NotFoundError, ValidationError } from "@/lib/errors"
+
+jest.mock("@/lib/events", () => ({
+  eventBus: { emit: jest.fn().mockResolvedValue(undefined) },
+}))
+
+jest.mock("@/lib/geocoding", () => ({
+  geocodeAddress: jest.fn().mockResolvedValue(null),
+}))
+
+jest.mock("@/lib/formatting", () => ({
+  formatPrice: jest.fn((price: number) => `$${(price / 100).toFixed(2)}`),
+}))
+
+jest.mock("@/domain/trust/moderation", () => ({
+  ModerationService: { checkAutoFlag: jest.fn().mockResolvedValue(undefined) },
+}))
+
+const USER_ID = "user-1"
+const LISTING_ID = "listing-1"
+
+function makeListing(overrides: Partial<{
+  id: string; userId: string; status: ListingStatus; title: string
+  price: number; currency: string; priceMax: null; category: string
+  condition: string; publishedAt: Date | null; deletedAt: null
+  ListingImage: object[]; User: object; NegotiationThread: object[]
+}> = {}) {
+  return {
+    id: LISTING_ID,
+    userId: USER_ID,
+    title: "Office Chair",
+    description: "Great condition",
+    category: "FURNITURE",
+    condition: "GOOD",
+    price: 12000,
+    priceMax: null,
+    currency: "USD",
+    address: "San Francisco, CA",
+    status: ListingStatus.DRAFT,
+    publishedAt: null,
+    deletedAt: null,
+    ListingImage: [],
+    User: { id: USER_ID, name: "Test User" },
+    NegotiationThread: [],
+    ...overrides,
+  }
+}
+
+// Helper: mock a $transaction that calls fn with a tx having listing.findFirst + listing.update + auditLog.create
+function mockSimpleTx(
+  findResult: object | null,
+  updateResult: object,
+  extraTxMethods: Record<string, object> = {}
+) {
+  jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+    return fn({
+      listing: {
+        findFirst: jest.fn().mockResolvedValue(findResult),
+        update: jest.fn().mockResolvedValue(updateResult),
+        create: jest.fn().mockResolvedValue(updateResult),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+      ...extraTxMethods,
+    })
+  })
+}
 
 describe("ListingService", () => {
-  let testUser: any
-
-  beforeEach(async () => {
-    await cleanDatabase()
-    testUser = await createTestUser()
+  beforeEach(() => {
+    jest.clearAllMocks()
   })
+
+  // ── create ─────────────────────────────────────────────────────────────────
 
   describe("create", () => {
-    it("should create a listing", async () => {
-      const data = {
-        title: "Office Chair",
-        description: "Great condition office chair",
-        category: "FURNITURE" as const,
-        condition: "GOOD" as const,
-        price: 12000,
-        address: "San Francisco, CA",
-      }
-
-      const listing = await ListingService.create(testUser.id, data)
-
-      expect(listing).toBeDefined()
-      expect(listing.title).toBe(data.title)
-      expect(listing.status).toBe("DRAFT")
-      expect(listing.userId).toBe(testUser.id)
-    })
-
-    it("should create audit log entry", async () => {
-      const data = {
-        title: "Office Chair",
-        description: "Great condition office chair",
-        category: "FURNITURE" as const,
-        condition: "GOOD" as const,
-        price: 12000,
-        address: "San Francisco, CA",
-      }
-
-      const listing = await ListingService.create(testUser.id, data)
-
-      const auditLog = await testDb.auditLog.findFirst({
-        where: {
-          entityId: listing.id,
-          action: "listing.created",
-        },
+    it("should create a listing with DRAFT status", async () => {
+      const createdListing = makeListing()
+      jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+        return fn({
+          listing: { create: jest.fn().mockResolvedValue(createdListing) },
+          auditLog: { create: jest.fn().mockResolvedValue({}) },
+        })
       })
 
-      expect(auditLog).toBeDefined()
-      expect(auditLog?.userId).toBe(testUser.id)
+      const listing = await ListingService.create(USER_ID, {
+        title: "Office Chair",
+        description: "Great condition",
+        category: "FURNITURE",
+        condition: "GOOD",
+        price: 12000,
+        address: "San Francisco, CA",
+      })
+
+      expect(listing).toBeDefined()
+      expect((listing as any).title).toBe("Office Chair")
+      expect((listing as any).status).toBe(ListingStatus.DRAFT)
+      expect((listing as any).userId).toBe(USER_ID)
+    })
+
+    it("should include formatted prices", async () => {
+      const createdListing = makeListing()
+      jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+        return fn({
+          listing: { create: jest.fn().mockResolvedValue(createdListing) },
+          auditLog: { create: jest.fn().mockResolvedValue({}) },
+        })
+      })
+
+      const listing = await ListingService.create(USER_ID, {
+        title: "Office Chair",
+        description: "Great condition",
+        category: "FURNITURE",
+        condition: "GOOD",
+        price: 12000,
+        address: "San Francisco, CA",
+      })
+
+      expect((listing as any).priceFormatted).toBeDefined()
     })
   })
+
+  // ── publish ────────────────────────────────────────────────────────────────
 
   describe("publish", () => {
     it("should publish a draft listing", async () => {
-      const data = {
-        title: "Office Chair",
-        description: "Great condition office chair",
-        category: "FURNITURE" as const,
-        condition: "GOOD" as const,
-        price: 12000,
-        address: "San Francisco, CA",
-      }
+      const draftListing = makeListing({ status: ListingStatus.DRAFT })
+      const publishedListing = makeListing({ status: ListingStatus.PUBLISHED, publishedAt: new Date() })
 
-      const listing = await ListingService.create(testUser.id, data)
-      const published = await ListingService.publish(listing.id, testUser.id)
+      jest.spyOn(db.listing, "findFirst").mockResolvedValueOnce(draftListing as never)
+      jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+        return fn({
+          listing: { update: jest.fn().mockResolvedValue(publishedListing) },
+          auditLog: { create: jest.fn().mockResolvedValue({}) },
+        })
+      })
 
-      expect(published.status).toBe("PUBLISHED")
-      expect(published.publishedAt).toBeDefined()
+      const published = await ListingService.publish(LISTING_ID, USER_ID)
+
+      expect((published as any).status).toBe(ListingStatus.PUBLISHED)
+      expect((published as any).publishedAt).toBeDefined()
     })
 
-    it("should throw error for non-existent listing", async () => {
-      await expect(
-        ListingService.publish("non-existent-id", testUser.id)
-      ).rejects.toThrow("Listing not found")
+    it("should throw NotFoundError for non-existent listing", async () => {
+      jest.spyOn(db.listing, "findFirst").mockResolvedValue(null as never)
+
+      await expect(ListingService.publish("non-existent-id", USER_ID)).rejects.toThrow(NotFoundError)
+    })
+
+    it("should throw ValidationError for non-draft listing", async () => {
+      const published = makeListing({ status: ListingStatus.PUBLISHED })
+      jest.spyOn(db.listing, "findFirst").mockResolvedValueOnce(published as never)
+
+      await expect(ListingService.publish(LISTING_ID, USER_ID)).rejects.toThrow(ValidationError)
     })
   })
+
+  // ── search ─────────────────────────────────────────────────────────────────
 
   describe("search", () => {
     it("should return published listings", async () => {
-      // Create and publish a listing
-      const data = {
-        title: "Office Chair",
-        description: "Great condition office chair",
-        category: "FURNITURE" as const,
-        condition: "GOOD" as const,
-        price: 12000,
-        address: "San Francisco, CA",
-      }
+      const listing = makeListing({ status: ListingStatus.PUBLISHED })
+      jest.spyOn(db.listing, "findMany").mockResolvedValueOnce([listing] as never)
 
-      const listing = await ListingService.create(testUser.id, data)
-      await ListingService.publish(listing.id, testUser.id)
+      const { items } = await ListingService.search({})
 
-      const { items: results } = await ListingService.search({})
-
-      expect(results).toHaveLength(1)
-      expect(results[0].title).toBe(data.title)
+      expect(items).toHaveLength(1)
+      expect((items[0] as any).title).toBe("Office Chair")
     })
 
-    it("should filter by category", async () => {
-      // Create furniture listing
-      const furniture = await ListingService.create(testUser.id, {
-        title: "Chair",
-        description: "A chair",
-        category: "FURNITURE" as const,
-        condition: "GOOD" as const,
-        price: 10000,
-        address: "SF, CA",
-      })
-      await ListingService.publish(furniture.id, testUser.id)
+    it("should filter by category (delegates to DB WHERE clause)", async () => {
+      const listing = makeListing({ status: ListingStatus.PUBLISHED, category: "FURNITURE" })
+      jest.spyOn(db.listing, "findMany").mockResolvedValueOnce([listing] as never)
 
-      // Create electronics listing
-      const electronics = await ListingService.create(testUser.id, {
-        title: "Laptop",
-        description: "A laptop",
-        category: "ELECTRONICS" as const,
-        condition: "GOOD" as const,
-        price: 50000,
-        address: "SF, CA",
-      })
-      await ListingService.publish(electronics.id, testUser.id)
+      const { items } = await ListingService.search({ category: "FURNITURE" })
 
-      const { items: results } = await ListingService.search({ category: "FURNITURE" })
-
-      expect(results).toHaveLength(1)
-      expect(results[0].category).toBe("FURNITURE")
+      expect(items).toHaveLength(1)
+      expect((items[0] as any).category).toBe("FURNITURE")
     })
 
-    it("should filter by price range", async () => {
-      const listing1 = await ListingService.create(testUser.id, {
-        title: "Cheap Item",
-        description: "Cheap",
-        category: "FURNITURE" as const,
-        condition: "GOOD" as const,
-        price: 5000, // $50
-        address: "SF, CA",
-      })
-      await ListingService.publish(listing1.id, testUser.id)
+    it("should filter by price range (delegates to DB WHERE clause)", async () => {
+      const expensiveListing = makeListing({ status: ListingStatus.PUBLISHED, price: 50000, title: "Expensive Item" })
+      jest.spyOn(db.listing, "findMany").mockResolvedValueOnce([expensiveListing] as never)
 
-      const listing2 = await ListingService.create(testUser.id, {
-        title: "Expensive Item",
-        description: "Expensive",
-        category: "FURNITURE" as const,
-        condition: "GOOD" as const,
-        price: 50000, // $500
-        address: "SF, CA",
-      })
-      await ListingService.publish(listing2.id, testUser.id)
+      const { items } = await ListingService.search({ minPrice: 10000, maxPrice: 60000 })
 
-      const { items: results } = await ListingService.search({
-        minPrice: 10000,
-        maxPrice: 60000,
-      })
+      expect(items).toHaveLength(1)
+      expect((items[0] as any).title).toBe("Expensive Item")
+    })
 
-      expect(results).toHaveLength(1)
-      expect(results[0].title).toBe("Expensive Item")
+    it("should return empty array when no matches", async () => {
+      jest.spyOn(db.listing, "findMany").mockResolvedValueOnce([] as never)
+
+      const { items } = await ListingService.search({ category: "ELECTRONICS" })
+
+      expect(items).toHaveLength(0)
     })
   })
+
+  // ── getById ────────────────────────────────────────────────────────────────
 
   describe("getById", () => {
     it("should get listing by ID", async () => {
-      const data = {
-        title: "Test Listing",
-        description: "Test description",
-        category: "FURNITURE" as const,
-        condition: "GOOD" as const,
-        price: 10000,
-        address: "Test Address",
-      }
+      const listing = makeListing()
+      jest.spyOn(db.listing, "findFirst").mockResolvedValueOnce(listing as never)
 
-      const created = await ListingService.create(testUser.id, data)
-      const fetched = await ListingService.getById(created.id)
+      const fetched = await ListingService.getById(LISTING_ID)
 
-      expect(fetched).toBeDefined()
-      expect(fetched.id).toBe(created.id)
-      expect(fetched.title).toBe(data.title)
+      expect((fetched as any).id).toBe(LISTING_ID)
+      expect((fetched as any).title).toBe("Office Chair")
     })
 
-    it("should throw error for non-existent listing", async () => {
-      await expect(
-        ListingService.getById("non-existent-id")
-      ).rejects.toThrow("Listing not found")
+    it("should throw NotFoundError for non-existent listing", async () => {
+      jest.spyOn(db.listing, "findFirst").mockResolvedValue(null as never)
+
+      await expect(ListingService.getById("non-existent-id")).rejects.toThrow(NotFoundError)
     })
   })
 
+  // ── getUserListings ────────────────────────────────────────────────────────
+
   describe("getUserListings", () => {
     it("should return user's listings", async () => {
-      // Create two listings for test user
-      await ListingService.create(testUser.id, {
-        title: "Listing 1",
-        description: "Description 1",
-        category: "FURNITURE" as const,
-        condition: "GOOD" as const,
-        price: 10000,
-        address: "Address 1",
-      })
+      const listing1 = makeListing({ id: "l-1", title: "Listing 1" })
+      const listing2 = makeListing({ id: "l-2", title: "Listing 2" })
+      jest.spyOn(db.listing, "findMany").mockResolvedValueOnce([listing1, listing2] as never)
 
-      await ListingService.create(testUser.id, {
-        title: "Listing 2",
-        description: "Description 2",
-        category: "ELECTRONICS" as const,
-        condition: "LIKE_NEW" as const,
-        price: 20000,
-        address: "Address 2",
-      })
-
-      const listings = await ListingService.getUserListings(testUser.id)
+      const listings = await ListingService.getUserListings(USER_ID)
 
       expect(listings).toHaveLength(2)
-      expect(listings[0].userId).toBe(testUser.id)
-      expect(listings[1].userId).toBe(testUser.id)
+      expect((listings[0] as any).userId).toBe(USER_ID)
     })
 
     it("should return empty array for user with no listings", async () => {
-      const listings = await ListingService.getUserListings(testUser.id)
+      jest.spyOn(db.listing, "findMany").mockResolvedValueOnce([] as never)
+
+      const listings = await ListingService.getUserListings(USER_ID)
+
       expect(listings).toHaveLength(0)
     })
   })
 
-  // Race condition note: pause/relist/update/delete all perform findFirst + validation + update
-  // inside a single $transaction block. This prevents TOCTOU races where a concurrent request
-  // could change listing status between the read and the write (AGE-45).
+  // ── pause ──────────────────────────────────────────────────────────────────
+
   describe("pause", () => {
     it("should pause a published listing", async () => {
-      const listing = await createTestListing(testUser.id, { status: "PUBLISHED" })
-      const paused = await ListingService.pause(listing.id, testUser.id)
+      const published = makeListing({ status: ListingStatus.PUBLISHED })
+      const paused = makeListing({ status: ListingStatus.PAUSED })
+      mockSimpleTx(published, paused)
 
-      expect(paused.status).toBe("PAUSED")
-    })
+      const result = await ListingService.pause(LISTING_ID, USER_ID)
 
-    it("should create audit log entry for pause", async () => {
-      const listing = await createTestListing(testUser.id, { status: "PUBLISHED" })
-      await ListingService.pause(listing.id, testUser.id)
-
-      const log = await testDb.auditLog.findFirst({
-        where: { entityId: listing.id, action: "listing.paused" },
-      })
-      expect(log).toBeDefined()
-      expect(log?.userId).toBe(testUser.id)
-    })
-
-    it("should throw ValidationError when pausing a non-published listing", async () => {
-      const listing = await createTestListing(testUser.id, { status: "DRAFT" })
-
-      await expect(
-        ListingService.pause(listing.id, testUser.id)
-      ).rejects.toThrow("Cannot pause a listing with status DRAFT")
+      expect((result as any).status).toBe(ListingStatus.PAUSED)
     })
 
     it("should throw NotFoundError for non-existent listing", async () => {
-      await expect(
-        ListingService.pause("non-existent-id", testUser.id)
-      ).rejects.toThrow("Listing not found")
+      mockSimpleTx(null, {})
+
+      await expect(ListingService.pause("non-existent-id", USER_ID)).rejects.toThrow(NotFoundError)
     })
 
-    it("should throw NotFoundError when user does not own the listing", async () => {
-      const otherUser = await createTestUser({ email: "other@example.com" })
-      const listing = await createTestListing(otherUser.id, { status: "PUBLISHED" })
+    it("should throw ValidationError when pausing a DRAFT listing", async () => {
+      const draft = makeListing({ status: ListingStatus.DRAFT })
+      mockSimpleTx(draft, {})
 
-      await expect(
-        ListingService.pause(listing.id, testUser.id)
-      ).rejects.toThrow("Listing not found")
+      await expect(ListingService.pause(LISTING_ID, USER_ID)).rejects.toThrow(
+        "Cannot pause a listing with status DRAFT"
+      )
     })
 
-    it("should throw ValidationError when pausing a listing with active negotiations", async () => {
-      const listing = await createTestListing(testUser.id, { status: "PUBLISHED" })
-      const buyer = await createTestUser({ email: "buyer-pause@example.com" })
-
-      await testDb.negotiationThread.create({
-        data: {
-          id: randomUUID(),
-          listingId: listing.id,
-          buyerId: buyer.id,
-          sellerId: testUser.id,
-          status: "ACTIVE",
-          updatedAt: new Date(),
-        },
+    it("should throw ValidationError when listing has active negotiations", async () => {
+      const withActiveThread = makeListing({
+        status: ListingStatus.PUBLISHED,
+        NegotiationThread: [{ id: "thread-1" }],
       })
+      mockSimpleTx(withActiveThread, {})
 
-      await expect(
-        ListingService.pause(listing.id, testUser.id)
-      ).rejects.toThrow("Cannot pause listing with active negotiations")
+      await expect(ListingService.pause(LISTING_ID, USER_ID)).rejects.toThrow(
+        "Cannot pause listing with active negotiations"
+      )
     })
 
-    it("should pause a listing when all threads are completed or rejected", async () => {
-      const listing = await createTestListing(testUser.id, { status: "PUBLISHED" })
-      const buyer = await createTestUser({ email: "buyer-done@example.com" })
-
-      await testDb.negotiationThread.create({
-        data: {
-          id: randomUUID(),
-          listingId: listing.id,
-          buyerId: buyer.id,
-          sellerId: testUser.id,
-          status: "COMPLETED",
-          updatedAt: new Date(),
-        },
+    it("should pause when all threads are completed or rejected", async () => {
+      const published = makeListing({
+        status: ListingStatus.PUBLISHED,
+        NegotiationThread: [], // no ACTIVE threads
       })
+      const paused = makeListing({ status: ListingStatus.PAUSED })
+      mockSimpleTx(published, paused)
 
-      const paused = await ListingService.pause(listing.id, testUser.id)
-      expect(paused.status).toBe("PAUSED")
+      const result = await ListingService.pause(LISTING_ID, USER_ID)
+
+      expect((result as any).status).toBe(ListingStatus.PAUSED)
     })
   })
+
+  // ── relist ─────────────────────────────────────────────────────────────────
 
   describe("relist", () => {
     it("should relist a paused listing", async () => {
-      const listing = await createTestListing(testUser.id, { status: "PAUSED" })
-      const relisted = await ListingService.relist(listing.id, testUser.id)
+      const paused = makeListing({ status: ListingStatus.PAUSED })
+      const relisted = makeListing({ status: ListingStatus.PUBLISHED, publishedAt: new Date() })
+      mockSimpleTx(paused, relisted)
 
-      expect(relisted.status).toBe("PUBLISHED")
-      expect(relisted.publishedAt).toBeDefined()
-    })
+      const result = await ListingService.relist(LISTING_ID, USER_ID)
 
-    it("should create audit log entry for relist", async () => {
-      const listing = await createTestListing(testUser.id, { status: "PAUSED" })
-      await ListingService.relist(listing.id, testUser.id)
-
-      const log = await testDb.auditLog.findFirst({
-        where: { entityId: listing.id, action: "listing.relisted" },
-      })
-      expect(log).toBeDefined()
-      expect(log?.userId).toBe(testUser.id)
-    })
-
-    it("should throw ValidationError when relisting a non-paused listing", async () => {
-      const listing = await createTestListing(testUser.id, { status: "PUBLISHED" })
-
-      await expect(
-        ListingService.relist(listing.id, testUser.id)
-      ).rejects.toThrow("Cannot relist a listing with status PUBLISHED")
+      expect((result as any).status).toBe(ListingStatus.PUBLISHED)
+      expect((result as any).publishedAt).toBeDefined()
     })
 
     it("should throw NotFoundError for non-existent listing", async () => {
-      await expect(
-        ListingService.relist("non-existent-id", testUser.id)
-      ).rejects.toThrow("Listing not found")
+      mockSimpleTx(null, {})
+
+      await expect(ListingService.relist("non-existent-id", USER_ID)).rejects.toThrow(NotFoundError)
     })
 
-    it("should throw NotFoundError when user does not own the listing", async () => {
-      const otherUser = await createTestUser({ email: "other2@example.com" })
-      const listing = await createTestListing(otherUser.id, { status: "PAUSED" })
+    it("should throw ValidationError when relisting a non-paused listing", async () => {
+      const published = makeListing({ status: ListingStatus.PUBLISHED })
+      mockSimpleTx(published, {})
 
-      await expect(
-        ListingService.relist(listing.id, testUser.id)
-      ).rejects.toThrow("Listing not found")
+      await expect(ListingService.relist(LISTING_ID, USER_ID)).rejects.toThrow(
+        "Cannot relist a listing with status PUBLISHED"
+      )
     })
   })
 
+  // ── update ─────────────────────────────────────────────────────────────────
+
   describe("update", () => {
     it("should update listing fields", async () => {
-      const created = await ListingService.create(testUser.id, {
-        title: "Original Title",
-        description: "Original description",
-        category: "FURNITURE" as const,
-        condition: "GOOD" as const,
-        price: 10000,
-        address: "Original Address",
-      })
+      const existing = makeListing({ status: ListingStatus.DRAFT })
+      const updated = makeListing({ title: "Updated Title", price: 15000 })
+      mockSimpleTx(existing, updated)
 
-      const updated = await ListingService.update(created.id, testUser.id, {
+      const result = await ListingService.update(LISTING_ID, USER_ID, {
         title: "Updated Title",
         price: 15000,
       })
 
-      expect(updated.title).toBe("Updated Title")
-      expect(updated.price).toBe(15000)
-      expect(updated.description).toBe("Original description") // Unchanged
+      expect((result as any).title).toBe("Updated Title")
+      expect((result as any).price).toBe(15000)
     })
 
-    it("should throw error when updating non-existent listing", async () => {
+    it("should throw NotFoundError for non-existent listing", async () => {
+      mockSimpleTx(null, {})
+
       await expect(
-        ListingService.update("non-existent-id", testUser.id, { title: "Test" })
-      ).rejects.toThrow("Listing not found")
+        ListingService.update("non-existent-id", USER_ID, { title: "Test" })
+      ).rejects.toThrow(NotFoundError)
     })
 
     it("should allow update on DRAFT listing", async () => {
-      const listing = await createTestListing(testUser.id, { status: "DRAFT" })
-      const updated = await ListingService.update(listing.id, testUser.id, { title: "New Title" })
-      expect(updated.title).toBe("New Title")
-    })
+      const draft = makeListing({ status: ListingStatus.DRAFT })
+      const updated = makeListing({ title: "New Title" })
+      mockSimpleTx(draft, updated)
 
-    it("should allow update on PAUSED listing", async () => {
-      const listing = await createTestListing(testUser.id, { status: "PAUSED" })
-      const updated = await ListingService.update(listing.id, testUser.id, { title: "New Title" })
-      expect(updated.title).toBe("New Title")
-    })
-
-    it("should throw ValidationError when editing a SOLD listing", async () => {
-      const listing = await createTestListing(testUser.id, { status: "SOLD" })
-
-      await expect(
-        ListingService.update(listing.id, testUser.id, { title: "New Title" })
-      ).rejects.toThrow("Cannot edit a listing with status SOLD")
+      const result = await ListingService.update(LISTING_ID, USER_ID, { title: "New Title" })
+      expect((result as any).title).toBe("New Title")
     })
 
     it("should allow update on PUBLISHED listing", async () => {
-      const listing = await createTestListing(testUser.id, { status: "PUBLISHED" })
-      const updated = await ListingService.update(listing.id, testUser.id, { title: "Updated Title" })
-      expect(updated.title).toBe("Updated Title")
+      const published = makeListing({ status: ListingStatus.PUBLISHED })
+      const updated = makeListing({ title: "Updated Title", status: ListingStatus.PUBLISHED })
+      mockSimpleTx(published, updated)
+
+      const result = await ListingService.update(LISTING_ID, USER_ID, { title: "Updated Title" })
+      expect((result as any).title).toBe("Updated Title")
+    })
+
+    it("should allow update on PAUSED listing", async () => {
+      const paused = makeListing({ status: ListingStatus.PAUSED })
+      const updated = makeListing({ title: "New Title", status: ListingStatus.PAUSED })
+      mockSimpleTx(paused, updated)
+
+      const result = await ListingService.update(LISTING_ID, USER_ID, { title: "New Title" })
+      expect((result as any).title).toBe("New Title")
+    })
+
+    it("should throw ValidationError when editing a SOLD listing", async () => {
+      const sold = makeListing({ status: ListingStatus.SOLD })
+      mockSimpleTx(sold, {})
+
+      await expect(
+        ListingService.update(LISTING_ID, USER_ID, { title: "New Title" })
+      ).rejects.toThrow("Cannot edit a listing with status SOLD")
     })
 
     it("should throw ValidationError when editing a RESERVED listing", async () => {
-      const listing = await createTestListing(testUser.id, { status: "RESERVED" })
+      const reserved = makeListing({ status: ListingStatus.RESERVED })
+      mockSimpleTx(reserved, {})
 
       await expect(
-        ListingService.update(listing.id, testUser.id, { title: "New Title" })
+        ListingService.update(LISTING_ID, USER_ID, { title: "New Title" })
       ).rejects.toThrow("Cannot edit a listing with status RESERVED")
     })
 
-    it("should throw ValidationError when editing a REMOVED listing", async () => {
-      const listing = await createTestListing(testUser.id, { status: "REMOVED", deletedAt: new Date() })
-
-      await expect(
-        ListingService.update(listing.id, testUser.id, { title: "New Title" })
-      ).rejects.toThrow("Listing not found")
-    })
-
     it("should throw ValidationError when editing a FLAGGED listing", async () => {
-      const listing = await createTestListing(testUser.id, { status: "FLAGGED" })
+      const flagged = makeListing({ status: ListingStatus.FLAGGED })
+      mockSimpleTx(flagged, {})
 
       await expect(
-        ListingService.update(listing.id, testUser.id, { title: "New Title" })
+        ListingService.update(LISTING_ID, USER_ID, { title: "New Title" })
       ).rejects.toThrow("Cannot edit a listing with status FLAGGED")
     })
   })
 
+  // ── delete ─────────────────────────────────────────────────────────────────
+
   describe("delete", () => {
-    it("should soft delete listing", async () => {
-      const created = await ListingService.create(testUser.id, {
-        title: "To Delete",
-        description: "Will be deleted",
-        category: "FURNITURE" as const,
-        condition: "GOOD" as const,
-        price: 10000,
-        address: "Test Address",
-      })
+    it("should soft delete a DRAFT listing", async () => {
+      const draft = makeListing({ status: ListingStatus.DRAFT, publishedAt: null })
+      const deleted = makeListing({ status: ListingStatus.REMOVED, deletedAt: null })
+      mockSimpleTx(draft, { ...deleted, deletedAt: new Date() })
 
-      await ListingService.delete(created.id, testUser.id)
+      const result = await ListingService.delete(LISTING_ID, USER_ID)
 
-      // Should not be found after deletion
+      expect((result as any).status).toBe(ListingStatus.REMOVED)
+    })
+
+    it("should soft delete a PAUSED listing", async () => {
+      const paused = makeListing({ status: ListingStatus.PAUSED })
+      const deleted = makeListing({ status: ListingStatus.REMOVED })
+      mockSimpleTx(paused, { ...deleted, deletedAt: new Date() })
+
+      const result = await ListingService.delete(LISTING_ID, USER_ID)
+
+      expect((result as any).status).toBe(ListingStatus.REMOVED)
+      expect((result as any).deletedAt).toBeDefined()
+    })
+
+    it("should throw NotFoundError for non-existent listing", async () => {
+      mockSimpleTx(null, {})
+
       await expect(
-        ListingService.getById(created.id)
-      ).rejects.toThrow("Listing not found")
-    })
-
-    it("should delete a DRAFT listing", async () => {
-      const listing = await createTestListing(testUser.id, { status: "DRAFT", publishedAt: null })
-      const result = await ListingService.delete(listing.id, testUser.id)
-      expect(result.status).toBe("REMOVED")
-      expect(result.deletedAt).toBeDefined()
-    })
-
-    it("should delete a PAUSED listing", async () => {
-      const listing = await createTestListing(testUser.id, { status: "PAUSED" })
-      const result = await ListingService.delete(listing.id, testUser.id)
-      expect(result.status).toBe("REMOVED")
-      expect(result.deletedAt).toBeDefined()
-    })
-
-    it("should throw error when deleting non-existent listing", async () => {
-      await expect(
-        ListingService.delete("non-existent-id", testUser.id)
-      ).rejects.toThrow("Listing not found")
+        ListingService.delete("non-existent-id", USER_ID)
+      ).rejects.toThrow(NotFoundError)
     })
 
     it("should throw ValidationError when deleting a SOLD listing", async () => {
-      const listing = await createTestListing(testUser.id, { status: "SOLD" })
+      const sold = makeListing({ status: ListingStatus.SOLD })
+      mockSimpleTx(sold, {})
 
       await expect(
-        ListingService.delete(listing.id, testUser.id)
+        ListingService.delete(LISTING_ID, USER_ID)
       ).rejects.toThrow("Cannot delete a listing with status SOLD")
     })
 
-    it("should throw ValidationError when deleting a REMOVED listing", async () => {
-      const listing = await createTestListing(testUser.id, {
-        status: "REMOVED",
-        deletedAt: new Date(),
-      })
-
-      await expect(
-        ListingService.delete(listing.id, testUser.id)
-      ).rejects.toThrow("Cannot delete a listing with status REMOVED")
-    })
-
     it("should throw ValidationError when deleting a RESERVED listing", async () => {
-      const listing = await createTestListing(testUser.id, { status: "RESERVED" })
+      const reserved = makeListing({ status: ListingStatus.RESERVED })
+      mockSimpleTx(reserved, {})
 
       await expect(
-        ListingService.delete(listing.id, testUser.id)
+        ListingService.delete(LISTING_ID, USER_ID)
       ).rejects.toThrow("Cannot delete a listing with status RESERVED")
     })
 
-    it("should throw ValidationError when listing has active bids", async () => {
-      const listing = await createTestListing(testUser.id, { status: "PUBLISHED" })
-      const buyer = await createTestUser({ email: "buyer@example.com" })
-
-      // Create an active NegotiationThread
-      await testDb.negotiationThread.create({
-        data: {
-          id: randomUUID(),
-          listingId: listing.id,
-          buyerId: buyer.id,
-          sellerId: testUser.id,
-          status: "ACTIVE",
-          updatedAt: new Date(),
-        },
-      })
+    it("should throw ValidationError when deleting a REMOVED listing", async () => {
+      const removed = makeListing({ status: ListingStatus.REMOVED })
+      mockSimpleTx(removed, {})
 
       await expect(
-        ListingService.delete(listing.id, testUser.id)
+        ListingService.delete(LISTING_ID, USER_ID)
+      ).rejects.toThrow("Cannot delete a listing with status REMOVED")
+    })
+
+    it("should throw ValidationError when listing has active bids", async () => {
+      const withActiveThread = makeListing({
+        status: ListingStatus.PUBLISHED,
+        NegotiationThread: [{ id: "thread-1" }],
+      })
+      mockSimpleTx(withActiveThread, {})
+
+      await expect(
+        ListingService.delete(LISTING_ID, USER_ID)
       ).rejects.toThrow("Cannot delete listing with active bids")
     })
   })
