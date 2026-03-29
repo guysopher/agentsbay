@@ -307,23 +307,55 @@ describe("ListingService", () => {
   // ── getUserListings ────────────────────────────────────────────────────────
 
   describe("getUserListings", () => {
-    it("should return user's listings", async () => {
+    it("should return user's listings as paginated result", async () => {
       const listing1 = makeListing({ id: "l-1", title: "Listing 1" })
       const listing2 = makeListing({ id: "l-2", title: "Listing 2" })
       jest.spyOn(db.listing, "findMany").mockResolvedValueOnce([listing1, listing2] as never)
 
-      const listings = await ListingService.getUserListings(USER_ID)
+      const result = await ListingService.getUserListings(USER_ID)
 
-      expect(listings).toHaveLength(2)
-      expect((listings[0] as any).userId).toBe(USER_ID)
+      expect(result.items).toHaveLength(2)
+      expect((result.items[0] as any).userId).toBe(USER_ID)
+      expect(result.hasMore).toBe(false)
+      expect(result.nextCursor).toBeNull()
     })
 
-    it("should return empty array for user with no listings", async () => {
+    it("should return empty items for user with no listings", async () => {
       jest.spyOn(db.listing, "findMany").mockResolvedValueOnce([] as never)
 
-      const listings = await ListingService.getUserListings(USER_ID)
+      const result = await ListingService.getUserListings(USER_ID)
 
-      expect(listings).toHaveLength(0)
+      expect(result.items).toHaveLength(0)
+      expect(result.hasMore).toBe(false)
+      expect(result.nextCursor).toBeNull()
+    })
+
+    it("should set hasMore and nextCursor when more pages exist", async () => {
+      // Return limit+1 items to trigger hasMore
+      const listings = Array.from({ length: 21 }, (_, i) =>
+        makeListing({ id: `l-${i}`, title: `Listing ${i}` })
+      )
+      jest.spyOn(db.listing, "findMany").mockResolvedValueOnce(listings as never)
+
+      const result = await ListingService.getUserListings(USER_ID, { limit: 20 })
+
+      expect(result.items).toHaveLength(20)
+      expect(result.hasMore).toBe(true)
+      expect(result.nextCursor).toBe("l-19")
+    })
+
+    it("should filter by status when provided", async () => {
+      const published = makeListing({ id: "l-1", status: ListingStatus.PUBLISHED })
+      const findManySpy = jest.spyOn(db.listing, "findMany").mockResolvedValueOnce([published] as never)
+
+      const result = await ListingService.getUserListings(USER_ID, { status: ListingStatus.PUBLISHED })
+
+      expect(result.items).toHaveLength(1)
+      expect(findManySpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ status: ListingStatus.PUBLISHED }),
+        })
+      )
     })
   })
 

@@ -453,29 +453,48 @@ export class ListingService {
   }
 
   /**
-   * Get all listings created by a specific user (excludes soft-deleted)
+   * Get listings created by a specific user with optional status filter and cursor pagination.
    * @param userId - ID of the user
-   * @returns Array of user's listings with formatted prices
-   * @example
-   * ```ts
-   * const myListings = await ListingService.getUserListings(userId)
-   * ```
+   * @param opts - Optional status filter, cursor, and limit
+   * @returns Paginated result with items, nextCursor, and hasMore
    */
-  static async getUserListings(userId: string) {
+  static async getUserListings(userId: string, opts?: {
+    status?: ListingStatus
+    cursor?: string
+    limit?: number
+  }) {
+    const limit = opts?.limit ?? 20
+    const where: Prisma.ListingWhereInput = {
+      userId,
+      deletedAt: null,
+      ...(opts?.status && { status: opts.status }),
+    }
+
     const listings = await db.listing.findMany({
-      where: {
-        userId,
-        deletedAt: null,
-      },
+      where,
       include: {
-        ListingImage: true,
+        ListingImage: { take: 1 },
+        NegotiationThread: {
+          where: { status: ThreadStatus.ACTIVE },
+          select: { id: true },
+        },
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: { createdAt: "desc" },
+      take: limit + 1,
+      ...(opts?.cursor && {
+        cursor: { id: opts.cursor },
+        skip: 1,
+      }),
     })
 
-    return listings.map(withFormattedPrices)
+    const hasMore = listings.length > limit
+    const items = listings.slice(0, limit).map(withFormattedPrices)
+
+    return {
+      items,
+      nextCursor: hasMore ? items[items.length - 1].id : null,
+      hasMore,
+    }
   }
 
   /**
