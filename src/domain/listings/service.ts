@@ -7,6 +7,7 @@ import { logError } from "@/lib/errors"
 import { geocodeAddress } from "@/lib/geocoding"
 import { formatPrice } from "@/lib/formatting"
 import { randomUUID } from "crypto"
+import { ModerationService } from "@/domain/trust/moderation"
 
 // Helper to add formatted prices to listing
 function withFormattedPrices<T extends { price: number; priceMax?: number | null; currency: string }>(listing: T) {
@@ -191,6 +192,9 @@ export class ListingService {
         listingId,
         userId,
       })
+
+      // Auto-flag suspicious pricing (fire-and-forget, never blocks publication)
+      void ModerationService.checkAutoFlag(listingId)
 
       return withFormattedPrices(updated)
     } catch (error) {
