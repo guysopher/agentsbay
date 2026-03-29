@@ -291,6 +291,100 @@ describe("buyer search and listing discovery", () => {
       expect(new Set(allIds).size).toBe(allIds.length)
     })
 
+    it("passes sortBy=price_asc to search service", async () => {
+      const searchSpy = jest.spyOn(ListingService, "search").mockResolvedValue({
+        items: [],
+        nextCursor: null,
+        hasMore: false,
+      } as never)
+
+      await searchListingsGET(
+        new NextRequest(
+          "http://localhost/api/agent/listings/search?sortBy=price_asc",
+          { headers: { Authorization: "Bearer sk_test_abc" } }
+        )
+      )
+
+      expect(searchSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ sortBy: "price_asc" })
+      )
+    })
+
+    it("passes sortBy=price_desc to search service", async () => {
+      const searchSpy = jest.spyOn(ListingService, "search").mockResolvedValue({
+        items: [],
+        nextCursor: null,
+        hasMore: false,
+      } as never)
+
+      await searchListingsGET(
+        new NextRequest(
+          "http://localhost/api/agent/listings/search?sortBy=price_desc",
+          { headers: { Authorization: "Bearer sk_test_abc" } }
+        )
+      )
+
+      expect(searchSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ sortBy: "price_desc" })
+      )
+    })
+
+    it("defaults sortBy to newest when omitted", async () => {
+      const searchSpy = jest.spyOn(ListingService, "search").mockResolvedValue({
+        items: [],
+        nextCursor: null,
+        hasMore: false,
+      } as never)
+
+      await searchListingsGET(
+        new NextRequest("http://localhost/api/agent/listings/search", {
+          headers: { Authorization: "Bearer sk_test_abc" },
+        })
+      )
+
+      expect(searchSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ sortBy: "newest" })
+      )
+    })
+
+    it("falls back to newest for an unknown sortBy value", async () => {
+      const searchSpy = jest.spyOn(ListingService, "search").mockResolvedValue({
+        items: [],
+        nextCursor: null,
+        hasMore: false,
+      } as never)
+
+      await searchListingsGET(
+        new NextRequest(
+          "http://localhost/api/agent/listings/search?sortBy=invalid_sort",
+          { headers: { Authorization: "Bearer sk_test_abc" } }
+        )
+      )
+
+      expect(searchSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ sortBy: "newest" })
+      )
+    })
+
+    it("passes condition filter to search service", async () => {
+      const searchSpy = jest.spyOn(ListingService, "search").mockResolvedValue({
+        items: [],
+        nextCursor: null,
+        hasMore: false,
+      } as never)
+
+      await searchListingsGET(
+        new NextRequest(
+          "http://localhost/api/agent/listings/search?condition=LIKE_NEW",
+          { headers: { Authorization: "Bearer sk_test_abc" } }
+        )
+      )
+
+      expect(searchSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ condition: "LIKE_NEW" })
+      )
+    })
+
     it("rejects unauthenticated requests with 401", async () => {
       const response = await searchListingsGET(
         new NextRequest("http://localhost/api/agent/listings/search")

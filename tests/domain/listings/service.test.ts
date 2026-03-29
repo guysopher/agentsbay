@@ -34,7 +34,7 @@ function makeListing(overrides: Partial<{
   id: string; userId: string; status: ListingStatus; title: string
   price: number; currency: string; priceMax: null; category: string
   condition: string; publishedAt: Date | null; deletedAt: null
-  ListingImage: object[]; User: object; NegotiationThread: object[]
+  labels: string[]; ListingImage: object[]; User: object; NegotiationThread: object[]
 }> = {}) {
   return {
     id: LISTING_ID,
@@ -47,6 +47,7 @@ function makeListing(overrides: Partial<{
     priceMax: null,
     currency: "USD",
     address: "San Francisco, CA",
+    labels: [] as string[],
     status: ListingStatus.DRAFT,
     publishedAt: null,
     deletedAt: null,
@@ -281,6 +282,103 @@ describe("ListingService", () => {
       const { items } = await ListingService.search({ category: "ELECTRONICS" })
 
       expect(items).toHaveLength(0)
+    })
+
+    it("should use AND word-split query for multi-word search", async () => {
+      const findManySpy = jest.spyOn(db.listing, "findMany").mockResolvedValueOnce([] as never)
+
+      await ListingService.search({ query: "vintage camera" })
+
+      const call = findManySpy.mock.calls[0][0] as { where: Record<string, unknown> }
+      // Multi-word query uses AND across word conditions
+      expect(call.where).toHaveProperty("AND")
+      const andClause = call.where.AND as Array<{ OR: unknown[] }>
+      expect(andClause).toHaveLength(2)
+      // Each word condition is an OR across title/description
+      expect(andClause[0]).toHaveProperty("OR")
+      expect(andClause[1]).toHaveProperty("OR")
+    })
+
+    it("should use OR title/description for single-word search", async () => {
+      const findManySpy = jest.spyOn(db.listing, "findMany").mockResolvedValueOnce([] as never)
+
+      await ListingService.search({ query: "camera" })
+
+      const call = findManySpy.mock.calls[0][0] as { where: Record<string, unknown> }
+      expect(call.where).toHaveProperty("OR")
+      expect(call.where).not.toHaveProperty("AND")
+    })
+
+    it("should order by price ASC when sortBy=price_asc", async () => {
+      const findManySpy = jest.spyOn(db.listing, "findMany").mockResolvedValueOnce([] as never)
+
+      await ListingService.search({ sortBy: "price_asc" })
+
+      const call = findManySpy.mock.calls[0][0] as { orderBy: Record<string, unknown> }
+      expect(call.orderBy).toEqual({ price: "asc" })
+    })
+
+    it("should order by price DESC when sortBy=price_desc", async () => {
+      const findManySpy = jest.spyOn(db.listing, "findMany").mockResolvedValueOnce([] as never)
+
+      await ListingService.search({ sortBy: "price_desc" })
+
+      const call = findManySpy.mock.calls[0][0] as { orderBy: Record<string, unknown> }
+      expect(call.orderBy).toEqual({ price: "desc" })
+    })
+
+    it("should order by createdAt ASC when sortBy=oldest", async () => {
+      const findManySpy = jest.spyOn(db.listing, "findMany").mockResolvedValueOnce([] as never)
+
+      await ListingService.search({ sortBy: "oldest" })
+
+      const call = findManySpy.mock.calls[0][0] as { orderBy: Record<string, unknown> }
+      expect(call.orderBy).toEqual({ createdAt: "asc" })
+    })
+
+    it("should order by createdAt DESC by default (newest)", async () => {
+      const findManySpy = jest.spyOn(db.listing, "findMany").mockResolvedValueOnce([] as never)
+
+      await ListingService.search({})
+
+      const call = findManySpy.mock.calls[0][0] as { orderBy: Record<string, unknown> }
+      expect(call.orderBy).toEqual({ createdAt: "desc" })
+    })
+
+    it("should promote title matches when sortBy=relevance", async () => {
+      // titleMatch: query "camera" appears in title → high score
+      const titleMatch = makeListing({
+        id: "l-1",
+        title: "camera for sale",
+        description: "old item",
+        status: ListingStatus.PUBLISHED,
+      })
+      // descMatch: query "camera" only in description → lower score
+      const descMatch = makeListing({
+        id: "l-2",
+        title: "general stuff",
+        description: "includes a camera",
+        status: ListingStatus.PUBLISHED,
+      })
+      // DB returns descMatch first; relevance sort should promote titleMatch
+      jest.spyOn(db.listing, "findMany").mockResolvedValueOnce([descMatch, titleMatch] as never)
+
+      const { items } = await ListingService.search({ query: "camera", sortBy: "relevance" })
+
+      expect((items[0] as { id: string }).id).toBe("l-1")
+    })
+
+    it("should paginate: hasMore=true when results exceed limit", async () => {
+      const listings = Array.from({ length: 6 }, (_, i) =>
+        makeListing({ id: `l-${i}`, status: ListingStatus.PUBLISHED })
+      )
+      jest.spyOn(db.listing, "findMany").mockResolvedValueOnce(listings as never)
+
+      const { items, hasMore, nextCursor } = await ListingService.search({ limit: 5 })
+
+      expect(items).toHaveLength(5)
+      expect(hasMore).toBe(true)
+      expect(nextCursor).toBe("l-4")
     })
   })
 
