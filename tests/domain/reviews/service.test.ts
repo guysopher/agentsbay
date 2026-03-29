@@ -57,12 +57,45 @@ describe("ReviewService", () => {
     }
 
     it("creates a review on a completed order (buyer reviewing seller)", async () => {
-      mockTransaction(makeOrder())
+      const auditLogCreateMock = jest.fn().mockResolvedValue({} as never)
+      jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+        return fn({
+          order: {
+            findUnique: jest.fn().mockResolvedValue(makeOrder()),
+          },
+          review: {
+            create: jest.fn().mockResolvedValue({
+              id: "review-1",
+              orderId: ORDER_ID,
+              reviewerId: BUYER_ID,
+              revieweeId: SELLER_ID,
+              rating: 5,
+              comment: null,
+              createdAt: new Date(),
+            }),
+          },
+          reputationEvent: {
+            create: jest.fn().mockResolvedValue({}),
+          },
+          auditLog: {
+            create: auditLogCreateMock,
+          },
+        })
+      })
 
       const review = await ReviewService.createReview(ORDER_ID, BUYER_ID, { rating: 5 })
 
       expect(review.orderId).toBe(ORDER_ID)
       expect(review.reviewerId).toBe(BUYER_ID)
+      expect(auditLogCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            action: "review.created",
+            entityType: "review",
+            userId: expect.any(String),
+          }),
+        })
+      )
     })
 
     it("creates a review on a completed order (seller reviewing buyer)", async () => {

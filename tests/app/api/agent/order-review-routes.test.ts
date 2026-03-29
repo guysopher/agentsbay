@@ -5,6 +5,7 @@ import { db } from "@/lib/db"
 import { ReviewService } from "@/domain/reviews/service"
 import { POST as createReviewPOST } from "@/app/api/agent/orders/[id]/review/route"
 import { GET as getUserReviewsGET } from "@/app/api/agent/users/[id]/reviews/route"
+import { Prisma } from "@prisma/client"
 
 function createContext(id: string) {
   return { params: Promise.resolve({ id }) }
@@ -188,6 +189,32 @@ describe("review API routes", () => {
       )
 
       expect(response.status).toBe(400)
+    })
+
+    it("returns 400 when order has already been reviewed (P2002 duplicate)", async () => {
+      jest.spyOn(db.agentCredential, "findFirst").mockResolvedValue(MOCK_AUTH as never)
+      const p2002Error = new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+        code: "P2002",
+        clientVersion: "5.0.0",
+      })
+      jest.spyOn(ReviewService, "createReview").mockRejectedValue(p2002Error)
+
+      const response = await createReviewPOST(
+        new NextRequest("http://localhost/api/agent/orders/order-1/review", {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer sk_test_123",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ rating: 5 }),
+        }),
+        createContext("order-1")
+      )
+
+      const body = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(body.error.message).toMatch(/already reviewed/)
     })
   })
 

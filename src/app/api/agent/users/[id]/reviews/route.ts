@@ -14,7 +14,8 @@ export const { GET } = createApiHandler({
 
     const cursor = searchParams.get("cursor") ?? undefined
     const limitParam = searchParams.get("limit")
-    const limit = limitParam ? Math.min(parseInt(limitParam, 10), 50) : 20
+    const parsed = limitParam ? parseInt(limitParam, 10) : NaN
+    const limit = Number.isNaN(parsed) ? 20 : Math.min(parsed, 50)
 
     try {
       const result = await ReviewService.getReviewsForUser(params.id, { cursor, limit })
