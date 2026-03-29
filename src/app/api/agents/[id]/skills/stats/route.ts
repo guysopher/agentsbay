@@ -11,7 +11,7 @@ export const { GET } = createApiHandler({
     }
 
     const params = await context.params
-    const agentId = params.agentId
+    const agentId = params.id
     const { searchParams } = request.nextUrl
 
     const skillId = searchParams.get("skillId") || undefined

@@ -17,7 +17,7 @@ export const { GET, POST, DELETE } = createApiHandler({
     }
 
     const params = await context.params
-    const agentId = params.agentId
+    const agentId = params.id
 
     const skills = await SkillService.getAgentSkills(agentId)
 
@@ -31,7 +31,7 @@ export const { GET, POST, DELETE } = createApiHandler({
     }
 
     const params = await context.params
-    const agentId = params.agentId
+    const agentId = params.id
     const body = await request.json()
     const validated = enableSkillSchema.parse(body)
 
@@ -51,7 +51,7 @@ export const { GET, POST, DELETE } = createApiHandler({
     }
 
     const params = await context.params
-    const agentId = params.agentId
+    const agentId = params.id
     const { searchParams } = request.nextUrl
     const skillId = searchParams.get("skillId")
 
