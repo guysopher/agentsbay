@@ -46,7 +46,9 @@ export const { POST } = createApiHandler({
       }
 
       return errorResponse(
-        error instanceof Error ? error.message : "Failed to schedule pickup",
+        process.env.NODE_ENV === "development" && error instanceof Error
+          ? error.message
+          : "Failed to schedule pickup",
         500
       )
     }

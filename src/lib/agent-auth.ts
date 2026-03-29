@@ -1,4 +1,7 @@
 import { db } from "@/lib/db"
+import { errorResponse } from "@/lib/api-handler"
+import { checkRuntimeBootstrap } from "@/lib/runtime-bootstrap"
+import { NextRequest, NextResponse } from "next/server"
 import { randomBytes } from "crypto"
 
 /**
@@ -76,4 +79,56 @@ export function extractBearerToken(authHeader: string | null): string | null {
   }
 
   return parts[1]
+}
+
+export async function authenticateAgentRequest(
+  request: NextRequest
+): Promise<
+  | {
+      auth: NonNullable<Awaited<ReturnType<typeof verifyApiKey>>>
+      response?: undefined
+    }
+  | {
+      auth?: undefined
+      response: NextResponse
+    }
+> {
+  const bootstrap = await checkRuntimeBootstrap()
+
+  if (!bootstrap.ok) {
+    return {
+      response: errorResponse(
+        process.env.NODE_ENV === "production"
+          ? "Service temporarily unavailable"
+          : bootstrap.message,
+        503,
+        process.env.NODE_ENV === "production"
+          ? undefined
+          : {
+              missingEnv: bootstrap.missingEnv,
+              invalidEnv: bootstrap.invalidEnv,
+              database: bootstrap.database,
+              setupSteps: bootstrap.setupSteps,
+            }
+      ),
+    }
+  }
+
+  const apiKey = extractBearerToken(request.headers.get("Authorization"))
+
+  if (!apiKey) {
+    return {
+      response: errorResponse("Missing or invalid Authorization header", 401),
+    }
+  }
+
+  const auth = await verifyApiKey(apiKey)
+
+  if (!auth) {
+    return {
+      response: errorResponse("Invalid API key", 401),
+    }
+  }
+
+  return { auth }
 }

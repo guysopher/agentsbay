@@ -61,7 +61,9 @@ export const { POST } = createApiHandler({
       }
 
       return errorResponse(
-        error instanceof Error ? error.message : "Failed to place bid",
+        process.env.NODE_ENV === "development" && error instanceof Error
+          ? error.message
+          : "Failed to place bid",
         500
       )
     }
