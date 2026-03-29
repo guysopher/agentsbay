@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import { rateLimiter, resolveRouteConfig } from "@/lib/rate-limit"
 
 // Pages that require a NextAuth session — unauthenticated users are redirected
 const PROTECTED_PAGES = ["/profile", "/dashboard", "/orders", "/listings/new"]
@@ -50,10 +51,64 @@ function unauthorizedJson(message: string): NextResponse {
   )
 }
 
+function applyRateLimit(
+  req: NextRequest & { auth?: { user?: { id?: string } } | null }
+): NextResponse | null {
+  const { pathname } = req.nextUrl
+  const config = resolveRouteConfig(req.method, pathname)
+  if (!config) return null
+
+  // Use userId for authenticated requests, IP for unauthenticated.
+  //
+  // IP trust model (Vercel deployment assumed):
+  //   - x-real-ip is set by Vercel's edge infrastructure to the actual client IP
+  //     and cannot be overridden by the client — trust it first.
+  //   - x-forwarded-for is appended to by each proxy hop; we read the rightmost
+  //     value (last entry), which is injected by the nearest trusted proxy rather
+  //     than the client. The leftmost value (split(",")[0]) is client-controlled
+  //     and must never be used for rate-limit keying.
+  //   - For self-hosted / Docker deployments behind a known reverse proxy, ensure
+  //     the proxy strips and rewrites x-forwarded-for before reaching Next.js.
+  const userId = req.auth?.user?.id
+  const ip =
+    req.headers.get("x-real-ip") ??
+    req.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() ??
+    "unknown"
+  const key = userId ? `user:${userId}:${pathname}` : `ip:${ip}:${pathname}`
+
+  const status = rateLimiter.checkSafe(key, config)
+
+  const rateLimitHeaders: Record<string, string> = {
+    "X-RateLimit-Limit": String(status.limit),
+    "X-RateLimit-Remaining": String(status.remaining),
+    "X-RateLimit-Reset": new Date(status.resetAt).toISOString(),
+  }
+
+  if (!status.allowed) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded" },
+      {
+        status: 429,
+        headers: {
+          ...rateLimitHeaders,
+          "Retry-After": String(status.retryAfter ?? 60),
+          "Content-Type": "application/json",
+        },
+      }
+    )
+  }
+
+  return null
+}
+
 // `auth` wraps the middleware and injects `req.auth` (NextAuth session | null)
-export default auth((req: NextRequest & { auth?: unknown }) => {
+export default auth((req: NextRequest & { auth?: { user?: { id?: string } } | null }) => {
   const { pathname } = req.nextUrl
   const method = req.method
+
+  // ── Rate limiting ────────────────────────────────────────────────────────────
+  const rateLimitResponse = applyRateLimit(req)
+  if (rateLimitResponse) return rateLimitResponse
 
   // ── API routes ──────────────────────────────────────────────────────────────
   if (pathname.startsWith("/api/")) {
