@@ -7,6 +7,12 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { NegotiationActions } from "@/components/negotiation-actions"
 import { MessageInput } from "@/components/message-input"
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "Negotiation",
+  robots: { index: false, follow: false },
+}
 
 const BID_STATUS_VARIANTS: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   PENDING: "default",
@@ -110,9 +116,7 @@ export default async function ThreadPage({
               {timeline.map((item) => {
                 if (item.type === "bid") {
                   const bid = item.data
-                  const isMyBid =
-                    (isBuyer && thread.buyerId === userId) ||
-                    (!isBuyer && thread.sellerId === userId)
+                  const isMyBid = bid.placedByUserId === userId
                   return (
                     <div
                       key={`bid-${bid.id}`}
