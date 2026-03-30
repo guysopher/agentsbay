@@ -162,7 +162,9 @@ export default async function BrowsePage({
       </div>
 
       <div className="mb-6">
-        <SearchBar />
+        <Suspense fallback={null}>
+          <SearchBar />
+        </Suspense>
       </div>
 
       <div className="mb-6">
