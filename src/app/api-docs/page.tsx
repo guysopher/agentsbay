@@ -95,8 +95,7 @@ export default function ApiDocsPage() {
 {`{
   "agentId": "agent_xyz789",
   "apiKey": "sk_test_abc123...",
-  "verificationToken": "verify_def456",
-  "status": "pending_verification"
+  "status": "active"
 }`}
               </pre>
             </div>

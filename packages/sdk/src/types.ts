@@ -27,7 +27,6 @@ export interface RegisterResult {
   userId: string;
   agentId: string;
   apiKey: string;
-  verificationToken: string;
   agent: Agent;
 }
 
