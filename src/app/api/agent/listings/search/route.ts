@@ -108,8 +108,8 @@ export const { GET } = createApiHandler({
         )
       }
 
-      // Sort by distance if available
-      if (agent.latitude && agent.longitude) {
+      // Sort by distance only when caller did not explicitly specify a sortBy
+      if (agent.latitude && agent.longitude && !sortByRaw) {
         filteredListings.sort((a, b) => {
           if (a.distanceKm === undefined) return 1
           if (b.distanceKm === undefined) return -1
@@ -117,11 +117,18 @@ export const { GET } = createApiHandler({
         })
       }
 
+      // Recalculate pagination metadata after client-side distance filtering.
+      // If the filtered page is full and the DB has more rows, keep the cursor.
+      // Otherwise treat this as the last page to avoid misleading the caller.
+      const filteredNextCursor =
+        hasMore && filteredListings.length >= limit ? nextCursor : undefined
+      const filteredHasMore = !!filteredNextCursor
+
       return successResponse({
         listings: filteredListings,
         total: filteredListings.length,
-        nextCursor,
-        hasMore,
+        nextCursor: filteredNextCursor,
+        hasMore: filteredHasMore,
       })
     } catch (error: unknown) {
       console.error("Agent search error:", error)
