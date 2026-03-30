@@ -1,12 +1,36 @@
 import { db } from "@/lib/db"
-import { ListingStatus, Prisma } from "@prisma/client"
+import { ListingStatus, ThreadStatus, Prisma } from "@prisma/client"
 import type { CreateListingInput, SearchListingsInput } from "./validation"
-import { NotFoundError, ValidationError } from "@/lib/errors"
+import { NotFoundError, ValidationError, ConflictError } from "@/lib/errors"
 import { eventBus } from "@/lib/events"
 import { logError } from "@/lib/errors"
 import { geocodeAddress } from "@/lib/geocoding"
 import { formatPrice } from "@/lib/formatting"
 import { randomUUID } from "crypto"
+import { ModerationService } from "@/domain/trust/moderation"
+
+const DUPLICATE_WINDOW_MS = 24 * 60 * 60 * 1000 // 24 hours
+const DUPLICATE_SIMILARITY_THRESHOLD = 0.8
+
+/** Normalize a listing title for duplicate comparison */
+function normalizeTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ") // strip punctuation
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
+/** Jaccard similarity on word-token sets (0..1) */
+function titleSimilarity(a: string, b: string): number {
+  const setA = new Set(normalizeTitle(a).split(" ").filter(Boolean))
+  const setB = new Set(normalizeTitle(b).split(" ").filter(Boolean))
+  if (setA.size === 0 && setB.size === 0) return 1
+  if (setA.size === 0 || setB.size === 0) return 0
+  const intersection = new Set([...setA].filter((w) => setB.has(w)))
+  const union = new Set([...setA, ...setB])
+  return intersection.size / union.size
+}
 
 // Helper to add formatted prices to listing
 function withFormattedPrices<T extends { price: number; priceMax?: number | null; currency: string }>(listing: T) {
@@ -15,6 +39,45 @@ function withFormattedPrices<T extends { price: number; priceMax?: number | null
     priceFormatted: formatPrice(listing.price, listing.currency),
     priceMaxFormatted: listing.priceMax ? formatPrice(listing.priceMax, listing.currency) : null,
   }
+}
+
+/**
+ * Compute a match quality score (0–1) for a listing against a search query.
+ * Higher = stronger match. Used to drive relevance sort and UI indicators.
+ *
+ * Scoring tiers:
+ *  1.00 – exact title match
+ *  0.95 – title starts with query
+ *  0.90 – title contains full query phrase
+ *  0.80 – all query words present in title
+ *  0.60–0.74 – some query words in title (proportional)
+ *  0.50 – description contains full query phrase
+ *  0.30–0.44 – some query words in description (proportional)
+ *  0.25 – match via labels only
+ */
+function computeMatchScore(query: string, title: string, description: string, labels: string[]): number {
+  const q = query.toLowerCase().trim()
+  if (!q) return 1
+
+  const t = title.toLowerCase()
+  const d = description.toLowerCase()
+  const words = q.split(/\s+/).filter(Boolean)
+
+  if (t === q) return 1.0
+  if (t.startsWith(q)) return 0.95
+  if (t.includes(q)) return 0.90
+
+  const titleMatches = words.filter((w) => t.includes(w)).length
+  if (titleMatches === words.length) return 0.80
+  if (titleMatches > 0) return 0.60 + (titleMatches / words.length) * 0.14
+
+  if (d.includes(q)) return 0.50
+  const descMatches = words.filter((w) => d.includes(w)).length
+  if (descMatches > 0) return 0.30 + (descMatches / words.length) * 0.14
+
+  if (labels.some((l) => l.toLowerCase().includes(q))) return 0.25
+
+  return 0.10
 }
 
 /**
@@ -44,6 +107,26 @@ export class ListingService {
    */
   static async create(userId: string, data: CreateListingInput, agentId?: string) {
     try {
+      // Check for duplicate listings by same seller within the last 24 hours
+      const since = new Date(Date.now() - DUPLICATE_WINDOW_MS)
+      const recentListings = await db.listing.findMany({
+        where: {
+          userId,
+          createdAt: { gte: since },
+          status: { notIn: [ListingStatus.REMOVED] },
+          deletedAt: null,
+        },
+        select: { id: true, title: true },
+      })
+      for (const existing of recentListings) {
+        const similarity = titleSimilarity(data.title, existing.title)
+        if (similarity > DUPLICATE_SIMILARITY_THRESHOLD) {
+          throw new ConflictError(
+            `Duplicate listing detected: a similar listing was posted within the last 24 hours (existing id: ${existing.id})`
+          )
+        }
+      }
+
       // Geocode address if coordinates not provided
       let latitude = data.latitude
       let longitude = data.longitude
@@ -192,6 +275,9 @@ export class ListingService {
         userId,
       })
 
+      // Auto-flag suspicious pricing (fire-and-forget, never blocks publication)
+      void ModerationService.checkAutoFlag(listingId)
+
       return withFormattedPrices(updated)
     } catch (error) {
       logError(error, { listingId, userId })
@@ -218,14 +304,32 @@ export class ListingService {
   static async search(params: SearchListingsInput) {
     const where: Prisma.ListingWhereInput = {
       status: ListingStatus.PUBLISHED,
-      deletedAt: null, // Exclude soft-deleted listings
+      deletedAt: null,
     }
 
     if (params.query) {
-      where.OR = [
-        { title: { contains: params.query, mode: "insensitive" } },
-        { description: { contains: params.query, mode: "insensitive" } },
-      ]
+      // Split into words and require ALL words to match somewhere in title or description.
+      // This gives significantly better multi-word results than a single whole-phrase ILIKE.
+      const words = params.query
+        .split(/\s+/)
+        .map((w) => w.trim())
+        .filter(Boolean)
+
+      if (words.length === 1) {
+        where.OR = [
+          { title: { contains: words[0], mode: "insensitive" } },
+          { description: { contains: words[0], mode: "insensitive" } },
+          { labels: { has: words[0].toLowerCase() } },
+        ]
+      } else {
+        // AND across words — each word must appear in title OR description
+        where.AND = words.map((word) => ({
+          OR: [
+            { title: { contains: word, mode: "insensitive" } },
+            { description: { contains: word, mode: "insensitive" } },
+          ],
+        }))
+      }
     }
 
     if (params.category) {
@@ -247,6 +351,27 @@ export class ListingService {
     }
 
     const limit = params.limit || 20
+    const sortBy = params.sortBy ?? "newest"
+
+    let orderBy: Prisma.ListingOrderByWithRelationInput
+    switch (sortBy) {
+      case "oldest":
+        orderBy = { createdAt: "asc" }
+        break
+      case "price_asc":
+        orderBy = { price: "asc" }
+        break
+      case "price_desc":
+        orderBy = { price: "desc" }
+        break
+      case "relevance":
+        // Title matches rank higher — achieved by fetching then re-sorting in app code below
+        orderBy = { createdAt: "desc" }
+        break
+      case "newest":
+      default:
+        orderBy = { createdAt: "desc" }
+    }
 
     const listings = await db.listing.findMany({
       where,
@@ -259,25 +384,34 @@ export class ListingService {
           },
         },
       },
-      orderBy: {
-        createdAt: "desc",
-      },
-      take: limit + 1, // Fetch one extra to check if there's more
+      orderBy,
+      take: limit + 1,
       ...(params.cursor && {
-        cursor: {
-          id: params.cursor,
-        },
-        skip: 1, // Skip the cursor itself
+        cursor: { id: params.cursor },
+        skip: 1,
       }),
     })
 
-    // Check if there are more results
     const hasMore = listings.length > limit
-    const results = hasMore ? listings.slice(0, limit) : listings
-    const nextCursor = hasMore ? results[results.length - 1].id : null
+    let results = hasMore ? listings.slice(0, limit) : listings
+
+    // Compute match score for every result (1 when no query active)
+    const scored = results.map((listing) => ({
+      ...withFormattedPrices(listing),
+      matchScore: params.query
+        ? computeMatchScore(params.query, listing.title, listing.description, listing.labels)
+        : 1,
+    }))
+
+    // For relevance sort: rank by match score descending
+    if (sortBy === "relevance" && params.query) {
+      scored.sort((a, b) => b.matchScore - a.matchScore)
+    }
+
+    const nextCursor = hasMore ? scored[scored.length - 1].id : null
 
     return {
-      items: results.map(withFormattedPrices),
+      items: scored,
       nextCursor,
       hasMore,
     }
@@ -319,29 +453,170 @@ export class ListingService {
   }
 
   /**
-   * Get all listings created by a specific user (excludes soft-deleted)
+   * Get listings created by a specific user with optional status filter and cursor pagination.
    * @param userId - ID of the user
-   * @returns Array of user's listings with formatted prices
-   * @example
-   * ```ts
-   * const myListings = await ListingService.getUserListings(userId)
-   * ```
+   * @param opts - Optional status filter, cursor, and limit
+   * @returns Paginated result with items, nextCursor, and hasMore
    */
-  static async getUserListings(userId: string) {
+  static async getUserListings(userId: string, opts?: {
+    status?: ListingStatus
+    cursor?: string
+    limit?: number
+  }) {
+    const limit = opts?.limit ?? 20
+    const where: Prisma.ListingWhereInput = {
+      userId,
+      deletedAt: null,
+      ...(opts?.status && { status: opts.status }),
+    }
+
     const listings = await db.listing.findMany({
-      where: {
-        userId,
-        deletedAt: null,
-      },
+      where,
       include: {
-        ListingImage: true,
+        ListingImage: { take: 1 },
+        NegotiationThread: {
+          where: { status: ThreadStatus.ACTIVE },
+          select: { id: true },
+        },
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: { createdAt: "desc" },
+      take: limit + 1,
+      ...(opts?.cursor && {
+        cursor: { id: opts.cursor },
+        skip: 1,
+      }),
     })
 
-    return listings.map(withFormattedPrices)
+    const hasMore = listings.length > limit
+    const items = listings.slice(0, limit).map(withFormattedPrices)
+
+    return {
+      items,
+      nextCursor: hasMore ? items[items.length - 1].id : null,
+      hasMore,
+    }
+  }
+
+  /**
+   * Pause a published listing (move from PUBLISHED to PAUSED status)
+   * @param listingId - ID of the listing to pause
+   * @param userId - ID of the user (must be listing owner)
+   * @returns Paused listing with formatted prices
+   * @throws {NotFoundError} If listing doesn't exist or doesn't belong to user
+   * @throws {ValidationError} If listing is not in PUBLISHED status
+   * @emits listing.paused
+   */
+  static async pause(listingId: string, userId: string) {
+    try {
+      // Read + validate + write inside transaction to prevent TOCTOU race conditions
+      const updated = await db.$transaction(async (tx) => {
+        const listing = await tx.listing.findFirst({
+          where: { id: listingId, userId },
+          include: {
+            NegotiationThread: {
+              where: { status: ThreadStatus.ACTIVE },
+              select: { id: true },
+            },
+          },
+        })
+
+        if (!listing) {
+          throw new NotFoundError("Listing")
+        }
+
+        if (listing.status !== ListingStatus.PUBLISHED) {
+          throw new ValidationError(`Cannot pause a listing with status ${listing.status}`)
+        }
+
+        if (listing.NegotiationThread.length > 0) {
+          throw new ValidationError("Cannot pause listing with active negotiations")
+        }
+
+        const updated = await tx.listing.update({
+          where: { id: listingId },
+          data: { status: ListingStatus.PAUSED },
+          include: {
+            ListingImage: true,
+            User: { select: { id: true, name: true } },
+          },
+        })
+
+        await tx.auditLog.create({
+          data: {
+            id: randomUUID(),
+            userId,
+            action: "listing.paused",
+            entityType: "listing",
+            entityId: listingId,
+          },
+        })
+
+        return updated
+      })
+
+      await eventBus.emit("listing.paused", { listingId, userId })
+
+      return withFormattedPrices(updated)
+    } catch (error) {
+      logError(error, { listingId, userId })
+      throw error
+    }
+  }
+
+  /**
+   * Relist a paused listing (move from PAUSED back to PUBLISHED status)
+   * @param listingId - ID of the listing to relist
+   * @param userId - ID of the user (must be listing owner)
+   * @returns Relisted listing with formatted prices
+   * @throws {NotFoundError} If listing doesn't exist or doesn't belong to user
+   * @throws {ValidationError} If listing is not in PAUSED status
+   * @emits listing.relisted
+   */
+  static async relist(listingId: string, userId: string) {
+    try {
+      // Read + validate + write inside transaction to prevent TOCTOU race conditions
+      const updated = await db.$transaction(async (tx) => {
+        const listing = await tx.listing.findFirst({
+          where: { id: listingId, userId },
+        })
+
+        if (!listing) {
+          throw new NotFoundError("Listing")
+        }
+
+        if (listing.status !== ListingStatus.PAUSED) {
+          throw new ValidationError(`Cannot relist a listing with status ${listing.status}`)
+        }
+
+        const updated = await tx.listing.update({
+          where: { id: listingId },
+          data: { status: ListingStatus.PUBLISHED, publishedAt: new Date() },
+          include: {
+            ListingImage: true,
+            User: { select: { id: true, name: true } },
+          },
+        })
+
+        await tx.auditLog.create({
+          data: {
+            id: randomUUID(),
+            userId,
+            action: "listing.relisted",
+            entityType: "listing",
+            entityId: listingId,
+          },
+        })
+
+        return updated
+      })
+
+      await eventBus.emit("listing.relisted", { listingId, userId })
+
+      return withFormattedPrices(updated)
+    } catch (error) {
+      logError(error, { listingId, userId })
+      throw error
+    }
   }
 
   /**
@@ -351,6 +626,7 @@ export class ListingService {
    * @param data - Partial listing data to update
    * @returns Updated listing with formatted prices
    * @throws {NotFoundError} If listing doesn't exist or doesn't belong to user
+   * @throws {ValidationError} If listing status does not allow edits
    * @example
    * ```ts
    * await ListingService.update(listingId, userId, {
@@ -361,18 +637,25 @@ export class ListingService {
    */
   static async update(listingId: string, userId: string, data: Partial<CreateListingInput>) {
     try {
-      const listing = await db.listing.findFirst({
-        where: {
-          id: listingId,
-          userId,
-        },
-      })
-
-      if (!listing) {
-        throw new NotFoundError("Listing")
-      }
-
+      // Read + validate + write inside transaction to prevent TOCTOU race conditions
       const updated = await db.$transaction(async (tx) => {
+        const listing = await tx.listing.findFirst({
+          where: {
+            id: listingId,
+            userId,
+            deletedAt: null,
+          },
+        })
+
+        if (!listing) {
+          throw new NotFoundError("Listing")
+        }
+
+        const editableStatuses: ListingStatus[] = [ListingStatus.DRAFT, ListingStatus.PUBLISHED, ListingStatus.PAUSED]
+        if (!editableStatuses.includes(listing.status)) {
+          throw new ValidationError(`Cannot edit a listing with status ${listing.status}`)
+        }
+
         const updated = await tx.listing.update({
           where: { id: listingId },
           data,
@@ -418,19 +701,35 @@ export class ListingService {
    */
   static async delete(listingId: string, userId: string) {
     try {
-      const listing = await db.listing.findFirst({
-        where: {
-          id: listingId,
-          userId,
-          deletedAt: null,
-        },
-      })
-
-      if (!listing) {
-        throw new NotFoundError("Listing")
-      }
-
+      // Read + validate + write inside transaction to prevent TOCTOU race conditions
+      // (including the active-bid check, which must be atomic with the delete)
       const deleted = await db.$transaction(async (tx) => {
+        const listing = await tx.listing.findFirst({
+          where: { id: listingId, userId },
+          include: {
+            NegotiationThread: {
+              where: { status: ThreadStatus.ACTIVE },
+              select: { id: true },
+            },
+          },
+        })
+
+        if (!listing) {
+          throw new NotFoundError("Listing")
+        }
+
+        if (
+          listing.status === ListingStatus.SOLD ||
+          listing.status === ListingStatus.REMOVED ||
+          listing.status === ListingStatus.RESERVED
+        ) {
+          throw new ValidationError(`Cannot delete a listing with status ${listing.status}`)
+        }
+
+        if (listing.NegotiationThread.length > 0) {
+          throw new ValidationError("Cannot delete listing with active bids")
+        }
+
         const deleted = await tx.listing.update({
           where: { id: listingId },
           data: {

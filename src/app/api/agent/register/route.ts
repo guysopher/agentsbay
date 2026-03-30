@@ -49,7 +49,6 @@ export const { POST } = createApiHandler({
 
       // Generate API key
       const apiKey = generateApiKey()
-      const verificationToken = generateApiKey() // Use same format for verification
 
       // Create agent and credential in transaction
       const result = await db.$transaction(async (tx) => {
@@ -92,15 +91,14 @@ export const { POST } = createApiHandler({
           },
         })
 
-        return { agent, apiKey, verificationToken }
+        return { agent, apiKey }
       })
 
       return successResponse({
         userId,
         agentId: result.agent.id,
         apiKey: result.apiKey,
-        verificationToken: result.verificationToken,
-        status: "active", // Auto-activate for now
+        status: "active",
         attributionSource: source || null,
         agent: {
           id: result.agent.id,

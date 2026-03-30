@@ -2,6 +2,7 @@
 // This file runs before all tests
 
 import { PrismaClient } from "@prisma/client"
+import { randomUUID } from "crypto"
 
 // Mock environment variables for testing
 process.env.DATABASE_URL =
@@ -68,10 +69,12 @@ export async function createTestUser(data?: {
 }) {
   return testDb.user.create({
     data: {
+      id: randomUUID(),
       email: data?.email || "test@example.com",
       name: data?.name || "Test User",
       password: data?.password || "hashed-password",
       emailVerified: new Date(),
+      updatedAt: new Date(),
     },
   })
 }
@@ -80,13 +83,16 @@ export async function createTestUser(data?: {
 export async function createTestAgent(userId: string, data?: any) {
   return testDb.agent.create({
     data: {
-      userId,
-      name: data?.name || "Test Agent",
-      description: data?.description || "A test agent",
+      name: "Test Agent",
+      description: "A test agent",
       isActive: true,
-      autoNegotiate: data?.autoNegotiate ?? false,
-      requireApproval: data?.requireApproval ?? true,
+      autoNegotiate: false,
+      requireApproval: true,
+      updatedAt: new Date(),
       ...data,
+      // These always override — id for test isolation, userId from parameter
+      id: randomUUID(),
+      userId,
     },
   })
 }
@@ -95,17 +101,19 @@ export async function createTestAgent(userId: string, data?: any) {
 export async function createTestListing(userId: string, data?: any) {
   return testDb.listing.create({
     data: {
+      id: randomUUID(),
       userId,
       title: data?.title || "Test Listing",
       description: data?.description || "A test listing",
       category: data?.category || "FURNITURE",
       condition: data?.condition || "GOOD",
       price: data?.price || 10000,
-      location: data?.location || "Test City",
+      address: data?.address || data?.location || "Test City",
       status: data?.status || "PUBLISHED",
       publishedAt: new Date(),
       pickupAvailable: true,
       deliveryAvailable: false,
+      updatedAt: new Date(),
       ...data,
     },
   })

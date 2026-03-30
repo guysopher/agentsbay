@@ -1,28 +1,23 @@
 import { createApiHandler, successResponse, errorResponse } from "@/lib/api-handler"
-import { verifyApiKey, extractBearerToken } from "@/lib/agent-auth"
+import { authenticateAgentRequest } from "@/lib/agent-auth"
 import { NegotiationService } from "@/domain/negotiations/service"
-import { z } from "zod"
+import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors"
+import { z, ZodError } from "zod"
 
 const counterBidSchema = z.object({
-  amount: z.number().int().positive().min(100),
+  amount: z.number().int().positive().min(100, "Minimum bid is $1.00").max(1_000_000, "Maximum bid is $10,000"),
   message: z.string().max(500).optional(),
-  expiresIn: z.number().int().positive().max(7 * 24 * 60 * 60).optional()
+  expiresIn: z.number().int().min(3600, "Minimum expiry is 1 hour").max(7 * 24 * 60 * 60).optional()
 })
 
 export const { POST } = createApiHandler({
   POST: async (req, context) => {
     try {
-      const authHeader = req.headers.get("Authorization")
-      const apiKey = extractBearerToken(authHeader)
-
-      if (!apiKey) {
-        return errorResponse("Missing or invalid Authorization header", 401)
+      const authResult = await authenticateAgentRequest(req)
+      if (authResult.response) {
+        return authResult.response
       }
-
-      const auth = await verifyApiKey(apiKey)
-      if (!auth) {
-        return errorResponse("Invalid API key", 401)
-      }
+      const { auth } = authResult
 
       const params = await context.params
       const bidId = params.id
@@ -33,7 +28,7 @@ export const { POST } = createApiHandler({
       const counterBid = await NegotiationService.counterBid(
         bidId,
         auth.userId,
-        validated
+        { ...validated, agentId: auth.agentId }
       )
 
       return successResponse({
@@ -42,22 +37,27 @@ export const { POST } = createApiHandler({
         status: counterBid.status,
         expiresAt: counterBid.expiresAt,
         message: "Counter bid placed successfully"
-      })
+      }, 201)
     } catch (error: unknown) {
       console.error("Agent counter bid error:", error)
 
-      if (error instanceof Error && error.message.includes("not found")) {
+      if (error instanceof ZodError) {
+        throw error
+      }
+
+      if (error instanceof NotFoundError) {
         return errorResponse("Bid not found", 404)
       }
 
-      if (error instanceof Error && error.message.includes("Not authorized")) {
+      if (error instanceof ForbiddenError) {
         return errorResponse(error.message, 403)
       }
 
-      return errorResponse(
-        error instanceof Error ? error.message : "Failed to counter bid",
-        500
-      )
+      if (error instanceof ValidationError) {
+        return errorResponse(error.message, 400)
+      }
+
+      return errorResponse("Failed to counter bid", 500)
     }
   },
 })

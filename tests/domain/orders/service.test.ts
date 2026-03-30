@@ -1,113 +1,208 @@
-import { beforeEach, describe, expect, it } from "@jest/globals"
+/**
+ * OrderService — unit tests with mocked Prisma
+ *
+ * Covers:
+ * 1. schedulePickup transitions order to IN_TRANSIT (AC4)
+ * 2. closeout completes the order and marks listing SOLD (AC4)
+ * 3. closeout rejects buyer (not seller) with NotFoundError
+ * 4. closeout rejects undelivered delivery order
+ * 5. schedulePickup: rejects when concurrent status change inside transaction
+ * 6. closeout: rejects when concurrent status change inside transaction
+ */
+
+import { beforeEach, describe, expect, it, jest } from "@jest/globals"
 import {
   DeliveryStatus,
   FulfillmentMethod,
-  ItemCondition,
-  ListingCategory,
   ListingStatus,
   OrderStatus,
-  ThreadStatus,
 } from "@prisma/client"
-import { randomUUID } from "crypto"
 import { OrderService } from "@/domain/orders/service"
-import { cleanDatabase, createTestUser, testDb } from "../../setup"
+import { db } from "@/lib/db"
+import { NotFoundError } from "@/lib/errors"
+
+jest.mock("@/lib/db", () => ({
+  db: { $transaction: jest.fn() },
+}))
+
+jest.mock("@/lib/events", () => ({
+  eventBus: { emit: jest.fn().mockResolvedValue(undefined) },
+}))
+
+jest.mock("@/lib/errors", () => {
+  class NotFoundError extends Error {
+    constructor(msg: string) { super(msg + " not found") }
+  }
+  class ValidationError extends Error {}
+  return { NotFoundError, ValidationError, logError: jest.fn() }
+})
+
+const ORDER_ID = "order-1"
+const BUYER_ID = "buyer-1"
+const SELLER_ID = "seller-1"
+const LISTING_ID = "listing-1"
+
+function makeOrder(overrides: Partial<{
+  id: string
+  buyerId: string
+  sellerId: string
+  status: OrderStatus
+  fulfillmentMethod: FulfillmentMethod
+  listingId: string
+  DeliveryRequest: object | null
+  Listing: object
+}> = {}) {
+  return {
+    id: ORDER_ID,
+    buyerId: BUYER_ID,
+    sellerId: SELLER_ID,
+    listingId: LISTING_ID,
+    amount: 15000,
+    status: OrderStatus.PAID,
+    fulfillmentMethod: FulfillmentMethod.PICKUP,
+    DeliveryRequest: null,
+    Listing: { id: LISTING_ID, title: "Test" },
+    ...overrides,
+  }
+}
 
 describe("OrderService", () => {
-  beforeEach(async () => {
-    await cleanDatabase()
+  beforeEach(() => {
+    jest.clearAllMocks()
   })
 
-  async function createOrderFixture(fulfillmentMethod: FulfillmentMethod = FulfillmentMethod.PICKUP) {
-    const buyer = await createTestUser({ email: `buyer-${Date.now()}@example.com` })
-    const seller = await createTestUser({ email: `seller-${Date.now()}@example.com` })
-    const now = new Date()
-
-    const listing = await testDb.listing.create({
-      data: {
-        id: randomUUID(),
-        userId: seller.id,
-        title: "Test Listing",
-        description: "Order fixture listing",
-        category: ListingCategory.OTHER,
-        condition: ItemCondition.GOOD,
-        price: 15000,
-        address: "Test City",
-        status: ListingStatus.PUBLISHED,
-        pickupAvailable: true,
-        deliveryAvailable: fulfillmentMethod === FulfillmentMethod.DELIVERY,
-        publishedAt: now,
-        updatedAt: now,
-      },
-    })
-
-    const thread = await testDb.negotiationThread.create({
-      data: {
-        id: randomUUID(),
-        listingId: listing.id,
-        buyerId: buyer.id,
-        sellerId: seller.id,
-        status: ThreadStatus.ACCEPTED,
-        updatedAt: now,
-      },
-    })
-
-    const order = await testDb.order.create({
-      data: {
-        id: randomUUID(),
-        threadId: thread.id,
-        listingId: listing.id,
-        buyerId: buyer.id,
-        sellerId: seller.id,
-        amount: 15000,
-        status: OrderStatus.PAID,
-        fulfillmentMethod,
-        updatedAt: now,
-      },
-    })
-
-    return { buyer, seller, listing, thread, order }
-  }
-
   it("schedules pickup for paid pickup order", async () => {
-    const { order, buyer } = await createOrderFixture(FulfillmentMethod.PICKUP)
+    const order = makeOrder()
+    const updatedOrder = { ...order, status: OrderStatus.IN_TRANSIT, pickupLocation: "123 Main St" }
 
-    const updated = await OrderService.schedulePickup(order.id, buyer.id, {
+    jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+      return fn({
+        order: {
+          findFirst: jest.fn().mockResolvedValue(order),
+          update: jest.fn().mockResolvedValue(updatedOrder),
+        },
+        auditLog: { create: jest.fn().mockResolvedValue({}) },
+      })
+    })
+
+    const result = await OrderService.schedulePickup(ORDER_ID, BUYER_ID, {
       pickupLocation: "123 Main St",
     })
 
-    expect(updated.status).toBe(OrderStatus.IN_TRANSIT)
-    expect(updated.pickupLocation).toBe("123 Main St")
+    expect(result.status).toBe(OrderStatus.IN_TRANSIT)
+    expect(result.pickupLocation).toBe("123 Main St")
   })
 
   it("closes out order and marks listing sold", async () => {
-    const { order, buyer, listing } = await createOrderFixture(FulfillmentMethod.PICKUP)
+    const order = makeOrder({ sellerId: SELLER_ID })
+    const now = new Date()
+    const completedOrder = { ...order, status: OrderStatus.COMPLETED, completedAt: now }
+    const listingUpdate = jest.fn().mockResolvedValue({ id: LISTING_ID, status: ListingStatus.SOLD, soldAt: now })
 
-    const closed = await OrderService.closeout(order.id, buyer.id)
+    jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+      return fn({
+        order: {
+          findFirst: jest.fn().mockResolvedValue(order),
+          update: jest.fn().mockResolvedValue(completedOrder),
+        },
+        listing: { update: listingUpdate },
+        auditLog: { create: jest.fn().mockResolvedValue({}) },
+      })
+    })
+
+    const closed = await OrderService.closeout(ORDER_ID, SELLER_ID)
 
     expect(closed.status).toBe(OrderStatus.COMPLETED)
     expect(closed.completedAt).toBeDefined()
+    expect(listingUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: LISTING_ID },
+        data: expect.objectContaining({ status: ListingStatus.SOLD }),
+      })
+    )
+  })
 
-    const updatedListing = await testDb.listing.findUnique({ where: { id: listing.id } })
-    expect(updatedListing?.status).toBe(ListingStatus.SOLD)
-    expect(updatedListing?.soldAt).toBeDefined()
+  it("rejects buyer closeout with not found error", async () => {
+    // Buyer is not seller — findFirst returns null (WHERE sellerId = buyerId finds nothing)
+    jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+      return fn({
+        order: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          update: jest.fn(),
+        },
+        listing: { update: jest.fn() },
+        auditLog: { create: jest.fn() },
+      })
+    })
+
+    await expect(OrderService.closeout(ORDER_ID, BUYER_ID)).rejects.toThrow(NotFoundError)
   })
 
   it("rejects closeout for undelivered delivery order", async () => {
-    const { order, buyer } = await createOrderFixture(FulfillmentMethod.DELIVERY)
-
-    await testDb.deliveryRequest.create({
-      data: {
-        id: randomUUID(),
-        orderId: order.id,
-        status: DeliveryStatus.IN_TRANSIT,
-        fromAddress: "Warehouse",
-        toAddress: "Buyer Address",
-        updatedAt: new Date(),
-      },
+    const deliveryOrder = makeOrder({
+      fulfillmentMethod: FulfillmentMethod.DELIVERY,
+      DeliveryRequest: { id: "dr-1", status: DeliveryStatus.IN_TRANSIT },
     })
 
-    await expect(OrderService.closeout(order.id, buyer.id)).rejects.toThrow(
+    jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+      return fn({
+        order: {
+          findFirst: jest.fn().mockResolvedValue(deliveryOrder),
+          update: jest.fn(),
+        },
+        listing: { update: jest.fn() },
+        auditLog: { create: jest.fn() },
+      })
+    })
+
+    await expect(OrderService.closeout(ORDER_ID, SELLER_ID)).rejects.toThrow(
       "Delivery order must be delivered before closeout"
     )
+  })
+
+  it("schedulePickup: rejects when concurrent status change happens inside transaction", async () => {
+    const order = makeOrder()
+
+    jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+      return fn({
+        order: {
+          findFirst: jest.fn().mockResolvedValue({
+            ...order,
+            status: OrderStatus.COMPLETED,
+            Listing: {},
+          }),
+          update: jest.fn(),
+        },
+        auditLog: { create: jest.fn() },
+      })
+    })
+
+    await expect(
+      OrderService.schedulePickup(ORDER_ID, BUYER_ID, { pickupLocation: "123 Main St" })
+    ).rejects.toThrow("Pickup can only be scheduled for paid or in-transit orders")
+  })
+
+  it("closeout: rejects when concurrent status change happens inside transaction", async () => {
+    const order = makeOrder()
+
+    jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+      return fn({
+        order: {
+          findFirst: jest.fn().mockResolvedValue({
+            ...order,
+            status: OrderStatus.COMPLETED,
+            DeliveryRequest: null,
+            Listing: {},
+          }),
+          update: jest.fn(),
+        },
+        listing: { update: jest.fn() },
+        auditLog: { create: jest.fn() },
+      })
+    })
+
+    await expect(
+      OrderService.closeout(ORDER_ID, SELLER_ID)
+    ).rejects.toThrow("Order cannot be closed out from current status")
   })
 })

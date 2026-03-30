@@ -1,5 +1,5 @@
 import { createApiHandler, successResponse, errorResponse } from "@/lib/api-handler"
-import { verifyApiKey, extractBearerToken } from "@/lib/agent-auth"
+import { authenticateAgentRequest } from "@/lib/agent-auth"
 import { ListingService } from "@/domain/listings/service"
 import { ListingCategory, ItemCondition } from "@prisma/client"
 import { calculateDistance } from "@/lib/geo"
@@ -7,18 +7,11 @@ import { calculateDistance } from "@/lib/geo"
 export const { GET } = createApiHandler({
   GET: async (req) => {
     try {
-      // Authenticate agent
-      const authHeader = req.headers.get("Authorization")
-      const apiKey = extractBearerToken(authHeader)
-
-      if (!apiKey) {
-        return errorResponse("Missing or invalid Authorization header", 401)
+      const authResult = await authenticateAgentRequest(req)
+      if (authResult.response) {
+        return authResult.response
       }
-
-      const auth = await verifyApiKey(apiKey)
-      if (!auth) {
-        return errorResponse("Invalid API key", 401)
-      }
+      const { auth } = authResult
 
       // Parse query parameters
       const searchParams = req.nextUrl.searchParams
@@ -35,9 +28,15 @@ export const { GET } = createApiHandler({
       const maxDistanceKm = searchParams.get("maxDistanceKm")
         ? parseFloat(searchParams.get("maxDistanceKm")!)
         : undefined
-      const limit = searchParams.get("limit")
-        ? parseInt(searchParams.get("limit")!)
-        : 20
+      const limitRaw = searchParams.get("limit") ? parseInt(searchParams.get("limit")!) : 20
+      const limit = Math.min(Math.max(1, limitRaw), 100) // clamp 1–100
+      const cursor = searchParams.get("cursor") || undefined
+      const sortByRaw = searchParams.get("sortBy") || undefined
+      const sortBy = ["newest", "oldest", "price_asc", "price_desc", "relevance"].includes(
+        sortByRaw ?? ""
+      )
+        ? (sortByRaw as "newest" | "oldest" | "price_asc" | "price_desc" | "relevance")
+        : "newest"
 
       // Search listings
       const { items, nextCursor, hasMore } = await ListingService.search({
@@ -47,7 +46,9 @@ export const { GET } = createApiHandler({
         minPrice,
         maxPrice,
         address,
+        sortBy,
         limit,
+        cursor,
       })
 
       // Add distance calculation if agent has location set
@@ -107,8 +108,8 @@ export const { GET } = createApiHandler({
         )
       }
 
-      // Sort by distance if available
-      if (agent.latitude && agent.longitude) {
+      // Sort by distance only when caller did not explicitly specify a sortBy
+      if (agent.latitude && agent.longitude && !sortByRaw) {
         filteredListings.sort((a, b) => {
           if (a.distanceKm === undefined) return 1
           if (b.distanceKm === undefined) return -1
@@ -116,18 +117,22 @@ export const { GET } = createApiHandler({
         })
       }
 
+      // Recalculate pagination metadata after client-side distance filtering.
+      // If the filtered page is full and the DB has more rows, keep the cursor.
+      // Otherwise treat this as the last page to avoid misleading the caller.
+      const filteredNextCursor =
+        hasMore && filteredListings.length >= limit ? nextCursor : undefined
+      const filteredHasMore = !!filteredNextCursor
+
       return successResponse({
         listings: filteredListings,
         total: filteredListings.length,
-        nextCursor,
-        hasMore,
+        nextCursor: filteredNextCursor,
+        hasMore: filteredHasMore,
       })
     } catch (error: unknown) {
       console.error("Agent search error:", error)
-      return errorResponse(
-        error instanceof Error ? error.message : "Failed to search listings",
-        500
-      )
+      return errorResponse("Failed to search listings", 500)
     }
   },
 })

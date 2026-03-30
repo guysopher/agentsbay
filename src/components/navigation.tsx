@@ -2,40 +2,23 @@
 
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Sparkles, Github } from "lucide-react"
+import { buildInstallPrompt } from "@/lib/install-prompt"
+import { Sparkles, Github, User, LogOut } from "lucide-react"
+import { useSession, signOut } from "next-auth/react"
+import { NotificationBell } from "@/components/notification-bell"
 
 export function Navigation() {
+  const { data: session } = useSession()
+
   const handleCopyPrompt = async () => {
     const skillUrl = `${window.location.origin}/api/skills/agentbay-api`
-    const prompt = `Please install the AgentBay Claude Code skill.
-
-Skill name: /agentbay
-Skill URL: ${skillUrl}
-
-Installation steps:
-1. Create directory: ~/.claude/skills/agentbay/
-2. Create SKILL.md file in that directory
-3. Fetch content from the URL above
-4. Format with skill frontmatter (name: /agentbay, description, argument-hint)
-
-IMPORTANT - First time setup:
-After installation, you MUST set my location first by asking for my address, then call agentbay_set_location with my address. This enables:
-- Proximity-based search (find items near me)
-- Distance calculation for all listings
-- Local currency and formatting
-- Better search results based on my area
-
-Once installed and location is set, you'll be able to:
-- Search listings near my location with distance info
-- Create listings at my location
-- Make offers and negotiate deals
-- Filter by distance from my location`
+    const prompt = buildInstallPrompt(skillUrl)
 
     try {
       await navigator.clipboard.writeText(prompt)
       // Dynamic import to avoid SSR issues
       const { showToast } = await import("@/components/ui/toast")
-      showToast("Installation prompt copied! Paste to your agent.", "success")
+      showToast("Install prompt copied. Paste it into your agent platform.", "success")
     } catch (error) {
       console.error("Failed to copy:", error)
     }
@@ -64,7 +47,7 @@ Once installed and location is set, you'll be able to:
             rel="noopener noreferrer"
             className="text-sm text-gray-700 hover:text-black flex items-center gap-1"
           >
-            <Github className="h-4 w-4" />
+            <Github className="h-4 w-4" aria-hidden="true" />
             GitHub
           </Link>
           <Button
@@ -72,9 +55,56 @@ Once installed and location is set, you'll be able to:
             size="sm"
             className="bg-purple-600 hover:bg-purple-700 text-white"
           >
-            <Sparkles className="h-4 w-4 mr-2" />
-            Install Skill
+            <Sparkles className="h-4 w-4 mr-2" aria-hidden="true" />
+            Copy Install Prompt
           </Button>
+
+          {session?.user ? (
+            <div className="flex items-center gap-3">
+              <Link
+                href="/negotiations"
+                className="text-sm text-gray-700 hover:text-black"
+              >
+                Negotiations
+              </Link>
+              <Link
+                href="/listings"
+                className="text-sm text-gray-700 hover:text-black"
+              >
+                My Listings
+              </Link>
+              <Link
+                href="/orders"
+                className="text-sm text-gray-700 hover:text-black"
+              >
+                My Orders
+              </Link>
+              <NotificationBell />
+              <Link
+                href="/profile"
+                className="flex items-center gap-1.5 text-sm text-gray-700 hover:text-black"
+              >
+                <User className="h-4 w-4" aria-hidden="true" />
+                {session.user.name ?? session.user.email}
+              </Link>
+              <button
+                onClick={() => signOut({ callbackUrl: "/" })}
+                aria-label="Sign out"
+                className="flex items-center gap-1 text-sm text-gray-500 hover:text-red-600"
+              >
+                <LogOut className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Button asChild variant="outline" size="sm">
+                <Link href="/auth/signin">Sign in</Link>
+              </Button>
+              <Button asChild size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
+                <Link href="/auth/signup">Sign up</Link>
+              </Button>
+            </div>
+          )}
         </nav>
       </div>
     </header>

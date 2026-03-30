@@ -79,6 +79,7 @@ model Agent {
   Listing            Listing[]
   SkillExecution     SkillExecution[]
   WantedRequest      WantedRequest[]
+  Webhook            Webhook[]
 
   @@index([deletedAt])
   @@index([isActive])
@@ -150,6 +151,7 @@ model Bid {
   id                String            @id
   threadId          String            // Negotiation thread this bid belongs to
   agentId           String?           // Agent that placed bid (if agent-initiated)
+  placedByUserId    String?           // User who placed this bid (for turn enforcement)
   amount            Int               // Bid amount in minor currency units (cents)
   message           String?           // Optional message with bid
   status            BidStatus         @default(PENDING)
@@ -220,6 +222,12 @@ model Listing {
   contactDiscord    String?
   contactTelegram   String?
   contactWhatsApp   String?
+
+  // Duplicate detection
+  duplicateOfId     String?             // ID of original listing this duplicates (for moderation)
+  DuplicateOf       Listing?            @relation("DuplicateListings", fields: [duplicateOfId], references: [id])
+  Duplicates        Listing[]           @relation("DuplicateListings")
+
   Agent             Agent?              @relation(fields: [agentId], references: [id])
   User              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   ListingImage      ListingImage[]
@@ -231,6 +239,7 @@ model Listing {
   @@index([category])
   @@index([createdAt])
   @@index([deletedAt])
+  @@index([duplicateOfId])
   @@index([price])
   @@index([status])
   @@index([userId])
@@ -351,6 +360,7 @@ model Order {
   cancelledAt       DateTime?
   DeliveryRequest   DeliveryRequest?
   ModerationCase    ModerationCase[]
+  Review            Review[]
   User              User              @relation(fields: [buyerId], references: [id])
   Listing           Listing           @relation(fields: [listingId], references: [id])
   NegotiationThread NegotiationThread @relation(fields: [threadId], references: [id])
@@ -467,6 +477,24 @@ model TrustSignal {
   @@index([userId])
 }
 
+model Review {
+  id         String   @id
+  orderId    String
+  reviewerId String
+  revieweeId String
+  rating     Int      // 1–5
+  comment    String?  // max 1000 chars
+  createdAt  DateTime @default(now())
+
+  Order    Order @relation(fields: [orderId], references: [id])
+  Reviewer User  @relation("ReviewsGiven", fields: [reviewerId], references: [id])
+  Reviewee User  @relation("ReviewsReceived", fields: [revieweeId], references: [id])
+
+  @@unique([orderId, reviewerId])
+  @@index([revieweeId])
+  @@index([orderId])
+}
+
 model User {
   id                                                 String              @id
   email                                              String              @unique
@@ -493,6 +521,8 @@ model User {
   Order                                              Order[]
   Profile                                            Profile?
   ReputationEvent                                    ReputationEvent[]
+  ReviewsGiven                                       Review[]            @relation("ReviewsGiven")
+  ReviewsReceived                                    Review[]            @relation("ReviewsReceived")
   Session                                            Session[]
   TrustSignal                                        TrustSignal[]
   WantedRequest                                      WantedRequest[]
@@ -507,6 +537,37 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model Webhook {
+  id              String            @id
+  agentId         String
+  url             String
+  events          String[]          // e.g. ["bid.received", "order.status_changed"]
+  secret          String            // HMAC signing secret
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime
+  Agent           Agent             @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  WebhookDelivery WebhookDelivery[]
+
+  @@index([agentId])
+  @@index([agentId, isActive])
+}
+
+model WebhookDelivery {
+  id          String    @id
+  webhookId   String
+  event       String
+  payload     Json
+  statusCode  Int?
+  error       String?
+  deliveredAt DateTime?
+  createdAt   DateTime  @default(now())
+  Webhook     Webhook   @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([webhookId])
+  @@index([createdAt])
 }
 
 model WantedRequest {
@@ -584,11 +645,12 @@ enum ListingCategory {
 }
 
 /// Listing lifecycle states
-/// Flow: DRAFT → [PENDING_REVIEW] → PUBLISHED → SOLD/REMOVED
+/// Flow: DRAFT → [PENDING_REVIEW] → PUBLISHED ⇄ PAUSED → SOLD/REMOVED
 enum ListingStatus {
   DRAFT           // Not yet published
   PENDING_REVIEW  // Awaiting moderation (Phase 5)
   PUBLISHED       // Live in marketplace
+  PAUSED          // Seller temporarily paused listing
   RESERVED        // Item reserved pending pickup
   SOLD            // Transaction completed
   REMOVED         // Listing removed (soft delete)
