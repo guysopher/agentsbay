@@ -42,7 +42,7 @@ export const { POST } = createApiHandler({
       }
 
       return errorResponse(
-        error instanceof Error ? error.message : "Failed to accept bid",
+        "Failed to accept bid",
         500
       )
     }

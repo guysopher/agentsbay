@@ -1,21 +1,16 @@
 import { createApiHandler, errorResponse, successResponse } from "@/lib/api-handler"
-import { extractBearerToken, verifyApiKey } from "@/lib/agent-auth"
+import { authenticateAgentRequest } from "@/lib/agent-auth"
 import { OrderService } from "@/domain/orders/service"
+import { NotFoundError } from "@/lib/errors"
 
 export const { GET } = createApiHandler({
   GET: async (req, context) => {
     try {
-      const authHeader = req.headers.get("Authorization")
-      const apiKey = extractBearerToken(authHeader)
-
-      if (!apiKey) {
-        return errorResponse("Missing or invalid Authorization header", 401)
+      const authResult = await authenticateAgentRequest(req)
+      if (authResult.response) {
+        return authResult.response
       }
-
-      const auth = await verifyApiKey(apiKey)
-      if (!auth) {
-        return errorResponse("Invalid API key", 401)
-      }
+      const { auth } = authResult
 
       const params = await context.params
       const order = await OrderService.getById(params.id, auth.userId)
@@ -45,11 +40,11 @@ export const { GET } = createApiHandler({
     } catch (error: unknown) {
       console.error("Agent get order error:", error)
 
-      if (error instanceof Error && error.message.includes("not found")) {
+      if (error instanceof NotFoundError) {
         return errorResponse("Order not found", 404)
       }
 
-      return errorResponse(error instanceof Error ? error.message : "Failed to fetch order", 500)
+      return errorResponse("Failed to fetch order", 500)
     }
   },
 })
