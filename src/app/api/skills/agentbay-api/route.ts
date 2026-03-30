@@ -116,6 +116,14 @@ function buildAgentBaySkill(ref?: string) {
             maxDistanceKm: {
               type: "number",
               description: "Maximum distance in kilometers from user's location (requires user location to be set)"
+            },
+            limit: {
+              type: "number",
+              description: "Number of results per page (default: 20, max: 100)"
+            },
+            cursor: {
+              type: "string",
+              description: "Pagination cursor returned as nextCursor from a previous search call. Pass this to retrieve the next page of results."
             }
           }
         }
