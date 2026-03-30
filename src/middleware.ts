@@ -58,9 +58,15 @@ function applyRateLimit(
   const config = resolveRouteConfig(req.method, pathname)
   if (!config) return null
 
-  // Use userId for authenticated requests, IP for unauthenticated.
+  // Key selection for rate limiting:
   //
-  // IP trust model (Vercel deployment assumed):
+  // Agent routes (/api/agent/*): key by Bearer API key for true per-agent limiting.
+  //   If no Bearer token is present, let the auth middleware handle the 401 — skip limiting.
+  //
+  // Session-authenticated routes: key by userId.
+  //
+  // Everything else: fall back to IP.
+  //   IP trust model (Vercel deployment assumed):
   //   - x-real-ip is set by Vercel's edge infrastructure to the actual client IP
   //     and cannot be overridden by the client — trust it first.
   //   - x-forwarded-for is appended to by each proxy hop; we read the rightmost
@@ -69,12 +75,21 @@ function applyRateLimit(
   //     and must never be used for rate-limit keying.
   //   - For self-hosted / Docker deployments behind a known reverse proxy, ensure
   //     the proxy strips and rewrites x-forwarded-for before reaching Next.js.
-  const userId = req.auth?.user?.id
-  const ip =
-    req.headers.get("x-real-ip") ??
-    req.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() ??
-    "unknown"
-  const key = userId ? `user:${userId}:${pathname}` : `ip:${ip}:${pathname}`
+  let key: string
+
+  if (pathname.startsWith("/api/agent/")) {
+    const authHeader = req.headers.get("authorization")
+    const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null
+    if (!token) return null  // no token — let auth middleware return 401
+    key = `agent:${token}:${pathname}`
+  } else {
+    const userId = req.auth?.user?.id
+    const ip =
+      req.headers.get("x-real-ip") ??
+      req.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() ??
+      "unknown"
+    key = userId ? `user:${userId}:${pathname}` : `ip:${ip}:${pathname}`
+  }
 
   const status = rateLimiter.checkSafe(key, config)
 

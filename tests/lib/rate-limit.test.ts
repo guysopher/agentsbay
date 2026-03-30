@@ -166,6 +166,95 @@ describe("resolveRouteConfig", () => {
   })
 })
 
+describe("per-agent rate limiting: agent API key keying", () => {
+  let limiter: RateLimiter
+
+  beforeEach(() => {
+    limiter = new RateLimiter()
+    Object.defineProperty(process.env, "NODE_ENV", { value: "production", writable: true })
+  })
+
+  afterEach(() => {
+    limiter.destroy()
+    Object.defineProperty(process.env, "NODE_ENV", { value: "test", writable: true })
+  })
+
+  it("enforces 30/min limit on GET /api/agent/listings/search", () => {
+    const cfg = resolveRouteConfig("GET", "/api/agent/listings/search")
+    expect(cfg).not.toBeNull()
+    expect(cfg!.maxRequests).toBe(30)
+    expect(cfg!.windowMs).toBe(60_000)
+
+    const key = "agent:sk_test_abc123:/api/agent/listings/search"
+    for (let i = 0; i < 30; i++) {
+      expect(limiter.checkSafe(key, cfg!).allowed).toBe(true)
+    }
+    const blocked = limiter.checkSafe(key, cfg!)
+    expect(blocked.allowed).toBe(false)
+    expect(blocked.remaining).toBe(0)
+    expect(blocked.retryAfter).toBeGreaterThan(0)
+  })
+
+  it("two different API keys have independent limits", () => {
+    const cfg = resolveRouteConfig("GET", "/api/agent/listings/search")!
+    const keyA = "agent:sk_test_aaaa:/api/agent/listings/search"
+    const keyB = "agent:sk_test_bbbb:/api/agent/listings/search"
+
+    // Exhaust keyA
+    for (let i = 0; i < cfg.maxRequests; i++) {
+      limiter.checkSafe(keyA, cfg)
+    }
+    expect(limiter.checkSafe(keyA, cfg).allowed).toBe(false)
+
+    // keyB is unaffected
+    expect(limiter.checkSafe(keyB, cfg).allowed).toBe(true)
+  })
+
+  it("enforces 60/min default limit on general agent endpoints", () => {
+    const cfg = resolveRouteConfig("GET", "/api/agent/orders")
+    expect(cfg).not.toBeNull()
+    expect(cfg!.maxRequests).toBe(60)
+
+    const key = "agent:sk_test_abc123:/api/agent/orders"
+    for (let i = 0; i < 60; i++) {
+      expect(limiter.checkSafe(key, cfg!).allowed).toBe(true)
+    }
+    expect(limiter.checkSafe(key, cfg!).allowed).toBe(false)
+  })
+
+  it("rate limit window resets after the entry expires", () => {
+    const cfg = resolveRouteConfig("GET", "/api/agent/listings/search")!
+    const key = "agent:sk_test_abc123:/api/agent/listings/search"
+
+    for (let i = 0; i < cfg.maxRequests; i++) {
+      limiter.checkSafe(key, cfg)
+    }
+    expect(limiter.checkSafe(key, cfg).allowed).toBe(false)
+
+    // Manually reset (simulates window expiry)
+    limiter.reset(key)
+    expect(limiter.checkSafe(key, cfg).allowed).toBe(true)
+  })
+
+  it("blocked response includes Retry-After (seconds) and limit metadata", () => {
+    const cfg = resolveRouteConfig("GET", "/api/agent/listings/search")!
+    const key = "agent:sk_test_abc123:/api/agent/listings/search"
+
+    for (let i = 0; i < cfg.maxRequests; i++) {
+      limiter.checkSafe(key, cfg)
+    }
+
+    const status = limiter.checkSafe(key, cfg)
+    expect(status.allowed).toBe(false)
+    expect(status.limit).toBe(cfg.maxRequests)
+    expect(status.remaining).toBe(0)
+    expect(typeof status.retryAfter).toBe("number")
+    expect(status.retryAfter).toBeGreaterThan(0)
+    expect(status.retryAfter).toBeLessThanOrEqual(60)
+    expect(typeof status.resetAt).toBe("number")
+  })
+})
+
 describe("rate limiting end-to-end: register endpoint enforcement", () => {
   let limiter: RateLimiter
 
