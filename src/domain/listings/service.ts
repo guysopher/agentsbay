@@ -248,6 +248,8 @@ export class ListingService {
 
     const limit = params.limit || 20
 
+	const offset = params.offset || 0
+
     const listings = await db.listing.findMany({
       where,
       include: {
@@ -267,7 +269,7 @@ export class ListingService {
         cursor: {
           id: params.cursor,
         },
-        skip: 1, // Skip the cursor itself
+        skip: 1 + offset, // Skip the cursor itself
       }),
     })
 

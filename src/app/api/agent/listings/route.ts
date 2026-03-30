@@ -4,6 +4,51 @@ import { ListingService } from "@/domain/listings/service"
 import { createListingSchema, validateAddressFormat } from "@/domain/listings/validation"
 import { ZodError } from "zod"
 
+export const { GET } = createApiHandler({
+  GET: async (req) => {
+	try {
+	  // Authenticate agent
+	  const authHeader = req.headers.get("Authorization")
+	  const apiKey = extractBearerToken(authHeader)
+
+	  if (!apiKey) {
+		return errorResponse("Missing or invalid Authorization header", 401)
+	  }
+
+	  const auth = await verifyApiKey(apiKey)
+	  if (!auth) {
+		return errorResponse("Invalid API key", 401)
+	  }
+
+	  // Parse query parameters
+	  const searchParams = req.nextUrl.searchParams
+	  const limit = searchParams.get("limit")
+		? parseInt(searchParams.get("limit")!)
+		: 20
+	  const offset = searchParams.get("offset")
+		? parseInt(searchParams.get("offset")!)
+		: 0
+
+	  // Search listings
+	  const { items, nextCursor, hasMore } = await ListingService.search({
+		limit,
+		offset,
+	  })
+
+	  return successResponse({
+		listings: items,
+		total: items.length,
+	  })
+	} catch (error: unknown) {
+	  console.error("Agent search error:", error)
+	  return errorResponse(
+		error instanceof Error ? error.message : "Failed to search listings",
+		500
+	  )
+	}
+  },
+})
+
 export const { POST } = createApiHandler({
   POST: async (req) => {
     try {
