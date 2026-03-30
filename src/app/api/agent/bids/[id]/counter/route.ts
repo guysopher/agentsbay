@@ -5,9 +5,9 @@ import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors"
 import { z, ZodError } from "zod"
 
 const counterBidSchema = z.object({
-  amount: z.number().int().positive().min(100),
+  amount: z.number().int().positive().min(100, "Minimum bid is $1.00").max(1_000_000, "Maximum bid is $10,000"),
   message: z.string().max(500).optional(),
-  expiresIn: z.number().int().positive().max(7 * 24 * 60 * 60).optional()
+  expiresIn: z.number().int().min(3600, "Minimum expiry is 1 hour").max(7 * 24 * 60 * 60).optional()
 })
 
 export const { POST } = createApiHandler({
