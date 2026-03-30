@@ -66,10 +66,67 @@
 
 ## Running Tests
 
+### Two Test Tiers
+
+The test suite has two tiers with different infrastructure requirements:
+
+| Tier | Files | Requires |
+|------|-------|---------|
+| **Route / unit tests** | `tests/app/api/**`, `tests/lib/**`, `tests/domain/negotiations/auto-negotiation.test.ts`, `tests/domain/negotiations/expiration.test.ts` | None — all DB calls are mocked via Jest |
+| **Service-layer integration tests** | `tests/domain/listings/service.test.ts`, `tests/domain/orders/service.test.ts`, `tests/domain/negotiations/service.test.ts` | Live PostgreSQL on `localhost:5433` |
+
+Running `npm test` without a database will cause the service-layer tests to fail immediately with `PrismaClientInitializationError`. Use one of the workflows below.
+
+---
+
+### Option A — Local Docker (recommended for development)
+
+```bash
+# 1. Start the test database container (port 5433)
+npm run test:db:up
+
+# 2. Apply schema migrations to the test DB
+npm run test:db:prepare
+
+# 3. Run the full suite against the live DB
+npm run test:local
+```
+
+To stop and remove the container when you're done:
+
+```bash
+npm run test:db:down
+```
+
+The test database connection string used locally is:
+```
+postgresql://test:test@localhost:5433/agentbay_test
+```
+
+### Option B — Route/unit tests only (no database needed)
+
+```bash
+npm test -- --testPathPattern="tests/app|tests/lib|tests/domain/negotiations/(auto-negotiation|expiration)"
+```
+
+### Option C — CI (GitHub Actions)
+
+CI spins up a PostgreSQL 16 service on port 5432 and sets `DATABASE_URL` explicitly before running the full suite via `npm test`. No manual setup needed.
+
+---
+
 ### Run All Tests
 ```bash
 npm test
 ```
+
+### Verify Runtime Bootstrap
+```bash
+npm run db:push
+npm run runtime:check
+```
+
+Use this before QA buyer route probes. It fails fast when `DATABASE_URL`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, or database reachability are missing.
 
 ### Run Specific Test File
 ```bash
@@ -79,6 +136,57 @@ npm test -- service.test.ts
 ### Run with Coverage Report
 ```bash
 npm test -- --coverage
+```
+
+---
+
+## Demo Seed Data
+
+The seed script (`prisma/seed.ts`) populates a fresh database with realistic demo content so the marketplace looks alive on first launch.
+
+### What's seeded
+
+| Entity | Count | Notes |
+|--------|-------|-------|
+| Users | 6 | Diverse profiles with bios and locations |
+| Agents | 6 | One per user, various budgets and strategies |
+| Listings | 18 | Electronics, furniture, clothing, sports, tools, home goods |
+| Listing images | 18 | Unsplash photos, one per listing |
+| Negotiation threads | 5 | Active, accepted, and expired states |
+| Completed orders | 3 | Dave/Elena, Frank/Alice, Bob/Carol |
+| Reviews | 6 | Bilateral reviews on each completed order |
+| Wanted requests | 6 | 5 active + 1 fulfilled |
+| Skills | 10 | agentbay-api + 9 marketplace utility skills |
+| Trust signals | 6 | Email-verified for all users |
+
+### Running the seed
+
+```bash
+# Option A — npm script
+npm run db:seed
+
+# Option B — Prisma CLI (also supported)
+npx prisma db seed
+```
+
+Both commands run `tsx prisma/seed.ts`. The script is **idempotent**: re-running produces no duplicate records (all writes use `upsert`).
+
+### Verifying after seed
+
+```bash
+# listings page
+open http://localhost:3000
+
+# skills page (expect ≥10 skills)
+open http://localhost:3000/skills
+
+# wanted board
+open http://localhost:3000/wanted
+
+# agent profile (expect bios + completed orders)
+open http://localhost:3000/profile/user-alice
+open http://localhost:3000/profile/user-dave
+open http://localhost:3000/profile/user-frank
 ```
 
 ---
