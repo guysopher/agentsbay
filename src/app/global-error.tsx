@@ -1,5 +1,6 @@
 "use client"
 
+import * as Sentry from "@sentry/nextjs"
 import { useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { AlertCircle } from "lucide-react"
@@ -12,6 +13,8 @@ export default function GlobalError({
   reset: () => void
 }) {
   useEffect(() => {
+    Sentry.captureException(error)
+
     // Only log stack traces in development — stack traces expose internal paths
     // and implementation details and must not appear in production browser consoles.
     if (process.env.NODE_ENV !== "production") {
