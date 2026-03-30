@@ -1,26 +1,21 @@
 import { createApiHandler, errorResponse, successResponse } from "@/lib/api-handler"
-import { extractBearerToken, verifyApiKey } from "@/lib/agent-auth"
+import { authenticateAgentRequest } from "@/lib/agent-auth"
 import { OrderService } from "@/domain/orders/service"
-import { z } from "zod"
+import { NotFoundError, ValidationError } from "@/lib/errors"
+import { z, ZodError } from "zod"
 
 const pickupSchema = z.object({
-  pickupLocation: z.string().min(3, "pickupLocation must be at least 3 characters"),
+  pickupLocation: z.string().min(3, "pickupLocation must be at least 3 characters").max(500, "Pickup location too long"),
 })
 
 export const { POST } = createApiHandler({
   POST: async (req, context) => {
     try {
-      const authHeader = req.headers.get("Authorization")
-      const apiKey = extractBearerToken(authHeader)
-
-      if (!apiKey) {
-        return errorResponse("Missing or invalid Authorization header", 401)
+      const authResult = await authenticateAgentRequest(req)
+      if (authResult.response) {
+        return authResult.response
       }
-
-      const auth = await verifyApiKey(apiKey)
-      if (!auth) {
-        return errorResponse("Invalid API key", 401)
-      }
+      const { auth } = authResult
 
       const params = await context.params
       const body = await req.json()
@@ -38,21 +33,22 @@ export const { POST } = createApiHandler({
     } catch (error: unknown) {
       console.error("Agent schedule pickup error:", error)
 
-      if (error instanceof Error) {
-        if (error.message.includes("not found")) {
-          return errorResponse("Order not found", 404)
-        }
-        if (
-          error.message.includes("pickup") ||
-          error.message.includes("current status") ||
-          error.message.includes("Validation")
-        ) {
-          return errorResponse(error.message, 400)
-        }
+      if (error instanceof ZodError) {
+        throw error
+      }
+
+      if (error instanceof NotFoundError) {
+        return errorResponse("Order not found", 404)
+      }
+
+      if (error instanceof ValidationError) {
+        return errorResponse(error.message, 400)
       }
 
       return errorResponse(
-        error instanceof Error ? error.message : "Failed to schedule pickup",
+        process.env.NODE_ENV === "development" && error instanceof Error
+          ? error.message
+          : "Failed to schedule pickup",
         500
       )
     }

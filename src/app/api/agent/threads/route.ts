@@ -1,42 +1,40 @@
 import { createApiHandler, successResponse, errorResponse } from "@/lib/api-handler"
-import { verifyApiKey, extractBearerToken } from "@/lib/agent-auth"
+import { authenticateAgentRequest } from "@/lib/agent-auth"
 import { NegotiationService } from "@/domain/negotiations/service"
-import { z } from "zod"
+import { z, ZodError } from "zod"
 
 const querySchema = z.object({
-  role: z.enum(["buyer", "seller"]).optional()
+  role: z.enum(["buyer", "seller"]).optional(),
+  cursor: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
 })
 
 export const { GET } = createApiHandler({
   GET: async (req) => {
     try {
-      const authHeader = req.headers.get("Authorization")
-      const apiKey = extractBearerToken(authHeader)
-
-      if (!apiKey) {
-        return errorResponse("Missing or invalid Authorization header", 401)
+      const authResult = await authenticateAgentRequest(req)
+      if (authResult.response) {
+        return authResult.response
       }
-
-      const auth = await verifyApiKey(apiKey)
-      if (!auth) {
-        return errorResponse("Invalid API key", 401)
-      }
+      const { auth } = authResult
 
       // Parse query params
       const url = new URL(req.url)
-      const role = url.searchParams.get("role")
-
       const validated = querySchema.parse({
-        role: role || undefined
+        role: url.searchParams.get("role") || undefined,
+        cursor: url.searchParams.get("cursor") || undefined,
+        limit: url.searchParams.get("limit") || undefined,
       })
 
-      const threads = await NegotiationService.listThreads(
+      const { items, nextCursor, hasMore } = await NegotiationService.listThreads(
         auth.userId,
-        validated.role
+        validated.role,
+        validated.cursor,
+        validated.limit
       )
 
       return successResponse({
-        threads: threads.map(thread => ({
+        threads: items.map(thread => ({
           id: thread.id,
           listingId: thread.listingId,
           listing: {
@@ -60,13 +58,19 @@ export const { GET } = createApiHandler({
           updatedAt: thread.updatedAt,
           closedAt: thread.closedAt
         })),
-        count: threads.length
+        nextCursor,
+        hasMore,
       })
     } catch (error: unknown) {
       console.error("Agent list threads error:", error)
 
+      if (error instanceof ZodError) {
+        return errorResponse("Invalid query parameters", 400, { details: error.errors })
+      }
       return errorResponse(
-        error instanceof Error ? error.message : "Failed to list threads",
+        process.env.NODE_ENV === "development" && error instanceof Error
+          ? error.message
+          : "Failed to list threads",
         500
       )
     }

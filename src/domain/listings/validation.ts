@@ -83,6 +83,9 @@ export const createListingSchema = z.object({
 
 export const updateListingSchema = createListingSchema.partial()
 
+export const SortBy = z.enum(["newest", "oldest", "price_asc", "price_desc", "relevance"])
+export type SortBy = z.infer<typeof SortBy>
+
 export const searchListingsSchema = z.object({
   query: sanitizedOptionalString(),
   category: z.nativeEnum(ListingCategory).optional(),
@@ -90,6 +93,7 @@ export const searchListingsSchema = z.object({
   maxPrice: z.number().int().positive().optional(),
   condition: z.nativeEnum(ItemCondition).optional(),
   address: sanitizedOptionalString(),
+  sortBy: SortBy.default("newest"),
   cursor: z.string().optional(), // For cursor-based pagination
   limit: z.number().int().positive().max(100).default(20),
 })
