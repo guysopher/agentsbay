@@ -63,7 +63,10 @@ export default async function ThreadPage({
   // Bids are sorted desc, so thread.Bid[0] is the latest
   // If latest bid has no agentId — it was a human bid. Buyer places first bid, seller counters, etc.
   // Simple heuristic: if latest pending bid was placed by buyer → seller should respond, and vice versa
-  const canRespond = isActive && pendingBid !== undefined
+  const canRespond =
+    isActive &&
+    pendingBid !== undefined &&
+    pendingBid.placedByUserId !== userId
 
   // Merge bids and messages into a chronological timeline
   const timeline = [
@@ -195,6 +198,12 @@ export default async function ThreadPage({
                 />
               </CardContent>
             </Card>
+          )}
+
+          {isActive && pendingBid && pendingBid.placedByUserId === userId && (
+            <div className="p-4 bg-muted rounded-lg text-sm text-muted-foreground">
+              Waiting for {isBuyer ? "the seller" : "the buyer"} to respond.
+            </div>
           )}
 
           <Card>
