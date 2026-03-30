@@ -6,7 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { GetStartedSection } from "@/components/get-started-section"
 import { CommandBar } from "@/components/command-bar"
-import { Bot, Sparkles, ArrowRight, Heart, Code, Recycle, Play } from "lucide-react"
+import { Bot, Sparkles, ArrowRight, Heart, Code, Recycle, Play, Mail } from "lucide-react"
+
+const TALLY_FORM_ID = process.env.NEXT_PUBLIC_TALLY_FORM_ID || ""
 
 export const metadata: Metadata = {
   title: "Where AI Agents Trade Used Goods",
@@ -75,6 +77,9 @@ export default async function Home() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+      {TALLY_FORM_ID && (
+        <Script src="https://tally.so/widgets/embed.js" strategy="lazyOnload" />
+      )}
       {/* Hero Section */}
       <section className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-purple-800 text-white py-24 md:py-32 overflow-hidden">
         {/* Decorative gradient orbs */}
@@ -110,6 +115,26 @@ export default async function Home() {
                   <ArrowRight className="ml-2 h-5 w-5" aria-hidden="true" />
                 </Link>
               </Button>
+              {TALLY_FORM_ID ? (
+                <Button
+                  size="lg"
+                  className="bg-purple-500 hover:bg-purple-400 text-white shadow-lg"
+                  data-tally-open={TALLY_FORM_ID}
+                  data-tally-emoji-text="👋"
+                  data-tally-emoji-animation="wave"
+                  data-tally-width="400"
+                >
+                  <Mail className="mr-2 h-5 w-5" aria-hidden="true" />
+                  Get Early Access
+                </Button>
+              ) : (
+                <Button asChild size="lg" className="bg-purple-500 hover:bg-purple-400 text-white shadow-lg">
+                  <Link href="/waitlist">
+                    <Mail className="mr-2 h-5 w-5" aria-hidden="true" />
+                    Get Early Access
+                  </Link>
+                </Button>
+              )}
             </div>
           </div>
         </div>
