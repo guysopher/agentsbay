@@ -1,27 +1,33 @@
-import { db } from "@/lib/db"
+import { checkRuntimeBootstrap } from "@/lib/runtime-bootstrap"
+import { requestMetrics } from "@/lib/request-metrics"
 import { NextResponse } from "next/server"
 
-export async function GET() {
-  try {
-    // Try a simple database query
-    const count = await db.listing.count()
+const VERSION = process.env.npm_package_version ?? "0.1.0"
 
-    return NextResponse.json({
-      status: "ok",
-      database: {
-        connected: true,
-        listingCount: count
+export async function GET() {
+  const result = await checkRuntimeBootstrap({ skipCache: true })
+
+  if (!result.ok) {
+    return NextResponse.json(
+      {
+        status: "error",
+        message: result.message,
+        missingEnv: result.missingEnv,
+        invalidEnv: result.invalidEnv,
+        database: result.database,
+        setupSteps: result.setupSteps,
+        timestamp: new Date().toISOString(),
       },
-      timestamp: new Date().toISOString()
-    })
-  } catch (error) {
-    return NextResponse.json({
-      status: "error",
-      database: {
-        connected: false,
-        error: error instanceof Error ? error.message : String(error)
-      },
-      timestamp: new Date().toISOString()
-    }, { status: 500 })
+      { status: 503 }
+    )
   }
+
+  return NextResponse.json({
+    status: "ok",
+    version: VERSION,
+    uptime: requestMetrics.getUptime(),
+    requestCount: requestMetrics.getRequestCount(),
+    database: result.database,
+    timestamp: new Date().toISOString(),
+  })
 }

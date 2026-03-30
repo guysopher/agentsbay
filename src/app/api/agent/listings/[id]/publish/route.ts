@@ -1,22 +1,16 @@
 import { createApiHandler, successResponse, errorResponse } from "@/lib/api-handler"
-import { verifyApiKey, extractBearerToken } from "@/lib/agent-auth"
+import { authenticateAgentRequest } from "@/lib/agent-auth"
 import { ListingService } from "@/domain/listings/service"
+import { NotFoundError, ValidationError } from "@/lib/errors"
 
 export const { POST } = createApiHandler({
   POST: async (req, context) => {
     try {
-      // Authenticate agent
-      const authHeader = req.headers.get("Authorization")
-      const apiKey = extractBearerToken(authHeader)
-
-      if (!apiKey) {
-        return errorResponse("Missing or invalid Authorization header", 401)
+      const authResult = await authenticateAgentRequest(req)
+      if (authResult.response) {
+        return authResult.response
       }
-
-      const auth = await verifyApiKey(apiKey)
-      if (!auth) {
-        return errorResponse("Invalid API key", 401)
-      }
+      const { auth } = authResult
 
       // Get listing ID from params
       const params = await context.params
@@ -36,13 +30,11 @@ export const { POST } = createApiHandler({
     } catch (error: unknown) {
       console.error("Agent publish listing error:", error)
 
-      if (error instanceof Error) {
-        if (error.message.includes("not found")) {
-          return errorResponse("Listing not found", 404)
-        }
-        if (error.message.includes("cannot be published")) {
-          return errorResponse(error.message, 400)
-        }
+      if (error instanceof NotFoundError) {
+        return errorResponse(error.message, 404)
+      }
+      if (error instanceof ValidationError) {
+        return errorResponse(error.message, 400)
       }
 
       return errorResponse(

@@ -1,4 +1,5 @@
 import { createApiHandler, successResponse } from "@/lib/api-handler"
+import { getSiteUrl } from "@/lib/site-config"
 
 function sanitizeRef(value?: string | null): string | undefined {
   if (!value) return undefined
@@ -7,9 +8,7 @@ function sanitizeRef(value?: string | null): string | undefined {
 }
 
 function buildAgentBaySkill(ref?: string) {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000")
+  const baseUrl = getSiteUrl()
   const registrationEndpoint = ref ? `/api/agent/register?source=${encodeURIComponent(ref)}` : "/api/agent/register"
 
   // Agents Bay skill in OpenAI function calling format
@@ -117,6 +116,14 @@ function buildAgentBaySkill(ref?: string) {
             maxDistanceKm: {
               type: "number",
               description: "Maximum distance in kilometers from user's location (requires user location to be set)"
+            },
+            limit: {
+              type: "number",
+              description: "Number of results per page (default: 20, max: 100)"
+            },
+            cursor: {
+              type: "string",
+              description: "Pagination cursor returned as nextCursor from a previous search call. Pass this to retrieve the next page of results."
             }
           }
         }
@@ -214,6 +221,31 @@ function buildAgentBaySkill(ref?: string) {
     {
       type: "function",
       function: {
+        name: "agentbay_send_listing_message",
+        description: "Send a direct message about a listing and open a negotiation thread if needed. Requires API key via Authorization: Bearer <key> header.",
+        parameters: {
+          type: "object",
+          properties: {
+            listingId: {
+              type: "string",
+              description: "Listing ID to message about"
+            },
+            message: {
+              type: "string",
+              description: "Message body to send to the seller"
+            },
+            isAgent: {
+              type: "boolean",
+              description: "Whether the message is authored by the agent rather than a human operator"
+            }
+          },
+          required: ["listingId", "message", "isAgent"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
         name: "agentbay_get_order",
         description: "Get details for a specific order (status, fulfillment state, and delivery metadata). Requires API key via Authorization: Bearer <key> header.",
         parameters: {
@@ -280,6 +312,35 @@ function buildAgentBaySkill(ref?: string) {
             }
           },
           required: ["listingId"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "agentbay_place_bid",
+        description: "Place an initial bid on a listing and open a negotiation thread if one does not exist. Requires API key via Authorization: Bearer <key> header.",
+        parameters: {
+          type: "object",
+          properties: {
+            listingId: {
+              type: "string",
+              description: "Listing ID to bid on"
+            },
+            amount: {
+              type: "number",
+              description: "Bid amount in minor currency units (cents for USD/EUR, agorot for ILS, etc.)"
+            },
+            message: {
+              type: "string",
+              description: "Optional message to send with the bid"
+            },
+            expiresIn: {
+              type: "number",
+              description: "Bid expiration time in seconds (default: 48 hours, max: 7 days)"
+            }
+          },
+          required: ["listingId", "amount"]
         }
       }
     },
@@ -380,12 +441,67 @@ function buildAgentBaySkill(ref?: string) {
           required: ["threadId"]
         }
       }
+    },
+    {
+      type: "function",
+      function: {
+        name: "agentbay_register_webhook",
+        description: "Register a webhook URL to receive push notifications for marketplace events. Requires API key via Authorization: Bearer <key> header. Returns a secret for HMAC verification — store it securely.",
+        parameters: {
+          type: "object",
+          properties: {
+            url: {
+              type: "string",
+              description: "HTTPS URL to receive webhook events (HTTP allowed for localhost)"
+            },
+            events: {
+              type: "array",
+              items: {
+                type: "string",
+                enum: ["bid.received", "negotiation.message", "negotiation.accepted", "negotiation.rejected", "order.status_changed"]
+              },
+              description: "List of event types to subscribe to"
+            }
+          },
+          required: ["url", "events"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "agentbay_list_webhooks",
+        description: "List all registered webhooks for the authenticated agent. Secrets are not returned. Requires API key via Authorization: Bearer <key> header.",
+        parameters: {
+          type: "object",
+          properties: {},
+          required: []
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "agentbay_delete_webhook",
+        description: "Remove a registered webhook. Requires API key via Authorization: Bearer <key> header.",
+        parameters: {
+          type: "object",
+          properties: {
+            webhookId: {
+              type: "string",
+              description: "Webhook ID to delete"
+            }
+          },
+          required: ["webhookId"]
+        }
+      }
     }
   ],
   metadata: {
     version: "1.0.0",
     base_url: baseUrl,
-    documentation: "/api-docs",
+    documentation: "/skills/agentbay-api",
+    api_docs: "/api-docs",
 
     authentication: {
       type: "api_key",
@@ -496,16 +612,40 @@ function buildAgentBaySkill(ref?: string) {
       ]
     },
 
+    webhook_events: {
+      description: "Subscribe to push notifications instead of polling. Register a webhook URL and receive signed HTTP POST requests when events occur.",
+      events: {
+        "bid.received": "Someone placed a bid on your listing",
+        "negotiation.message": "New message in a negotiation thread",
+        "negotiation.accepted": "Your bid was accepted",
+        "negotiation.rejected": "Your bid was rejected",
+        "order.status_changed": "An order changed status"
+      },
+      payload_format: {
+        id: "Delivery ID (string)",
+        event: "Event type (string)",
+        data: "Event-specific payload (object)",
+        timestamp: "ISO 8601 timestamp"
+      },
+      verification: "Verify authenticity using HMAC-SHA256: compute sha256(secret, body) and compare to X-AgentsBay-Signature header (format: sha256=<hex>)",
+      security: "Store the secret returned at registration securely — it is only shown once",
+      limits: "Maximum 5 webhooks per agent"
+    },
+
     rate_limits: {
+      agent_registration: "5 per hour (per IP)",
       listing_create: "10 per hour",
       bid_create: "30 per hour",
-      search: "60 per minute"
+      search: "60 per minute",
+      general: "100 per minute"
     },
 
     error_codes: {
       VALIDATION_ERROR: "Request validation failed",
       UNAUTHORIZED: "Missing or invalid API key",
+      FORBIDDEN: "Insufficient permissions for this action",
       NOT_FOUND: "Resource not found",
+      CONFLICT: "Resource conflict (e.g., duplicate flag or already resolved case)",
       RATE_LIMIT_EXCEEDED: "Too many requests"
     }
   },
