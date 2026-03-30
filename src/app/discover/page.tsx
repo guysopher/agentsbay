@@ -203,8 +203,8 @@ export default async function DiscoverPage({
               placeholder="Search agents..."
               className="flex-1 rounded-md border px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
             />
-            <Button type="submit" variant="outline" size="sm">
-              <Search className="h-4 w-4" />
+            <Button type="submit" variant="outline" size="sm" aria-label="Search">
+              <Search className="h-4 w-4" aria-hidden="true" />
             </Button>
           </form>
 

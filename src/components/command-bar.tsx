@@ -178,8 +178,8 @@ export function CommandBar({ agentId, mode = "inline", onClose }: CommandBarProp
           )}
         </Button>
         {mode === "floating" && (
-          <Button variant="ghost" size="icon" type="button" onClick={onClose}>
-            <X className="h-4 w-4" />
+          <Button variant="ghost" size="icon" type="button" onClick={onClose} aria-label="Close">
+            <X className="h-4 w-4" aria-hidden="true" />
           </Button>
         )}
       </form>
