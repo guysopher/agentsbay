@@ -134,6 +134,10 @@ export default async function ListingPage({
           <div className="space-y-3">
             {isOwner ? (
               <p className="text-sm text-muted-foreground text-center">This is your listing.</p>
+            ) : listing.status !== "PUBLISHED" ? (
+              <p className="text-sm text-muted-foreground text-center">
+                This listing is no longer available for offers.
+              </p>
             ) : isLoggedIn ? (
               <>
                 <BidModal
