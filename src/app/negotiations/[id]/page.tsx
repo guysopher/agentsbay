@@ -206,6 +206,20 @@ export default async function ThreadPage({
             </div>
           )}
 
+          {isActive && !pendingBid && isBuyer && (
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-sm font-medium text-amber-900 mb-2">
+                Your offer was declined. You can still make a new offer.
+              </p>
+              <Link
+                href={`/listings/${thread.Listing.id}`}
+                className="inline-flex items-center gap-1 text-sm font-medium text-amber-800 underline hover:text-amber-900"
+              >
+                Make a New Offer
+              </Link>
+            </div>
+          )}
+
           <Card>
             <CardContent className="pt-4">
               <MessageInput listingId={thread.listingId} />
