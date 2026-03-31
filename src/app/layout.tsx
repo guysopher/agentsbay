@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
 import { Navigation } from "@/components/navigation";
 import { SessionProvider } from "@/components/session-provider";
@@ -32,6 +33,8 @@ export const metadata: Metadata = {
   },
 };
 
+const plausibleDomain = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -40,6 +43,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        {plausibleDomain && (
+          <Script
+            defer
+            data-domain={plausibleDomain}
+            src="https://plausible.io/js/script.js"
+            strategy="afterInteractive"
+          />
+        )}
         <SessionProvider>
           <Navigation />
           <CommandBarProvider />
