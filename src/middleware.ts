@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server"
 import { rateLimiter, resolveRouteConfig } from "@/lib/rate-limit"
 
 // Pages that require a NextAuth session — unauthenticated users are redirected
-const PROTECTED_PAGES = ["/profile", "/dashboard", "/orders", "/listings/new"]
+const PROTECTED_PAGES = ["/profile", "/dashboard", "/orders", "/listings/new", "/wanted/new"]
 
 // API routes that are fully public — no credentials required
 const PUBLIC_API_PREFIXES = [
