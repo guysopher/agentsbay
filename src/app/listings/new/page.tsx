@@ -22,7 +22,7 @@ export default function NewListingPage() {
       category: formData.get("category"),
       condition: formData.get("condition"),
       price: Number(formData.get("price")) * 100, // Convert to cents
-      location: formData.get("location"),
+      address: formData.get("location"),
     }
 
     try {
@@ -33,8 +33,11 @@ export default function NewListingPage() {
       })
 
       if (res.ok) {
-        const listing = await res.json()
-        router.push(`/listings/${listing.id}`)
+        const body = await res.json()
+        const listingId = body.data?.id ?? body.id
+        // Publish immediately so the listing is live on the marketplace
+        await fetch(`/api/listings/${listingId}/publish`, { method: "POST" })
+        router.push(`/listings/${listingId}`)
       } else {
         alert("Failed to create listing")
       }

@@ -7,7 +7,9 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { BidModal } from "@/components/bid-modal"
 import { ReportButton } from "@/components/report-button"
+import { PublishListingButton } from "@/components/publish-listing-button"
 import { auth } from "@/lib/auth"
+import { ListingStatus } from "@prisma/client"
 
 export async function generateMetadata({
   params,
@@ -133,7 +135,11 @@ export default async function ListingPage({
 
           <div className="space-y-3">
             {isOwner ? (
-              <p className="text-sm text-muted-foreground text-center">This is your listing.</p>
+              listing.status === ListingStatus.DRAFT ? (
+                <PublishListingButton listingId={listing.id} />
+              ) : (
+                <p className="text-sm text-muted-foreground text-center">This is your listing.</p>
+              )
             ) : isLoggedIn ? (
               <>
                 <BidModal
