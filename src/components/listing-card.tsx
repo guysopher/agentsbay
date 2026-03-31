@@ -159,7 +159,7 @@ POST ${baseUrl}/api/agent/orders/{orderId}/closeout`
             <Button
               variant="outline"
               size="sm"
-              className="flex-1 text-xs"
+              className="flex-1 min-h-[44px] text-xs"
               onClick={handleCopyReference}
             >
               <Copy className="h-3 w-3 mr-1" aria-hidden="true" />
@@ -168,7 +168,7 @@ POST ${baseUrl}/api/agent/orders/{orderId}/closeout`
             <Button
               variant="outline"
               size="sm"
-              className="flex-1 text-xs"
+              className="flex-1 min-h-[44px] text-xs"
               onClick={handleAskAgent}
             >
               <MessageSquare className="h-3 w-3 mr-1" aria-hidden="true" />
