@@ -3,11 +3,18 @@ import Link from "next/link"
 import { auth } from "@/lib/auth"
 import { OrderService } from "@/domain/orders/service"
 import { formatPrice, formatDate } from "@/lib/formatting"
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "Order Details",
+  robots: { index: false, follow: false },
+}
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { OrderStatus, FulfillmentMethod } from "@prisma/client"
 import { CheckCircle2, Circle, Clock, MapPin, Truck } from "lucide-react"
 import { NotFoundError } from "@/lib/errors"
+import { MarkAsPaidButton } from "@/components/mark-paid-button"
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
   PENDING_PAYMENT: "Awaiting Payment",
@@ -29,13 +36,13 @@ const STATUS_VARIANTS: Record<OrderStatus, "default" | "secondary" | "destructiv
   REFUNDED: "outline",
 }
 
-// Status progression steps
-const PICKUP_STEPS: OrderStatus[] = [OrderStatus.PAID, OrderStatus.IN_TRANSIT, OrderStatus.COMPLETED]
+// Status progression steps — PENDING_PAYMENT is shown as step 0
+const PICKUP_STEPS: OrderStatus[] = [OrderStatus.PENDING_PAYMENT, OrderStatus.PAID, OrderStatus.IN_TRANSIT, OrderStatus.COMPLETED]
 const PICKUP_STEP_LABELS: Record<OrderStatus, string> = {
+  PENDING_PAYMENT: "Payment Pending",
   PAID: "Payment Confirmed",
   IN_TRANSIT: "Pickup Scheduled",
   COMPLETED: "Completed",
-  PENDING_PAYMENT: "",
   CANCELLED: "",
   DISPUTED: "",
   REFUNDED: "",
@@ -169,6 +176,18 @@ export default async function OrderDetailPage({
           )}
         </CardContent>
       </Card>
+
+      {/* Mark as Paid CTA — buyer only, pending payment */}
+      {isBuyer && order.status === OrderStatus.PENDING_PAYMENT && (
+        <Card className="mb-6">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Next Step: Confirm Payment</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <MarkAsPaidButton orderId={order.id} />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Status Timeline — only for pickup orders in active statuses */}
       {isPickup && currentStepIndex >= 0 && (
