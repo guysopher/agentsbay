@@ -58,7 +58,7 @@ export function BidModal({ listingId, listingTitle, askingPrice, currency = "USD
 
   if (!open) {
     return (
-      <Button className="w-full" size="lg" onClick={() => setOpen(true)}>
+      <Button className="w-full h-11" size="lg" onClick={() => setOpen(true)}>
         Make an Offer
       </Button>
     )
@@ -86,7 +86,7 @@ export function BidModal({ listingId, listingTitle, askingPrice, currency = "USD
                 placeholder="0.00"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="pl-7"
+                className="pl-7 h-11"
                 required
               />
             </div>
@@ -107,12 +107,13 @@ export function BidModal({ listingId, listingTitle, askingPrice, currency = "USD
             <p className="text-sm text-red-500">{error}</p>
           )}
           <div className="flex gap-2">
-            <Button type="submit" className="flex-1" disabled={loading}>
+            <Button type="submit" className="flex-1 h-11" disabled={loading}>
               {loading ? "Placing offer…" : "Submit Offer"}
             </Button>
             <Button
               type="button"
               variant="outline"
+              className="h-11"
               onClick={() => { setOpen(false); setError(null) }}
               disabled={loading}
             >
