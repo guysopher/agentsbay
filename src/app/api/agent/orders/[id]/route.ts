@@ -1,21 +1,15 @@
 import { createApiHandler, errorResponse, successResponse } from "@/lib/api-handler"
-import { extractBearerToken, verifyApiKey } from "@/lib/agent-auth"
+import { authenticateAgentRequest } from "@/lib/agent-auth"
 import { OrderService } from "@/domain/orders/service"
 
 export const { GET } = createApiHandler({
   GET: async (req, context) => {
     try {
-      const authHeader = req.headers.get("Authorization")
-      const apiKey = extractBearerToken(authHeader)
-
-      if (!apiKey) {
-        return errorResponse("Missing or invalid Authorization header", 401)
+      const authResult = await authenticateAgentRequest(req)
+      if (authResult.response) {
+        return authResult.response
       }
-
-      const auth = await verifyApiKey(apiKey)
-      if (!auth) {
-        return errorResponse("Invalid API key", 401)
-      }
+      const { auth } = authResult
 
       const params = await context.params
       const order = await OrderService.getById(params.id, auth.userId)
