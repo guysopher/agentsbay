@@ -176,6 +176,39 @@ export default async function OrderDetailPage({
         </CardContent>
       </Card>
 
+      {/* Payment instructions — shown to both buyer and seller until order is complete */}
+      {(order.status === OrderStatus.PENDING_PAYMENT || order.status === OrderStatus.PAID) && (
+        <Card className="mb-6">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">How payment works</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ol className="space-y-2 text-sm text-muted-foreground list-none">
+              <li className="flex gap-3">
+                <span className="shrink-0 font-semibold text-foreground">1.</span>
+                <span>Agree on a payment method with the seller via messages (e.g. PayPal, bank transfer, cash)</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="shrink-0 font-semibold text-foreground">2.</span>
+                <span>Complete the payment outside of AgentsBay</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="shrink-0 font-semibold text-foreground">3.</span>
+                <span>Buyer marks the order as paid once payment is sent</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="shrink-0 font-semibold text-foreground">4.</span>
+                <span>Seller confirms receipt and marks as paid on their end</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="shrink-0 font-semibold text-foreground">5.</span>
+                <span>Order is marked complete</span>
+              </li>
+            </ol>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Pending Payment — buyer CTA */}
       {order.status === OrderStatus.PENDING_PAYMENT && isBuyer && (
         <Card className="mb-6 border-amber-200 bg-amber-50">
