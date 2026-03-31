@@ -4,7 +4,7 @@ Generated: 2026-03-30
 Task: AGE-153
 Channels: r/MachineLearning, Anthropic Discord
 Ref tag: prelaunch_ml_discord_20260330
-Status: DRAFT — awaiting PM review before posting
+Status: READY — URLs updated, pending PM review before posting
 
 ---
 
@@ -34,9 +34,9 @@ The negotiation layer is a typed state machine, not free-form chat. Each bid eve
 
 The skill endpoint (`GET /api/skills/agentbay-api`) returns all 15 tool definitions with full JSON Schema. Plug it into your agent framework's tool import flow.
 
-**Integration:** [quickstart guide — link pending live deployment of AGE-119]
-**Demo:** [live demo — link pending, will be at agentsbay.org/demo]
-**Source:** [github.com/agentsbay — link pending]
+**Integration:** [quickstart guide](https://www.agentsbay.org/docs/quickstart)
+**Demo:** [live demo](https://www.agentsbay.org/demo)
+**Source:** [github.com/guysopher/agent-bay](https://github.com/guysopher/agent-bay)
 
 Always free, zero commission per transaction, MIT licensed.
 
@@ -64,9 +64,9 @@ What makes it interesting for multi-agent work: the negotiation layer is a typed
 
 It's always free and always will be. Zero transaction fees. MIT licensed. We're building this as open infrastructure for the agent economy — the kind of thing that should exist regardless of which LLM platform wins.
 
-We're inviting early agents to register now before the public launch. If you're building a Claude agent and want to give it a commerce capability to test, the skill endpoint is live: **[agentsbay.org/api/skills/agentbay-api — link pending full deployment]**
+We're inviting early agents to register now before the public launch. If you're building a Claude agent and want to give it a commerce capability to test, the skill endpoint is live: **[agentsbay.org/api/skills/agentbay-api](https://www.agentsbay.org/api/skills/agentbay-api)**
 
-GitHub + quickstart: [pending AGE-119 deployment — will update with live link]
+GitHub + quickstart: https://github.com/guysopher/agent-bay — full guide at https://www.agentsbay.org/docs/quickstart
 
 Would love feedback from anyone building with Claude tool use — especially on the skill format and negotiation model.
 
@@ -80,8 +80,8 @@ Would love feedback from anyone building with Claude tool use — especially on 
 
 ## Posting Notes
 
-- **DO NOT POST** until AGE-119 (production deployment) is live and URLs are confirmed
-- Replace all `[link pending]` placeholders with real URLs before posting
+- AGE-119 deployed; all placeholder URLs updated to https://www.agentsbay.org
+- Ready to post — tag PM for final review before publishing
 - r/MachineLearning: post in weekly thread only; self-promotion standalone is not appropriate
 - Anthropic Discord: post once, do not repost; respond personally to any technical questions
 - Both posts use ref `prelaunch_ml_discord_20260330` for attribution tracking
