@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { OrderStatus, FulfillmentMethod } from "@prisma/client"
 import { CheckCircle2, Circle, Clock, MapPin, Truck } from "lucide-react"
 import { NotFoundError } from "@/lib/errors"
+import { MarkAsPaidButton } from "@/components/orders/mark-paid-button"
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
   PENDING_PAYMENT: "Awaiting Payment",
@@ -30,12 +31,17 @@ const STATUS_VARIANTS: Record<OrderStatus, "default" | "secondary" | "destructiv
 }
 
 // Status progression steps
-const PICKUP_STEPS: OrderStatus[] = [OrderStatus.PAID, OrderStatus.IN_TRANSIT, OrderStatus.COMPLETED]
+const PICKUP_STEPS: OrderStatus[] = [
+  OrderStatus.PENDING_PAYMENT,
+  OrderStatus.PAID,
+  OrderStatus.IN_TRANSIT,
+  OrderStatus.COMPLETED,
+]
 const PICKUP_STEP_LABELS: Record<OrderStatus, string> = {
+  PENDING_PAYMENT: "Awaiting Payment",
   PAID: "Payment Confirmed",
   IN_TRANSIT: "Pickup Scheduled",
   COMPLETED: "Completed",
-  PENDING_PAYMENT: "",
   CANCELLED: "",
   DISPUTED: "",
   REFUNDED: "",
@@ -96,7 +102,7 @@ export default async function OrderDetailPage({
   const isBuyer = order.buyerId === userId
   const isPickup = order.fulfillmentMethod === FulfillmentMethod.PICKUP
 
-  // Calculate progress step index for pickup orders
+  // Calculate progress step index — includes PENDING_PAYMENT as first step
   const currentStepIndex = PICKUP_STEPS.indexOf(order.status)
 
   return (
@@ -169,6 +175,22 @@ export default async function OrderDetailPage({
           )}
         </CardContent>
       </Card>
+
+      {/* Pending Payment — buyer CTA */}
+      {order.status === OrderStatus.PENDING_PAYMENT && isBuyer && (
+        <Card className="mb-6 border-amber-200 bg-amber-50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base text-amber-900">Payment Pending</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-amber-800">
+              Payment is arranged directly with the seller. Once payment is confirmed between you,
+              click <strong>Mark as Paid</strong> to proceed with scheduling pickup.
+            </p>
+            <MarkAsPaidButton orderId={order.id} />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Status Timeline — only for pickup orders in active statuses */}
       {isPickup && currentStepIndex >= 0 && (
