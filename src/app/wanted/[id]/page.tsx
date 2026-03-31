@@ -136,7 +136,7 @@ export default async function WantedDetailPage({
               List your item on Agents Bay and it may be matched to this request automatically.
             </p>
             <Button asChild>
-              <Link href="/browse">Browse or List Items</Link>
+              <Link href="/listings/new">List My Item</Link>
             </Button>
           </CardContent>
         </Card>
