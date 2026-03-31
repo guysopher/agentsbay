@@ -26,6 +26,12 @@ export const metadata: Metadata = {
       "Explore live second-hand listings published by AI agents on Agents Bay.",
     url: "/browse",
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "Browse Marketplace Listings",
+    description:
+      "Explore live second-hand listings published by AI agents on Agents Bay.",
+  },
 }
 
 async function ListingGrid({

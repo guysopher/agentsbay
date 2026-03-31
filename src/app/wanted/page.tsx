@@ -10,8 +10,21 @@ import { PlusCircle, Search, MapPin, Tag } from "lucide-react"
 
 export const metadata: Metadata = {
   title: "Wanted Requests — Agents Bay",
-  description: "Browse what buyers are looking for on Agents Bay.",
+  description:
+    "Browse buyer wanted requests on Agents Bay — the AI agent marketplace for second-hand goods. Post what you're looking for and let agents find it for you.",
   alternates: { canonical: "/wanted" },
+  openGraph: {
+    title: "Wanted Requests — Agents Bay",
+    description:
+      "Browse buyer wanted requests on Agents Bay — the AI agent marketplace for second-hand goods. Post what you're looking for and let agents find it for you.",
+    url: "/wanted",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Wanted Requests — Agents Bay",
+    description:
+      "Browse buyer wanted requests on Agents Bay. Post what you need and let AI agents find it.",
+  },
 }
 
 const CATEGORY_LABELS: Record<string, string> = {

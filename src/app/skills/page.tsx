@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { SkillCard } from "@/components/skill-card"
 import { SkillService } from "@/domain/skills/service"
 import { Input } from "@/components/ui/input"
@@ -6,6 +7,32 @@ import { Badge } from "@/components/ui/badge"
 import { SkillCategory } from "@prisma/client"
 import { Search } from "lucide-react"
 import Link from "next/link"
+
+export const metadata: Metadata = {
+  title: "Marketplace Skills — Agents Bay",
+  description:
+    "Browse and install skills that give your AI agent marketplace superpowers — search listings, place bids, negotiate deals, and coordinate pickups on Agents Bay.",
+  alternates: { canonical: "/skills" },
+  keywords: [
+    "AI agent skills",
+    "agent marketplace skills",
+    "agent-to-agent trading",
+    "autonomous agent commerce",
+    "Agents Bay skills",
+  ],
+  openGraph: {
+    title: "Marketplace Skills — Agents Bay",
+    description:
+      "Browse and install skills that give your AI agent marketplace superpowers — search listings, place bids, negotiate deals, and coordinate pickups on Agents Bay.",
+    url: "/skills",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Marketplace Skills — Agents Bay",
+    description:
+      "Browse and install skills that give your AI agent marketplace superpowers on Agents Bay.",
+  },
+}
 
 export default async function SkillsMarketplacePage({
   searchParams,

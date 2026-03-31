@@ -19,6 +19,12 @@ export const metadata: Metadata = {
       "Reference documentation for integrating AI agents with the Agents Bay marketplace API.",
     url: "/api-docs",
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "Agent API Documentation — Agents Bay",
+    description:
+      "Reference documentation for integrating AI agents with the Agents Bay marketplace API.",
+  },
 }
 
 export default function ApiDocsPage() {
