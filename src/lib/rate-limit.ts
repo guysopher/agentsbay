@@ -1,7 +1,7 @@
 // Simple in-memory rate limiter (for Phase 5, replace with Redis)
 import { RateLimitError } from "./errors"
 
-interface RateLimitConfig {
+export interface RateLimitConfig {
   maxRequests: number
   windowMs: number
 }
@@ -11,61 +11,151 @@ interface RateLimitEntry {
   resetAt: number
 }
 
+export interface RateLimitStatus {
+  allowed: boolean
+  limit: number
+  remaining: number
+  resetAt: number
+  retryAfter?: number
+}
+
+// Default for all agent routes not matched by a specific rule below
+export const DEFAULT_AGENT_RATE_LIMIT: RateLimitConfig = { maxRequests: 60, windowMs: 60_000 }
+
+/**
+ * Resolve the rate limit config for a given method + pathname.
+ * Returns null when no limit applies (e.g., non-agent routes or test env).
+ */
+export function resolveRouteConfig(
+  method: string,
+  pathname: string
+): RateLimitConfig | null {
+  // Disable rate limiting in test environment
+  if (process.env.NODE_ENV === "test") return null
+
+  // Only rate limit API routes
+  if (!pathname.startsWith("/api/")) return null
+
+  // Walk rules in order — first match wins (more specific rules come first)
+  // Special-case: POST /api/agent/listings/search vs POST /api/agent/listings
+  // and POST /api/agent/listings/:id/bids vs POST /api/agent/listings
+  // The ROUTE_RATE_LIMITS array is ordered from most-specific to least-specific.
+  // But because both POST listings rules share prefix we need explicit path logic:
+
+  if (pathname === "/api/agent/listings/search" && method === "GET") {
+    return { maxRequests: 30, windowMs: 60_000 }
+  }
+
+  if (pathname.includes("/bids") && method === "POST") {
+    return { maxRequests: 20, windowMs: 60_000 }
+  }
+
+  if (pathname === "/api/agent/listings" && method === "POST") {
+    return { maxRequests: 10, windowMs: 60_000 }
+  }
+
+  if (pathname.startsWith("/api/auth/")) {
+    return { maxRequests: 5, windowMs: 60_000 }
+  }
+
+  // Agent registration: strict 5/hour to prevent account creation abuse
+  if (pathname === "/api/agent/register") {
+    return { maxRequests: 5, windowMs: 60 * 60 * 1000 }
+  }
+
+  // All other agent routes
+  if (pathname.startsWith("/api/agent/") || pathname.startsWith("/api/agents/")) {
+    return DEFAULT_AGENT_RATE_LIMIT
+  }
+
+  return null
+}
+
 class RateLimiter {
   private store = new Map<string, RateLimitEntry>()
+  private cleanupTimer: ReturnType<typeof setInterval> | null = null
+
+  constructor() {
+    // Start periodic cleanup — runs every 60 seconds, removes expired entries
+    if (typeof setInterval !== "undefined") {
+      this.cleanupTimer = setInterval(() => {
+        const now = Date.now()
+        for (const [key, entry] of this.store.entries()) {
+          if (now > entry.resetAt) {
+            this.store.delete(key)
+          }
+        }
+      }, 60_000)
+
+      // Allow Node.js to exit even if timer is active
+      if (this.cleanupTimer?.unref) {
+        this.cleanupTimer.unref()
+      }
+    }
+  }
 
   /**
-   * Check if a request should be rate limited
-   * @param key - Unique identifier (e.g., userId, IP address)
-   * @param config - Rate limit configuration
-   * @returns true if request is allowed, throws RateLimitError if not
+   * Check and increment the counter for a key.
+   * Returns the rate limit status without throwing.
    */
-  async check(key: string, config: RateLimitConfig): Promise<boolean> {
+  checkSafe(key: string, config: RateLimitConfig): RateLimitStatus {
     const now = Date.now()
     const entry = this.store.get(key)
 
-    // Clean up expired entries periodically
-    this.cleanup(now)
-
-    // No existing entry, create new one
-    if (!entry) {
-      this.store.set(key, {
-        count: 1,
+    if (!entry || now > entry.resetAt) {
+      this.store.set(key, { count: 1, resetAt: now + config.windowMs })
+      return {
+        allowed: true,
+        limit: config.maxRequests,
+        remaining: config.maxRequests - 1,
         resetAt: now + config.windowMs,
-      })
-      return true
+      }
     }
 
-    // Reset window has passed, create new entry
-    if (now > entry.resetAt) {
-      this.store.set(key, {
-        count: 1,
-        resetAt: now + config.windowMs,
-      })
-      return true
-    }
-
-    // Within window, check limit
     if (entry.count >= config.maxRequests) {
       const retryAfter = Math.ceil((entry.resetAt - now) / 1000)
+      return {
+        allowed: false,
+        limit: config.maxRequests,
+        remaining: 0,
+        resetAt: entry.resetAt,
+        retryAfter,
+      }
+    }
+
+    entry.count++
+    return {
+      allowed: true,
+      limit: config.maxRequests,
+      remaining: config.maxRequests - entry.count,
+      resetAt: entry.resetAt,
+    }
+  }
+
+  /**
+   * Check if a request should be rate limited.
+   * Throws RateLimitError when the limit is exceeded.
+   */
+  async check(key: string, config: RateLimitConfig): Promise<boolean> {
+    const status = this.checkSafe(key, config)
+
+    if (!status.allowed) {
       throw new RateLimitError(
-        `Rate limit exceeded. Try again in ${retryAfter} seconds.`,
+        `Rate limit exceeded. Try again in ${status.retryAfter} seconds.`,
         {
-          limit: config.maxRequests,
+          limit: status.limit,
           remaining: 0,
-          resetAt: new Date(entry.resetAt).toISOString(),
-          retryAfter,
+          resetAt: new Date(status.resetAt).toISOString(),
+          retryAfter: status.retryAfter,
         }
       )
     }
 
-    // Increment count
-    entry.count++
     return true
   }
 
   /**
-   * Get current rate limit status for a key
+   * Get current rate limit status for a key without consuming a slot.
    */
   getStatus(key: string, config: RateLimitConfig) {
     const now = Date.now()
@@ -85,31 +175,27 @@ class RateLimiter {
   }
 
   /**
-   * Clean up expired entries
-   */
-  private cleanup(now: number) {
-    // Only clean up occasionally to avoid performance impact
-    if (Math.random() > 0.1) return
-
-    for (const [key, entry] of this.store.entries()) {
-      if (now > entry.resetAt) {
-        this.store.delete(key)
-      }
-    }
-  }
-
-  /**
-   * Reset rate limit for a key (useful for testing)
+   * Reset rate limit for a key (useful for testing).
    */
   reset(key: string) {
     this.store.delete(key)
   }
 
   /**
-   * Clear all rate limits (useful for testing)
+   * Clear all rate limits (useful for testing).
    */
   clear() {
     this.store.clear()
+  }
+
+  /**
+   * Stop the background cleanup timer (useful for testing).
+   */
+  destroy() {
+    if (this.cleanupTimer !== null) {
+      clearInterval(this.cleanupTimer)
+      this.cleanupTimer = null
+    }
   }
 }
 

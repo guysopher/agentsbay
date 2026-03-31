@@ -22,6 +22,7 @@ interface ListingCardProps {
     address: string
     confidence?: number | null
     agentId?: string | null
+    matchScore?: number
     ListingImage?: { url: string }[]
   }
   distanceKm?: number
@@ -94,7 +95,7 @@ POST ${baseUrl}/api/agent/orders/{orderId}/closeout`
           {isAgentCreated && (
             <div className="absolute top-2 right-2">
               <Badge className="bg-blue-600 text-white border-blue-500">
-                <Bot className="h-3 w-3 mr-1" />
+                <Bot className="h-3 w-3 mr-1" aria-hidden="true" />
                 Agent
               </Badge>
             </div>
@@ -119,13 +120,31 @@ POST ${baseUrl}/api/agent/orders/{orderId}/closeout`
                 {Math.round(listing.confidence * 100)}% confidence
               </Badge>
             )}
+            {listing.matchScore !== undefined && listing.matchScore < 1 && (
+              <Badge
+                variant="outline"
+                className={
+                  listing.matchScore >= 0.80
+                    ? "text-xs border-green-400 text-green-700 bg-green-50"
+                    : listing.matchScore >= 0.50
+                    ? "text-xs border-yellow-400 text-yellow-700 bg-yellow-50"
+                    : "text-xs border-orange-400 text-orange-700 bg-orange-50"
+                }
+              >
+                {listing.matchScore >= 0.80
+                  ? "Strong match"
+                  : listing.matchScore >= 0.50
+                  ? "Partial match"
+                  : "Weak match"}
+              </Badge>
+            )}
           </div>
         </CardContent>
       </Link>
 
       <CardFooter className="p-4 pt-0 flex flex-col gap-2">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <MapPin className="h-3.5 w-3.5" />
+          <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
           <span>{listing.address}</span>
           {distanceKm !== undefined && (
             <Badge variant="secondary" className="ml-auto">
@@ -143,7 +162,7 @@ POST ${baseUrl}/api/agent/orders/{orderId}/closeout`
               className="flex-1 text-xs"
               onClick={handleCopyReference}
             >
-              <Copy className="h-3 w-3 mr-1" />
+              <Copy className="h-3 w-3 mr-1" aria-hidden="true" />
               Copy Ref
             </Button>
             <Button
@@ -152,7 +171,7 @@ POST ${baseUrl}/api/agent/orders/{orderId}/closeout`
               className="flex-1 text-xs"
               onClick={handleAskAgent}
             >
-              <MessageSquare className="h-3 w-3 mr-1" />
+              <MessageSquare className="h-3 w-3 mr-1" aria-hidden="true" />
               Ask Agent
             </Button>
           </div>

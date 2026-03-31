@@ -1,23 +1,18 @@
 import { createApiHandler, successResponse, errorResponse } from "@/lib/api-handler"
-import { verifyApiKey, extractBearerToken } from "@/lib/agent-auth"
+import { authenticateAgentRequest } from "@/lib/agent-auth"
 import { ListingService } from "@/domain/listings/service"
 import { calculateDistance } from "@/lib/geo"
+import { updateListingSchema } from "@/domain/listings/validation"
+import { ValidationError, NotFoundError } from "@/lib/errors"
 
-export const { GET } = createApiHandler({
+export const { GET, PATCH, DELETE } = createApiHandler({
   GET: async (req, context) => {
     try {
-      // Authenticate agent
-      const authHeader = req.headers.get("Authorization")
-      const apiKey = extractBearerToken(authHeader)
-
-      if (!apiKey) {
-        return errorResponse("Missing or invalid Authorization header", 401)
+      const authResult = await authenticateAgentRequest(req)
+      if (authResult.response) {
+        return authResult.response
       }
-
-      const auth = await verifyApiKey(apiKey)
-      if (!auth) {
-        return errorResponse("Invalid API key", 401)
-      }
+      const { auth } = authResult
 
       // Get listing ID from params
       const params = await context.params
@@ -78,12 +73,96 @@ export const { GET } = createApiHandler({
     } catch (error: unknown) {
       console.error("Agent get listing error:", error)
 
-      if (error instanceof Error && error.message.includes("not found")) {
-        return errorResponse("Listing not found", 404)
+      if (error instanceof NotFoundError) {
+        return errorResponse(error.message, 404)
       }
 
       return errorResponse(
         error instanceof Error ? error.message : "Failed to fetch listing",
+        500
+      )
+    }
+  },
+
+  PATCH: async (req, context) => {
+    try {
+      const authResult = await authenticateAgentRequest(req)
+      if (authResult.response) {
+        return authResult.response
+      }
+      const { auth } = authResult
+
+      const params = await context.params
+      const listingId = params.id
+
+      const body = await req.json()
+      const parsed = updateListingSchema.safeParse(body)
+      if (!parsed.success) {
+        return errorResponse(parsed.error.errors[0]?.message ?? "Invalid request body", 400)
+      }
+
+      const listing = await ListingService.update(listingId, auth.userId, parsed.data)
+
+      return successResponse({
+        id: listing.id,
+        title: listing.title,
+        description: listing.description,
+        price: listing.price,
+        priceMax: listing.priceMax,
+        priceFormatted: listing.priceFormatted,
+        currency: listing.currency,
+        category: listing.category,
+        condition: listing.condition,
+        status: listing.status,
+        updatedAt: listing.updatedAt,
+      })
+    } catch (error: unknown) {
+      console.error("Agent patch listing error:", error)
+
+      if (error instanceof NotFoundError) {
+        return errorResponse(error.message, 404)
+      }
+      if (error instanceof ValidationError) {
+        return errorResponse(error.message, 400)
+      }
+
+      return errorResponse(
+        error instanceof Error ? error.message : "Failed to update listing",
+        500
+      )
+    }
+  },
+
+  DELETE: async (req, context) => {
+    try {
+      const authResult = await authenticateAgentRequest(req)
+      if (authResult.response) {
+        return authResult.response
+      }
+      const { auth } = authResult
+
+      const params = await context.params
+      const listingId = params.id
+
+      const listing = await ListingService.delete(listingId, auth.userId)
+
+      return successResponse({
+        id: listing.id,
+        status: listing.status,
+        deletedAt: listing.deletedAt,
+      })
+    } catch (error: unknown) {
+      console.error("Agent delete listing error:", error)
+
+      if (error instanceof NotFoundError) {
+        return errorResponse(error.message, 404)
+      }
+      if (error instanceof ValidationError) {
+        return errorResponse(error.message, 400)
+      }
+
+      return errorResponse(
+        error instanceof Error ? error.message : "Failed to delete listing",
         500
       )
     }

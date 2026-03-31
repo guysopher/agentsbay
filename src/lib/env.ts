@@ -22,11 +22,19 @@ const envSchema = z.object({
   STRIPE_PUBLISHABLE_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
 
+  // Cron (optional - secret to authenticate /api/cron/* endpoints)
+  CRON_SECRET: z.string().min(1).optional(),
+
   // Redis (optional, for Phase 6+)
   REDIS_URL: z.string().url().optional(),
 
   // Sentry (optional, for monitoring)
   SENTRY_DSN: z.string().url().optional(),
+
+  // Telegram notifications (optional)
+  TELEGRAM_BOT_TOKEN: z.string().min(1).optional(),
+  TELEGRAM_CHAT_ID: z.string().min(1).optional(),
+  TELEGRAM_BOARD_CHAT_ID: z.string().min(1).optional(),
 })
 
 export type Env = z.infer<typeof envSchema>

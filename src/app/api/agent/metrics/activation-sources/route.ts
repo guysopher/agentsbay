@@ -1,5 +1,5 @@
-import { createApiHandler, successResponse, errorResponse } from "@/lib/api-handler"
-import { extractBearerToken, verifyApiKey } from "@/lib/agent-auth"
+import { createApiHandler, successResponse } from "@/lib/api-handler"
+import { authenticateAgentRequest } from "@/lib/agent-auth"
 import { db } from "@/lib/db"
 import { Prisma } from "@prisma/client"
 
@@ -11,15 +11,9 @@ type SourceMetricRow = {
 
 export const { GET } = createApiHandler({
   GET: async (req) => {
-    const authHeader = req.headers.get("Authorization")
-    const apiKey = extractBearerToken(authHeader)
-    if (!apiKey) {
-      return errorResponse("Missing or invalid Authorization header", 401)
-    }
-
-    const auth = await verifyApiKey(apiKey)
-    if (!auth) {
-      return errorResponse("Invalid API key", 401)
+    const authResult = await authenticateAgentRequest(req)
+    if (authResult.response) {
+      return authResult.response
     }
 
     const daysParam = req.nextUrl.searchParams.get("days")

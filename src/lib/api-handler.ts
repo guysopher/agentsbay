@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { ZodError } from "zod"
 import { AppError, RateLimitError, formatErrorResponse, logError } from "./errors"
 import { logger } from "./logger"
+import { requestMetrics } from "./request-metrics"
 
 type HTTPMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
 
@@ -65,6 +66,17 @@ export function createApiHandler(handlers: RouteHandlers) {
             duration,
           })
 
+          requestMetrics.record(method, request.nextUrl.pathname, response.status, duration)
+
+          if (duration > 1000) {
+            logger.warn(`Slow request: ${method} ${request.nextUrl.pathname} took ${duration}ms`, {
+              requestId,
+              method,
+              path: request.nextUrl.pathname,
+              duration,
+            })
+          }
+
           // Add standard headers
           response.headers.set("X-Request-ID", requestId)
           response.headers.set("X-Response-Time", `${duration}ms`)
@@ -87,6 +99,8 @@ export function createApiHandler(handlers: RouteHandlers) {
               errors: formattedErrors,
               duration,
             })
+
+            requestMetrics.record(method, request.nextUrl.pathname, 400, duration)
 
             return NextResponse.json(
               {
@@ -118,6 +132,9 @@ export function createApiHandler(handlers: RouteHandlers) {
 
             // Add rate limit headers if details are available
             if (error.details) {
+              if (error.details.limit !== undefined) {
+                headers["X-RateLimit-Limit"] = String(error.details.limit)
+              }
               if (error.details.remaining !== undefined) {
                 headers["X-RateLimit-Remaining"] = String(error.details.remaining)
               }
@@ -128,6 +145,8 @@ export function createApiHandler(handlers: RouteHandlers) {
                 headers["Retry-After"] = String(error.details.retryAfter)
               }
             }
+
+            requestMetrics.record(method, request.nextUrl.pathname, error.statusCode, duration)
 
             return NextResponse.json(formatErrorResponse(error), {
               status: error.statusCode,
@@ -146,6 +165,8 @@ export function createApiHandler(handlers: RouteHandlers) {
               duration,
             })
 
+            requestMetrics.record(method, request.nextUrl.pathname, error.statusCode, duration)
+
             return NextResponse.json(formatErrorResponse(error), {
               status: error.statusCode,
               headers: {
@@ -162,6 +183,8 @@ export function createApiHandler(handlers: RouteHandlers) {
             path: request.nextUrl.pathname,
             duration,
           })
+
+          requestMetrics.record(method, request.nextUrl.pathname, 500, duration)
 
           return NextResponse.json(
             {
@@ -267,6 +290,8 @@ function getErrorCode(status: number): string {
       return "NOT_FOUND"
     case 429:
       return "RATE_LIMIT_EXCEEDED"
+    case 503:
+      return "SERVICE_UNAVAILABLE"
     case 500:
       return "INTERNAL_ERROR"
     default:

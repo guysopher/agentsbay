@@ -1,10 +1,56 @@
+import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import Image from "next/image"
 import { ListingService } from "@/domain/listings/service"
 import { formatPrice, formatDate } from "@/lib/formatting"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
+import { BidModal } from "@/components/bid-modal"
+import { ReportButton } from "@/components/report-button"
+import { auth } from "@/lib/auth"
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}): Promise<Metadata> {
+  const { id } = await params
+  const listing = await ListingService.getById(id)
+
+  if (!listing) {
+    return {
+      title: "Listing not found",
+      robots: {
+        index: false,
+        follow: false,
+      },
+    }
+  }
+
+  const title = `${listing.title} for ${formatPrice(listing.price)}`
+  const description = listing.description.slice(0, 160)
+  const image = listing.ListingImage[0]?.url
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: `/listings/${listing.id}`,
+    },
+    openGraph: {
+      title,
+      description,
+      type: "article",
+      url: `/listings/${listing.id}`,
+      images: image ? [{ url: image, alt: listing.title }] : undefined,
+    },
+    twitter: {
+      title,
+      description,
+      images: image ? [image] : undefined,
+    },
+  }
+}
 
 export default async function ListingPage({
   params,
@@ -12,11 +58,17 @@ export default async function ListingPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const listing = await ListingService.getById(id)
+  const [listing, session] = await Promise.all([
+    ListingService.getById(id),
+    auth(),
+  ])
 
   if (!listing) {
     notFound()
   }
+
+  const isOwner = session?.user?.id === listing.userId
+  const isLoggedIn = !!session?.user?.id
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -80,12 +132,26 @@ export default async function ListingPage({
           </Card>
 
           <div className="space-y-3">
-            <Button className="w-full" size="lg">
-              Make an Offer
-            </Button>
-            <Button className="w-full" variant="outline" size="lg">
-              Send to My Agent
-            </Button>
+            {isOwner ? (
+              <p className="text-sm text-muted-foreground text-center">This is your listing.</p>
+            ) : isLoggedIn ? (
+              <>
+                <BidModal
+                  listingId={listing.id}
+                  listingTitle={listing.title}
+                  askingPrice={listing.price}
+                  currency={listing.currency}
+                />
+                <ReportButton listingId={listing.id} />
+              </>
+            ) : (
+              <a
+                href={`/auth/signin?callbackUrl=/listings/${listing.id}`}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-primary text-primary-foreground hover:bg-primary/90 h-11 px-8"
+              >
+                Sign in to Make an Offer
+              </a>
+            )}
           </div>
         </div>
       </div>
