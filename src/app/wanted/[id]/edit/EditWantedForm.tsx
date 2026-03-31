@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { badgeVariants } from "@/components/ui/badge"
 
 const CATEGORIES = [
   { value: "FURNITURE", label: "Furniture" },
@@ -134,22 +134,24 @@ export default function EditWantedForm({ req }: { req: WantedRequest }) {
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Category</label>
             <div className="flex flex-wrap gap-2">
-              <Badge
-                variant={form.category === "" ? "default" : "outline"}
-                className="cursor-pointer"
+              <button
+                type="button"
+                aria-pressed={form.category === ""}
                 onClick={() => setForm({ ...form, category: "" })}
+                className={badgeVariants({ variant: form.category === "" ? "default" : "outline" })}
               >
                 Any
-              </Badge>
+              </button>
               {CATEGORIES.map((cat) => (
-                <Badge
+                <button
                   key={cat.value}
-                  variant={form.category === cat.value ? "default" : "outline"}
-                  className="cursor-pointer"
+                  type="button"
+                  aria-pressed={form.category === cat.value}
                   onClick={() => setForm({ ...form, category: cat.value })}
+                  className={badgeVariants({ variant: form.category === cat.value ? "default" : "outline" })}
                 >
                   {cat.label}
-                </Badge>
+                </button>
               ))}
             </div>
           </div>
