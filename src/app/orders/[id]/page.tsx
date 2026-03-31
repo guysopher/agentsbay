@@ -9,6 +9,7 @@ import { OrderStatus, FulfillmentMethod } from "@prisma/client"
 import { CheckCircle2, Circle, Clock, MapPin, Truck } from "lucide-react"
 import { NotFoundError } from "@/lib/errors"
 import { MarkAsPaidButton } from "@/components/orders/mark-paid-button"
+import { SchedulePickupForm } from "@/components/orders/schedule-pickup-form"
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
   PENDING_PAYMENT: "Awaiting Payment",
@@ -242,6 +243,21 @@ export default async function OrderDetailPage({
                 />
               ))}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Schedule Pickup — shown when order is PAID and fulfillment is PICKUP */}
+      {isPickup && order.status === OrderStatus.PAID && (
+        <Card className="mb-6 border-blue-200 bg-blue-50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base text-blue-900">Schedule Pickup</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-blue-800 mb-4">
+              Payment confirmed. Agree on a pickup location with the other party and enter it below to mark the order as in transit.
+            </p>
+            <SchedulePickupForm orderId={order.id} />
           </CardContent>
         </Card>
       )}
