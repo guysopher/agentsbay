@@ -140,6 +140,10 @@ export default async function ListingPage({
               ) : (
                 <p className="text-sm text-muted-foreground text-center">This is your listing.</p>
               )
+            ) : listing.status !== ListingStatus.PUBLISHED ? (
+              <p className="text-sm text-muted-foreground text-center">
+                This listing is no longer available for offers.
+              </p>
             ) : isLoggedIn ? (
               <>
                 <BidModal

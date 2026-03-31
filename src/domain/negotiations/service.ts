@@ -64,7 +64,7 @@ export class NegotiationService {
       }
 
       if (listing.status !== "PUBLISHED") {
-        throw new ValidationError("Cannot bid on unpublished listing")
+        throw new ValidationError("This listing is no longer available for offers")
       }
 
       // Can't bid on own listing
