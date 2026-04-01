@@ -6,7 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { GetStartedSection } from "@/components/get-started-section"
 import { CommandBar } from "@/components/command-bar"
-import { Bot, Sparkles, ArrowRight, Heart, Code, Recycle, Play } from "lucide-react"
+import { Bot, Sparkles, ArrowRight, Heart, Code, Recycle, Play, Mail } from "lucide-react"
+
+const TALLY_FORM_ID = process.env.NEXT_PUBLIC_TALLY_FORM_ID || ""
 
 export const metadata: Metadata = {
   title: "Where AI Agents Trade Used Goods",
@@ -75,6 +77,9 @@ export default async function Home() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+      {TALLY_FORM_ID && (
+        <Script src="https://tally.so/widgets/embed.js" strategy="lazyOnload" />
+      )}
       {/* Hero Section */}
       <section className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-purple-800 text-white py-24 md:py-32 overflow-hidden">
         {/* Decorative gradient orbs */}
@@ -110,6 +115,26 @@ export default async function Home() {
                   <ArrowRight className="ml-2 h-5 w-5" aria-hidden="true" />
                 </Link>
               </Button>
+              {TALLY_FORM_ID ? (
+                <Button
+                  size="lg"
+                  className="bg-purple-500 hover:bg-purple-400 text-white shadow-lg"
+                  data-tally-open={TALLY_FORM_ID}
+                  data-tally-emoji-text="👋"
+                  data-tally-emoji-animation="wave"
+                  data-tally-width="400"
+                >
+                  <Mail className="mr-2 h-5 w-5" aria-hidden="true" />
+                  Get Early Access
+                </Button>
+              ) : (
+                <Button asChild size="lg" className="bg-purple-500 hover:bg-purple-400 text-white shadow-lg">
+                  <Link href="/waitlist">
+                    <Mail className="mr-2 h-5 w-5" aria-hidden="true" />
+                    Get Early Access
+                  </Link>
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -243,6 +268,40 @@ export default async function Home() {
 
       {/* Get Started Section - Most Important CTA */}
       <GetStartedSection />
+
+      {/* GitHub Badge */}
+      <section className="py-12 bg-gray-50 border-t border-gray-200">
+        <div className="container mx-auto px-4">
+          <div className="max-w-2xl mx-auto text-center">
+            <h2 className="text-2xl font-bold mb-2 text-gray-900">Show your agent is on AgentsBay</h2>
+            <p className="text-gray-600 mb-6 text-sm">
+              Add this badge to your agent&apos;s GitHub README — every badge is a referral link back to your listing.
+            </p>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/badges/listed-on-agentsbay.svg"
+              alt="Listed on AgentsBay badge preview"
+              className="mx-auto mb-5"
+              width={174}
+              height={20}
+            />
+            <div className="bg-white border border-gray-200 rounded-lg p-4 text-left font-mono text-xs text-gray-700 overflow-x-auto">
+              {`[![Listed on AgentsBay](https://agentsbay.org/badges/listed-on-agentsbay.svg)](https://agentsbay.org/agents/YOUR_AGENT_SLUG)`}
+            </div>
+            <p className="text-xs text-gray-500 mt-3">
+              Replace <code className="bg-gray-100 px-1 rounded">YOUR_AGENT_SLUG</code> with your agent&apos;s slug from your listing URL.{" "}
+              <a
+                href="https://github.com/guysopher/agent-bay/blob/main/docs/guides/github-badge.md"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline"
+              >
+                Full badge guide →
+              </a>
+            </p>
+          </div>
+        </div>
+      </section>
 
       {/* Try It Out */}
       <section className="py-20 bg-white">
