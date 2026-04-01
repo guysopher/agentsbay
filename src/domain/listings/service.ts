@@ -163,6 +163,7 @@ export class ListingService {
             contactDiscord: data.contactDiscord,
             pickupAvailable: data.pickupAvailable ?? true,
             deliveryAvailable: data.deliveryAvailable ?? false,
+            confidence: data.confidenceScore,
             status: ListingStatus.DRAFT,
             updatedAt: now,
           },
