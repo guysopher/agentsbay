@@ -9,6 +9,7 @@ import { OrderStatus, FulfillmentMethod } from "@prisma/client"
 import { CheckCircle2, Circle, Clock, MapPin, Truck } from "lucide-react"
 import { NotFoundError } from "@/lib/errors"
 import { MarkAsPaidButton } from "@/components/orders/mark-paid-button"
+import { StripePayButton } from "@/components/orders/stripe-pay-button"
 import { SchedulePickupForm } from "@/components/orders/schedule-pickup-form"
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
@@ -184,28 +185,45 @@ export default async function OrderDetailPage({
             <CardTitle className="text-base">How payment works</CardTitle>
           </CardHeader>
           <CardContent>
-            <ol className="space-y-2 text-sm text-muted-foreground list-none">
-              <li className="flex gap-3">
-                <span className="shrink-0 font-semibold text-foreground">1.</span>
-                <span>Agree on a payment method with the seller via messages (e.g. PayPal, bank transfer, cash)</span>
-              </li>
-              <li className="flex gap-3">
-                <span className="shrink-0 font-semibold text-foreground">2.</span>
-                <span>Complete the payment outside of AgentsBay</span>
-              </li>
-              <li className="flex gap-3">
-                <span className="shrink-0 font-semibold text-foreground">3.</span>
-                <span>Buyer marks the order as paid once payment is sent</span>
-              </li>
-              <li className="flex gap-3">
-                <span className="shrink-0 font-semibold text-foreground">4.</span>
-                <span>Seller confirms receipt and marks as paid on their end</span>
-              </li>
-              <li className="flex gap-3">
-                <span className="shrink-0 font-semibold text-foreground">5.</span>
-                <span>Order is marked complete</span>
-              </li>
-            </ol>
+            {process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ? (
+              <ol className="space-y-2 text-sm text-muted-foreground list-none">
+                <li className="flex gap-3">
+                  <span className="shrink-0 font-semibold text-foreground">1.</span>
+                  <span>Buyer clicks <strong>Pay Now</strong> and completes payment via Stripe</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="shrink-0 font-semibold text-foreground">2.</span>
+                  <span>Order is automatically marked as paid once payment clears</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="shrink-0 font-semibold text-foreground">3.</span>
+                  <span>Seller schedules pickup or arranges delivery</span>
+                </li>
+              </ol>
+            ) : (
+              <ol className="space-y-2 text-sm text-muted-foreground list-none">
+                <li className="flex gap-3">
+                  <span className="shrink-0 font-semibold text-foreground">1.</span>
+                  <span>Agree on a payment method with the seller via messages (e.g. PayPal, bank transfer, cash)</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="shrink-0 font-semibold text-foreground">2.</span>
+                  <span>Complete the payment outside of AgentsBay</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="shrink-0 font-semibold text-foreground">3.</span>
+                  <span>Buyer marks the order as paid once payment is sent</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="shrink-0 font-semibold text-foreground">4.</span>
+                  <span>Seller confirms receipt and marks as paid on their end</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="shrink-0 font-semibold text-foreground">5.</span>
+                  <span>Order is marked complete</span>
+                </li>
+              </ol>
+            )}
           </CardContent>
         </Card>
       )}
@@ -217,11 +235,22 @@ export default async function OrderDetailPage({
             <CardTitle className="text-base text-amber-900">Payment Pending</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm text-amber-800">
-              Payment is arranged directly with the seller. Once payment is confirmed between you,
-              click <strong>Mark as Paid</strong> to proceed with scheduling pickup.
-            </p>
-            <MarkAsPaidButton orderId={order.id} />
+            {process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ? (
+              <>
+                <p className="text-sm text-amber-800">
+                  Pay securely via Stripe. You&apos;ll be redirected to complete the payment.
+                </p>
+                <StripePayButton orderId={order.id} />
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-amber-800">
+                  Payment is arranged directly with the seller. Once payment is confirmed between you,
+                  click <strong>Mark as Paid</strong> to proceed with scheduling pickup.
+                </p>
+                <MarkAsPaidButton orderId={order.id} />
+              </>
+            )}
           </CardContent>
         </Card>
       )}
