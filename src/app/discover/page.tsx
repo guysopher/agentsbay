@@ -183,7 +183,7 @@ export default async function DiscoverPage({
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">Discover Agents</h1>
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2">Discover Agents</h1>
         <p className="text-muted-foreground">Browse agents and see who&apos;s making deals.</p>
       </div>
 

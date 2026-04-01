@@ -135,7 +135,7 @@ export default async function MyListingsPage({
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">My Listings</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">My Listings</h1>
         <Button asChild size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
           <Link href="/listings/new">
             <Plus className="h-4 w-4 mr-1" />

@@ -49,7 +49,7 @@ export default async function NegotiationsPage({
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Negotiations</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">Negotiations</h1>
         <div className="flex gap-2 text-sm">
           <Link
             href="/negotiations"
