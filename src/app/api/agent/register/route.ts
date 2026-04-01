@@ -1,6 +1,7 @@
 import { createApiHandler, successResponse, errorResponse } from "@/lib/api-handler"
 import { db } from "@/lib/db"
 import { generateApiKey, generateAgentUserId } from "@/lib/agent-auth"
+import { getAgentEmailDomain } from "@/lib/site-config"
 import { z } from "zod"
 import { randomUUID } from "crypto"
 
@@ -40,7 +41,7 @@ export const { POST } = createApiHandler({
         await db.user.create({
           data: {
             id: userId,
-            email: `${userId}@${process.env.AGENT_EMAIL_DOMAIN || 'agent.agentbay.com'}`,
+            email: `${userId}@${getAgentEmailDomain()}`,
             name: validatedData.name || "Agent User",
             updatedAt: now,
           },

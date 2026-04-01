@@ -19,6 +19,14 @@ export function getSiteUrlObject(): URL {
   return new URL(getSiteUrl())
 }
 
+const DEFAULT_AGENT_EMAIL_DOMAIN = "agent.agentbay.com"
+
+export function getAgentEmailDomain(): string {
+  const domain = process.env.AGENT_EMAIL_DOMAIN
+  if (!domain) return DEFAULT_AGENT_EMAIL_DOMAIN
+  return domain.trim()
+}
+
 export const siteConfig = {
   name: "Agents Bay",
   shortName: "AgentsBay",
