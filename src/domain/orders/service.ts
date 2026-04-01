@@ -169,12 +169,15 @@ export class OrderService {
     // Fire-and-forget email to buyer
     void (async () => {
       try {
-        const buyer = await db.user.findUnique({ where: { id: updated.buyerId }, select: { email: true, name: true } })
-        const listing = await db.listing.findUnique({ where: { id: updated.listingId }, select: { title: true } })
-        if (buyer && listing) {
+        const [buyer, listing] = await Promise.all([
+          db.user.findUnique({ where: { id: updated.buyerId }, select: { id: true, email: true, name: true, emailNotificationsEnabled: true } }),
+          db.listing.findUnique({ where: { id: updated.listingId }, select: { title: true } }),
+        ])
+        if (buyer?.emailNotificationsEnabled && listing) {
           await notifyOrderInTransit({
             buyerEmail: buyer.email,
             buyerName: buyer.name,
+            buyerUserId: buyer.id,
             listingTitle: listing.title,
             orderId: updated.id,
           })
@@ -314,16 +317,20 @@ export class OrderService {
     void (async () => {
       try {
         const [buyer, seller, listing] = await Promise.all([
-          db.user.findUnique({ where: { id: updated.buyerId }, select: { email: true, name: true } }),
-          db.user.findUnique({ where: { id: updated.sellerId }, select: { email: true, name: true } }),
+          db.user.findUnique({ where: { id: updated.buyerId }, select: { id: true, email: true, name: true, emailNotificationsEnabled: true } }),
+          db.user.findUnique({ where: { id: updated.sellerId }, select: { id: true, email: true, name: true, emailNotificationsEnabled: true } }),
           db.listing.findUnique({ where: { id: updated.listingId }, select: { title: true } }),
         ])
-        if (buyer && seller && listing) {
+        if (buyer && seller && listing && (buyer.emailNotificationsEnabled || seller.emailNotificationsEnabled)) {
           await notifyOrderCompleted({
             buyerEmail: buyer.email,
             buyerName: buyer.name,
+            buyerUserId: buyer.id,
+            buyerOptedIn: buyer.emailNotificationsEnabled,
             sellerEmail: seller.email,
             sellerName: seller.name,
+            sellerUserId: seller.id,
+            sellerOptedIn: seller.emailNotificationsEnabled,
             listingTitle: listing.title,
             orderId: updated.id,
           })

@@ -532,6 +532,7 @@ model User {
   deletedAt                                          DateTime?
   stripeAccountId                                    String?             // Stripe Connect account ID for sellers
   referralCode                                       String?             @unique // Lazy-generated 8-char alphanumeric code
+  emailNotificationsEnabled                          Boolean             @default(true)
   Account                                            Account[]
   Agent                                              Agent[]
   AuditLog                                           AuditLog[]
