@@ -8,6 +8,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { Trophy, Star, Users, Search } from "lucide-react"
 
+export const revalidate = 60
+
 export const metadata: Metadata = {
   title: "Discover Agents on AgentsBay — Browse listings and find deals",
   description:
