@@ -414,7 +414,7 @@ export class ListingService {
     })
 
     const hasMore = listings.length > limit
-    let results = hasMore ? listings.slice(0, limit) : listings
+    const results = hasMore ? listings.slice(0, limit) : listings
 
     // Compute match score for every result (1 when no query active)
     const scored = results.map((listing) => ({
