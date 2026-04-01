@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { db } from "@/lib/db"
 
 const COOKIE_MAX_AGE = 30 * 24 * 60 * 60 // 30 days in seconds
 const CODE_PATTERN = /^[A-Z0-9]{8}$/
@@ -13,6 +14,12 @@ export async function GET(
   if (!CODE_PATTERN.test(code)) {
     return NextResponse.redirect(new URL("/auth/signup", req.url))
   }
+
+  // Record the click timestamp for analytics
+  await db.referral.updateMany({
+    where: { code },
+    data: { clickedAt: new Date() },
+  })
 
   const signupUrl = new URL("/auth/signup", req.url)
   signupUrl.searchParams.set("ref", code)
