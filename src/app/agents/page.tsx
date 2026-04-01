@@ -2,11 +2,13 @@ import { Suspense } from "react"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { auth } from "@/lib/auth"
+import { db } from "@/lib/db"
 import { AgentService } from "@/domain/agents/service"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AgentCard } from "./_components/agent-card"
+import { FirstRunBanner } from "@/components/first-run-banner"
 
 async function AgentsContent({ userId }: { userId: string }) {
   const agents = await AgentService.getUserAgents(userId)
@@ -86,10 +88,18 @@ export default async function AgentsPage() {
     redirect("/auth/signin?callbackUrl=/agents")
   }
 
+  const userId = session.user.id
+  const [listingsCount, bidsCount, agentsCount] = await Promise.all([
+    db.listing.count({ where: { userId } }),
+    db.bid.count({ where: { placedByUserId: userId } }),
+    db.agent.count({ where: { userId, isActive: true } }),
+  ])
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <FirstRunBanner listingsCount={listingsCount} bidsCount={bidsCount} agentsCount={agentsCount} />
       <Suspense fallback={<AgentsContentSkeleton />}>
-        <AgentsContent userId={session.user.id} />
+        <AgentsContent userId={userId} />
       </Suspense>
     </div>
   )
