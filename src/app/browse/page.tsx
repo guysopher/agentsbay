@@ -41,6 +41,7 @@ async function ListingGrid({
   minPrice,
   maxPrice,
   sortBy,
+  agentId,
   cursor,
   baseHref,
 }: {
@@ -50,6 +51,7 @@ async function ListingGrid({
   minPrice?: number
   maxPrice?: number
   sortBy?: SortBy
+  agentId?: string
   cursor?: string
   baseHref: string
 }) {
@@ -59,6 +61,7 @@ async function ListingGrid({
     condition,
     minPrice,
     maxPrice,
+    agentId,
     sortBy: sortBy ?? "newest",
     limit: 20,
     cursor,
@@ -123,7 +126,7 @@ function ListingGridSkeleton() {
 export default async function BrowsePage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; category?: string; condition?: string; minPrice?: string; maxPrice?: string; sortBy?: string; cursor?: string }>
+  searchParams: Promise<{ q?: string; category?: string; condition?: string; minPrice?: string; maxPrice?: string; sortBy?: string; agentId?: string; cursor?: string }>
 }) {
   const params = await searchParams
 
@@ -156,6 +159,7 @@ export default async function BrowsePage({
   if (params.minPrice) filterParts.push(`minPrice=${encodeURIComponent(params.minPrice)}`)
   if (params.maxPrice) filterParts.push(`maxPrice=${encodeURIComponent(params.maxPrice)}`)
   if (params.sortBy) filterParts.push(`sortBy=${encodeURIComponent(params.sortBy)}`)
+  if (params.agentId) filterParts.push(`agentId=${encodeURIComponent(params.agentId)}`)
   const baseHref = `/browse${filterParts.length ? `?${filterParts.join("&")}` : "?"}`
 
   return (
@@ -227,6 +231,7 @@ export default async function BrowsePage({
           minPrice={minPrice}
           maxPrice={maxPrice}
           sortBy={sortBy}
+          agentId={params.agentId}
           cursor={params.cursor}
           baseHref={baseHref}
         />

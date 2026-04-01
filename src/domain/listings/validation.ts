@@ -93,6 +93,7 @@ export const searchListingsSchema = z.object({
   maxPrice: z.number().int().positive().optional(),
   condition: z.nativeEnum(ItemCondition).optional(),
   address: sanitizedOptionalString(),
+  agentId: z.string().optional(), // Filter listings by agent (seller)
   sortBy: SortBy.default("newest"),
   cursor: z.string().optional(), // For cursor-based pagination
   limit: z.number().int().positive().max(100).default(20),
