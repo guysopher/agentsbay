@@ -38,8 +38,20 @@ export async function POST(req: NextRequest) {
         await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session)
         break
 
+      case "payment_intent.succeeded":
+        await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent)
+        break
+
       case "payment_intent.payment_failed":
         await handlePaymentIntentFailed(event.data.object as Stripe.PaymentIntent)
+        break
+
+      case "charge.dispute.created":
+        await handleChargeDisputeCreated(event.data.object as Stripe.Dispute)
+        break
+
+      case "charge.refunded":
+        await handleChargeRefunded(event.data.object as Stripe.Charge)
         break
 
       default:
@@ -132,6 +144,85 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   logger.info("Stripe checkout.session.completed: order transitioned to PAID", { orderId })
 }
 
+async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
+  const orderId = paymentIntent.metadata?.orderId
+  if (!orderId) {
+    logger.warn("Stripe payment_intent.succeeded missing orderId in metadata", {
+      paymentIntentId: paymentIntent.id,
+    })
+    return
+  }
+
+  const now = new Date()
+
+  await db.$transaction(async (tx) => {
+    const order = await tx.order.findUnique({ where: { id: orderId } })
+    if (!order) {
+      logger.warn("Stripe webhook: order not found for payment_intent.succeeded", { orderId })
+      return
+    }
+
+    if (order.status !== OrderStatus.PENDING_PAYMENT) {
+      // Already processed (idempotent)
+      logger.info("Stripe payment_intent.succeeded: order already processed", {
+        orderId,
+        status: order.status,
+      })
+      return
+    }
+
+    await tx.payment.upsert({
+      where: { orderId },
+      update: {
+        stripePaymentId: paymentIntent.id,
+        status: PaymentStatus.SUCCEEDED,
+        paidAt: now,
+        updatedAt: now,
+      },
+      create: {
+        id: randomUUID(),
+        orderId,
+        stripePaymentId: paymentIntent.id,
+        amount: order.amount,
+        status: PaymentStatus.SUCCEEDED,
+        paidAt: now,
+        updatedAt: now,
+      },
+    })
+
+    await tx.order.update({
+      where: { id: orderId },
+      data: { status: OrderStatus.PAID, updatedAt: now },
+    })
+
+    await tx.auditLog.create({
+      data: {
+        id: randomUUID(),
+        action: "order.payment_completed",
+        entityType: "order",
+        entityId: orderId,
+        metadata: { stripePaymentIntentId: paymentIntent.id },
+      },
+    })
+  })
+
+  const updated = await db.order.findUnique({ where: { id: orderId } })
+  if (updated) {
+    void eventBus.emit("order.updated", {
+      orderId: updated.id,
+      buyerId: updated.buyerId,
+      sellerId: updated.sellerId,
+      status: updated.status,
+    })
+    void eventBus.emit("payment.completed", {
+      paymentId: orderId,
+      orderId: updated.id,
+    })
+  }
+
+  logger.info("Stripe payment_intent.succeeded: order transitioned to PAID", { orderId })
+}
+
 async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
   logger.warn("Stripe payment_intent.payment_failed", {
     paymentIntentId: paymentIntent.id,
@@ -148,4 +239,114 @@ async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
       data: { status: PaymentStatus.FAILED, updatedAt: new Date() },
     })
   }
+}
+
+async function handleChargeDisputeCreated(dispute: Stripe.Dispute) {
+  logger.warn("Stripe charge.dispute.created", { disputeId: dispute.id, chargeId: dispute.charge })
+
+  // Correlate via PaymentIntent → Payment → Order
+  const paymentIntentId =
+    typeof dispute.payment_intent === "string" ? dispute.payment_intent : dispute.payment_intent?.id
+
+  if (!paymentIntentId) {
+    logger.warn("Stripe charge.dispute.created: no payment_intent on dispute", {
+      disputeId: dispute.id,
+    })
+    return
+  }
+
+  const payment = await db.payment.findFirst({ where: { stripePaymentId: paymentIntentId } })
+  if (!payment) {
+    logger.warn("Stripe charge.dispute.created: no payment record found", { paymentIntentId })
+    return
+  }
+
+  const order = await db.order.findUnique({ where: { id: payment.orderId } })
+  if (!order) return
+
+  // Idempotent: only transition if not already in a terminal dispute/refund state
+  if (order.status === OrderStatus.DISPUTED || order.status === OrderStatus.REFUNDED) {
+    logger.info("Stripe charge.dispute.created: order already in terminal state", {
+      orderId: order.id,
+      status: order.status,
+    })
+    return
+  }
+
+  await db.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id: order.id },
+      data: { status: OrderStatus.DISPUTED, updatedAt: new Date() },
+    })
+    await tx.auditLog.create({
+      data: {
+        id: randomUUID(),
+        action: "order.disputed",
+        entityType: "order",
+        entityId: order.id,
+        metadata: { disputeId: dispute.id, stripePaymentIntentId: paymentIntentId },
+      },
+    })
+  })
+
+  logger.info("Stripe charge.dispute.created: order transitioned to DISPUTED", {
+    orderId: order.id,
+    disputeId: dispute.id,
+  })
+}
+
+async function handleChargeRefunded(charge: Stripe.Charge) {
+  logger.info("Stripe charge.refunded", { chargeId: charge.id })
+
+  const paymentIntentId =
+    typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent?.id
+
+  if (!paymentIntentId) {
+    logger.warn("Stripe charge.refunded: no payment_intent on charge", { chargeId: charge.id })
+    return
+  }
+
+  const payment = await db.payment.findFirst({ where: { stripePaymentId: paymentIntentId } })
+  if (!payment) {
+    logger.warn("Stripe charge.refunded: no payment record found", { paymentIntentId })
+    return
+  }
+
+  const now = new Date()
+
+  await db.$transaction(async (tx) => {
+    const order = await tx.order.findUnique({ where: { id: payment.orderId } })
+    if (!order) return
+
+    // Idempotent guard
+    if (order.status === OrderStatus.REFUNDED) {
+      logger.info("Stripe charge.refunded: order already REFUNDED", { orderId: order.id })
+      return
+    }
+
+    await tx.payment.update({
+      where: { id: payment.id },
+      data: { status: PaymentStatus.REFUNDED, refundedAt: now, updatedAt: now },
+    })
+
+    await tx.order.update({
+      where: { id: order.id },
+      data: { status: OrderStatus.REFUNDED, updatedAt: now },
+    })
+
+    await tx.auditLog.create({
+      data: {
+        id: randomUUID(),
+        action: "order.refunded",
+        entityType: "order",
+        entityId: order.id,
+        metadata: { stripeChargeId: charge.id, stripePaymentIntentId: paymentIntentId },
+      },
+    })
+  })
+
+  logger.info("Stripe charge.refunded: order transitioned to REFUNDED", {
+    orderId: payment.orderId,
+    chargeId: charge.id,
+  })
 }

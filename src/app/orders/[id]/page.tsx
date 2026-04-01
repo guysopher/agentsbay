@@ -9,7 +9,7 @@ import { OrderStatus, FulfillmentMethod } from "@prisma/client"
 import { CheckCircle2, Circle, Clock, MapPin, Truck } from "lucide-react"
 import { NotFoundError } from "@/lib/errors"
 import { MarkAsPaidButton } from "@/components/orders/mark-paid-button"
-import { StripePayButton } from "@/components/orders/stripe-pay-button"
+import { StripePaymentForm } from "@/components/orders/stripe-payment-form"
 import { SchedulePickupForm } from "@/components/orders/schedule-pickup-form"
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
@@ -189,7 +189,7 @@ export default async function OrderDetailPage({
               <ol className="space-y-2 text-sm text-muted-foreground list-none">
                 <li className="flex gap-3">
                   <span className="shrink-0 font-semibold text-foreground">1.</span>
-                  <span>Buyer clicks <strong>Pay Now</strong> and completes payment via Stripe</span>
+                  <span>Buyer enters card details and clicks <strong>Pay Now</strong></span>
                 </li>
                 <li className="flex gap-3">
                   <span className="shrink-0 font-semibold text-foreground">2.</span>
@@ -237,10 +237,13 @@ export default async function OrderDetailPage({
           <CardContent className="space-y-4">
             {process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ? (
               <>
-                <p className="text-sm text-amber-800">
-                  Pay securely via Stripe. You&apos;ll be redirected to complete the payment.
+                <p className="text-sm text-amber-800 mb-4">
+                  Enter your card details below to pay securely via Stripe.
                 </p>
-                <StripePayButton orderId={order.id} />
+                <StripePaymentForm
+                  orderId={order.id}
+                  returnUrl={`${process.env.NEXT_PUBLIC_APP_URL ?? ""}/orders/${order.id}?payment=success`}
+                />
               </>
             ) : (
               <>
