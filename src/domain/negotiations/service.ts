@@ -10,6 +10,7 @@ import {
   notifyBidAccepted,
   notifyBidRejected,
   notifyBidCountered,
+  notifyOrderCreated,
 } from "@/lib/email-notifications"
 
 export interface CreateBidInput {
@@ -62,7 +63,7 @@ export class NegotiationService {
       // Get listing and verify it exists
       const listing = await db.listing.findUnique({
         where: { id: input.listingId },
-        include: { User: true }
+        include: { User: { select: { id: true, email: true, name: true, emailNotificationsEnabled: true } } }
       })
 
       if (!listing) {
@@ -165,15 +166,18 @@ export class NegotiationService {
       // Fire-and-forget email to seller
       void (async () => {
         try {
-          const buyer = await db.user.findUnique({ where: { id: input.buyerId }, select: { name: true } })
-          await notifyBidPlaced({
-            sellerEmail: listing.User.email,
-            sellerName: listing.User.name,
-            buyerName: buyer?.name ?? null,
-            listingTitle: listing.title,
-            listingId: listing.id,
-            amountCents: input.amount,
-          })
+          if (listing.User.emailNotificationsEnabled) {
+            const buyer = await db.user.findUnique({ where: { id: input.buyerId }, select: { name: true } })
+            await notifyBidPlaced({
+              sellerEmail: listing.User.email,
+              sellerName: listing.User.name,
+              sellerUserId: listing.User.id,
+              buyerName: buyer?.name ?? null,
+              listingTitle: listing.title,
+              listingId: listing.id,
+              amountCents: input.amount,
+            })
+          }
         } catch {
           // swallow — email must never break the main flow
         }
@@ -295,11 +299,16 @@ export class NegotiationService {
       void (async () => {
         try {
           const recipientId = userId === thread.buyerId ? thread.sellerId : thread.buyerId
-          const recipient = await db.user.findUnique({ where: { id: recipientId }, select: { email: true, name: true } })
-          if (recipient) {
+          const [recipient, counterparty] = await Promise.all([
+            db.user.findUnique({ where: { id: recipientId }, select: { id: true, email: true, name: true, emailNotificationsEnabled: true } }),
+            db.user.findUnique({ where: { id: userId }, select: { name: true } }),
+          ])
+          if (recipient?.emailNotificationsEnabled) {
             await notifyBidCountered({
               recipientEmail: recipient.email,
               recipientName: recipient.name,
+              recipientUserId: recipient.id,
+              counterpartyName: counterparty?.name ?? null,
               listingTitle: thread.Listing.title,
               listingId: thread.listingId,
               amountCents: input.amount,
@@ -440,20 +449,40 @@ export class NegotiationService {
         amount: bid.amount
       })
 
-      // Fire-and-forget email to buyer
+      // Fire-and-forget emails: bid-accepted to buyer, order-created to both
       void (async () => {
         try {
-          const buyer = await db.user.findUnique({ where: { id: thread.buyerId }, select: { email: true, name: true } })
-          if (buyer) {
-            await notifyBidAccepted({
+          const [buyer, seller] = await Promise.all([
+            db.user.findUnique({ where: { id: thread.buyerId }, select: { id: true, email: true, name: true, emailNotificationsEnabled: true } }),
+            db.user.findUnique({ where: { id: thread.sellerId }, select: { id: true, email: true, name: true, emailNotificationsEnabled: true } }),
+          ])
+          const sends: Promise<void>[] = []
+          if (buyer?.emailNotificationsEnabled) {
+            sends.push(notifyBidAccepted({
               buyerEmail: buyer.email,
               buyerName: buyer.name,
+              buyerUserId: buyer.id,
               listingTitle: thread.Listing.title,
               listingId: thread.listingId,
               orderId: result.order.id,
               amountCents: bid.amount,
-            })
+            }))
           }
+          if (buyer && seller) {
+            sends.push(notifyOrderCreated({
+              buyerEmail: buyer.email,
+              buyerName: buyer.name,
+              buyerUserId: buyer.id,
+              buyerOptedIn: buyer.emailNotificationsEnabled,
+              sellerEmail: seller.email,
+              sellerName: seller.name,
+              sellerUserId: seller.id,
+              sellerOptedIn: seller.emailNotificationsEnabled,
+              listingTitle: thread.Listing.title,
+              orderId: result.order.id,
+            }))
+          }
+          await Promise.all(sends)
         } catch {
           // swallow
         }
@@ -534,11 +563,12 @@ export class NegotiationService {
       // Fire-and-forget email to buyer
       void (async () => {
         try {
-          const buyer = await db.user.findUnique({ where: { id: thread.buyerId }, select: { email: true, name: true } })
-          if (buyer) {
+          const buyer = await db.user.findUnique({ where: { id: thread.buyerId }, select: { id: true, email: true, name: true, emailNotificationsEnabled: true } })
+          if (buyer?.emailNotificationsEnabled) {
             await notifyBidRejected({
               buyerEmail: buyer.email,
               buyerName: buyer.name,
+              buyerUserId: buyer.id,
               listingTitle: thread.Listing.title,
               listingId: thread.listingId,
             })
