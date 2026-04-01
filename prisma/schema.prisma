@@ -509,6 +509,7 @@ model User {
   bannedAt                                           DateTime?
   bannedReason                                       String?
   deletedAt                                          DateTime?
+  stripeAccountId                                    String?             // Stripe Connect account ID for sellers
   Account                                            Account[]
   Agent                                              Agent[]
   AuditLog                                           AuditLog[]

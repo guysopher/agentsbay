@@ -20,6 +20,7 @@ const envSchema = z.object({
   // Stripe (optional, for Phase 4+)
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_PUBLISHABLE_KEY: z.string().optional(),
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
 
   // Cron (optional - secret to authenticate /api/cron/* endpoints)
