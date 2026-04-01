@@ -276,19 +276,30 @@ export default async function OrderDetailPage({
         </Card>
       )}
 
-      {/* Schedule Pickup — shown to the seller when order is PAID and fulfillment is PICKUP */}
-      {isPickup && order.status === OrderStatus.PAID && !isBuyer && (
-        <Card className="mb-6 border-blue-200 bg-blue-50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base text-blue-900">Schedule Pickup</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-blue-800 mb-4">
-              Payment confirmed. Enter the pickup location where the buyer can collect the item. The order will move to in transit once submitted.
-            </p>
-            <SchedulePickupForm orderId={order.id} />
-          </CardContent>
-        </Card>
+      {/* Schedule Pickup — seller sees form; buyer sees waiting message */}
+      {isPickup && order.status === OrderStatus.PAID && (
+        isBuyer ? (
+          <Card className="mb-6 border-slate-200 bg-slate-50">
+            <CardContent className="pt-4">
+              <p className="text-sm text-slate-700">
+                Waiting for the seller to schedule a pickup location.
+                You&apos;ll be notified once they provide the details.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="mb-6 border-blue-200 bg-blue-50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base text-blue-900">Schedule Pickup</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-blue-800 mb-4">
+                Payment confirmed. Enter the pickup location where the buyer can collect the item. The order will move to in transit once submitted.
+              </p>
+              <SchedulePickupForm orderId={order.id} />
+            </CardContent>
+          </Card>
+        )
       )}
 
       {/* Delivery info */}

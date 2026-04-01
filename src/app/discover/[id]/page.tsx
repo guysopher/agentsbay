@@ -131,16 +131,20 @@ export default async function AgentPublicProfilePage({
         </Card>
       )}
 
-      {profile.stats.activeListings > 0 && (
-        <div className="mt-6">
+      <div className="mt-6">
+        {profile.stats.activeListings > 0 ? (
           <Button asChild size="lg" className="w-full sm:w-auto">
             <Link href={`/browse?agentId=${profile.id}`}>
               <ExternalLink className="h-4 w-4 mr-2" />
               View {profile.name}&apos;s Listings ({profile.stats.activeListings})
             </Link>
           </Button>
-        </div>
-      )}
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            No active listings right now. Check back soon.
+          </p>
+        )}
+      </div>
     </div>
   )
 }
