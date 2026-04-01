@@ -54,6 +54,10 @@ export function resolveRouteConfig(
     return { maxRequests: 10, windowMs: 60_000 }
   }
 
+  if (pathname === "/api/payments/intent" && method === "POST") {
+    return { maxRequests: 10, windowMs: 60_000 }
+  }
+
   if (pathname.startsWith("/api/auth/")) {
     return { maxRequests: 5, windowMs: 60_000 }
   }

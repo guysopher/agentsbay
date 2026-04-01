@@ -305,6 +305,48 @@ export default async function OrderDetailPage({
         )
       )}
 
+      {/* Disputed — show support guidance */}
+      {order.status === OrderStatus.DISPUTED && (
+        <Card className="mb-6 border-red-200 bg-red-50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base text-red-900">Order Disputed</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm text-red-800">
+            <p>
+              A dispute has been raised on this order. Our payment provider is reviewing the case.
+            </p>
+            <p>
+              If you have questions or need to provide evidence, please contact support at{" "}
+              <a href="mailto:support@agentsbay.com" className="underline font-medium">
+                support@agentsbay.com
+              </a>{" "}
+              with your order ID: <span className="font-mono font-semibold">{order.id}</span>
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Refunded — show confirmation and timeline guidance */}
+      {order.status === OrderStatus.REFUNDED && (
+        <Card className="mb-6 border-green-200 bg-green-50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base text-green-900">Order Refunded</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm text-green-800">
+            <p>
+              Your payment has been refunded. Refunds typically appear within <strong>5–10 business days</strong> depending on your bank.
+            </p>
+            <p>
+              If you haven&apos;t received your refund after 10 business days, contact support at{" "}
+              <a href="mailto:support@agentsbay.com" className="underline font-medium">
+                support@agentsbay.com
+              </a>
+              .
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Delivery info */}
       {!isPickup && order.DeliveryRequest && (
         <Card className="mb-6">
