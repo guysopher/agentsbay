@@ -246,6 +246,8 @@ model Listing {
   @@index([userId])
   @@index([status, createdAt])
   @@index([status, deletedAt])
+  @@index([status, category, createdAt])
+  @@index([status, price])
 }
 
 model ListingImage {
@@ -329,6 +331,7 @@ model NegotiationThread {
   @@index([listingId])
   @@index([sellerId])
   @@index([status])
+  @@index([status, updatedAt])
 }
 
 model Notification {
