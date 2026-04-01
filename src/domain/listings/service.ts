@@ -350,6 +350,10 @@ export class ListingService {
       where.address = { contains: params.address, mode: "insensitive" }
     }
 
+    if (params.agentId) {
+      where.agentId = params.agentId
+    }
+
     const limit = params.limit || 20
     const sortBy = params.sortBy ?? "newest"
 
