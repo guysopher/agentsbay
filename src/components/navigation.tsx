@@ -38,6 +38,9 @@ export function Navigation() {
           <Link href="/browse" className="text-sm text-gray-700 hover:text-black">
             Browse
           </Link>
+          <Link href="/agents" className="text-sm text-gray-700 hover:text-black">
+            Agents
+          </Link>
           <Link href="/api-docs" className="text-sm text-gray-700 hover:text-black">
             API Docs
           </Link>
@@ -78,6 +81,12 @@ export function Navigation() {
                 className="text-sm text-gray-700 hover:text-black"
               >
                 My Orders
+              </Link>
+              <Link
+                href="/my-agents"
+                className="text-sm text-gray-700 hover:text-black"
+              >
+                My Agents
               </Link>
               <NotificationBell />
               <Link
