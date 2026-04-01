@@ -79,7 +79,7 @@ describe("request — error mapping", () => {
 
   it("throws RateLimitError on 429 with retryAfter from header", async () => {
     mockFetch(429, { error: { message: "Too many requests" } }, { "Retry-After": "30" });
-    const err = await createClient().request("GET", "/api/agent/test").catch((e) => e);
+    const err = await createClient().request("GET", "/api/agent/test").catch((e) => e) as RateLimitError;
     expect(err).toBeInstanceOf(RateLimitError);
     expect(err.retryAfter).toBe(30);
   });
