@@ -598,20 +598,24 @@ describe("negotiation API routes", () => {
     jest.spyOn(db.agentCredential, "findFirst").mockResolvedValue({
       Agent: { id: "agent-1", userId: "buyer-1" },
     } as never)
-    const listThreadsSpy = jest.spyOn(NegotiationService, "listThreads").mockResolvedValue([
-      {
-        id: "thread-1",
-        listingId: "listing-1",
-        buyerId: "buyer-1",
-        sellerId: "seller-1",
-        status: "ACTIVE",
-        createdAt: new Date("2026-01-01"),
-        updatedAt: new Date("2026-01-02"),
-        closedAt: null,
-        Listing: { id: "listing-1", title: "Lamp", price: 5000, currency: "USD", status: "PUBLISHED" },
-        Bid: [],
-      },
-    ] as never)
+    const listThreadsSpy = jest.spyOn(NegotiationService, "listThreads").mockResolvedValue({
+      items: [
+        {
+          id: "thread-1",
+          listingId: "listing-1",
+          buyerId: "buyer-1",
+          sellerId: "seller-1",
+          status: "ACTIVE",
+          createdAt: new Date("2026-01-01"),
+          updatedAt: new Date("2026-01-02"),
+          closedAt: null,
+          Listing: { id: "listing-1", title: "Lamp", price: 5000, currency: "USD", status: "PUBLISHED" },
+          Bid: [],
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+    } as never)
 
     const response = await listThreadsGET(
       new NextRequest("http://localhost/api/agent/threads", {
@@ -623,7 +627,7 @@ describe("negotiation API routes", () => {
     const body = await response.json()
 
     expect(response.status).toBe(200)
-    expect(listThreadsSpy).toHaveBeenCalledWith("buyer-1", undefined)
+    expect(listThreadsSpy).toHaveBeenCalledWith("buyer-1", undefined, undefined, 20)
     expect(body.data.count).toBe(1)
     expect(body.data.threads[0].id).toBe("thread-1")
   })
@@ -634,7 +638,7 @@ describe("negotiation API routes", () => {
     } as never)
     const listThreadsSpy = jest
       .spyOn(NegotiationService, "listThreads")
-      .mockResolvedValue([] as never)
+      .mockResolvedValue({ items: [], nextCursor: null, hasMore: false } as never)
 
     await listThreadsGET(
       new NextRequest("http://localhost/api/agent/threads?role=buyer", {
@@ -643,7 +647,7 @@ describe("negotiation API routes", () => {
       { params: Promise.resolve({}) }
     )
 
-    expect(listThreadsSpy).toHaveBeenCalledWith("buyer-1", "buyer")
+    expect(listThreadsSpy).toHaveBeenCalledWith("buyer-1", "buyer", undefined, 20)
   })
 
   it("rejects list threads without auth", async () => {
@@ -716,7 +720,7 @@ describe("negotiation API routes", () => {
     } as never)
     const listThreadsSpy = jest
       .spyOn(NegotiationService, "listThreads")
-      .mockResolvedValue([] as never)
+      .mockResolvedValue({ items: [], nextCursor: null, hasMore: false } as never)
 
     await listThreadsGET(
       new NextRequest("http://localhost/api/agent/threads?role=seller", {
@@ -725,14 +729,16 @@ describe("negotiation API routes", () => {
       { params: Promise.resolve({}) }
     )
 
-    expect(listThreadsSpy).toHaveBeenCalledWith("seller-1", "seller")
+    expect(listThreadsSpy).toHaveBeenCalledWith("seller-1", "seller", undefined, 20)
   })
 
   it("returns empty threads list when agent has no threads", async () => {
     jest.spyOn(db.agentCredential, "findFirst").mockResolvedValue({
       Agent: { id: "agent-1", userId: "buyer-1" },
     } as never)
-    jest.spyOn(NegotiationService, "listThreads").mockResolvedValue([] as never)
+    jest.spyOn(NegotiationService, "listThreads").mockResolvedValue(
+      { items: [], nextCursor: null, hasMore: false } as never
+    )
 
     const response = await listThreadsGET(
       new NextRequest("http://localhost/api/agent/threads", {
