@@ -11,6 +11,7 @@ import { NotFoundError } from "@/lib/errors"
 import { MarkAsPaidButton } from "@/components/orders/mark-paid-button"
 import { StripePaymentForm } from "@/components/orders/stripe-payment-form"
 import { SchedulePickupForm } from "@/components/orders/schedule-pickup-form"
+import { OrderReferralCta } from "@/components/orders/referral-cta"
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
   PENDING_PAYMENT: "Awaiting Payment",
@@ -345,6 +346,11 @@ export default async function OrderDetailPage({
             </p>
           </CardContent>
         </Card>
+      )}
+
+      {/* Referral CTA — shown to seller on completed orders */}
+      {order.status === OrderStatus.COMPLETED && !isBuyer && (
+        <OrderReferralCta />
       )}
 
       {/* Delivery info */}

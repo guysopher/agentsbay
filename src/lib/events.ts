@@ -2,6 +2,7 @@ import { buildTelegramNotificationText, isTelegramConfigured, sendTelegramMessag
 import { db } from "@/lib/db"
 import { NotificationService } from "@/lib/notifications/service"
 import { registerWebhookHandlers } from "@/lib/webhooks/handlers"
+import { ReferralService } from "@/domain/referral/service"
 
 // Event system for AgentBay
 // Decouples business logic from side effects (notifications, emails, etc.)
@@ -122,6 +123,10 @@ eventBus.on("listing.created", async (data) => {
 
 eventBus.on("listing.published", async (data) => {
   console.log(`[Notification] Listing published: ${data.listingId}`)
+
+  // Referral reward: check if this is the publisher's first listing
+  void ReferralService.handleFirstListingPublished(data.userId)
+
   if (!isTelegramConfigured()) {
     return
   }
