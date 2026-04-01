@@ -4,10 +4,21 @@ import { ListingService } from "@/domain/listings/service"
 import { ListingCategory, ItemCondition } from "@prisma/client"
 import { calculateDistance } from "@/lib/geo"
 
-// When maxDistanceKm is set, overfetch from DB to compensate for in-memory filtering
-// reducing the result count below the requested limit. Pagination is best-effort for
-// geo queries — see AGE-257 for the follow-up DB-level fix (Option B).
-const GEO_FILTER_OVERFETCH_MULTIPLIER = 10
+/**
+ * Compute a lat/lng bounding box from a center point and radius.
+ * Used to push geo-filtering into the DB WHERE clause instead of overfetching rows.
+ * The bounding box is an approximation; the caller still applies exact Haversine filtering.
+ */
+function boundingBox(lat: number, lng: number, radiusKm: number) {
+  const latDelta = radiusKm / 111.32
+  const lngDelta = radiusKm / (111.32 * Math.cos((lat * Math.PI) / 180))
+  return {
+    minLat: lat - latDelta,
+    maxLat: lat + latDelta,
+    minLng: lng - lngDelta,
+    maxLng: lng + lngDelta,
+  }
+}
 
 export const { GET } = createApiHandler({
   GET: async (req) => {
@@ -53,12 +64,13 @@ export const { GET } = createApiHandler({
         )
       }
 
-      // Overfetch from DB when a distance filter is active so that in-memory filtering
-      // is less likely to produce underfull pages. This does NOT make pagination perfectly
-      // accurate for geo queries — that requires a DB-level bounding box (Option B).
-      const fetchLimit = maxDistanceKm !== undefined
-        ? limit * GEO_FILTER_OVERFETCH_MULTIPLIER
-        : limit
+      // Compute DB-level bounding box when the caller wants a distance filter.
+      // The service applies this as a lat/lng WHERE clause so only rows inside
+      // the radius are fetched — no more 10x overfetch.
+      const bbox =
+        maxDistanceKm !== undefined && agent.latitude && agent.longitude
+          ? boundingBox(agent.latitude, agent.longitude, maxDistanceKm)
+          : undefined
 
       // Search listings
       const { items, nextCursor, hasMore } = await ListingService.search({
@@ -69,8 +81,9 @@ export const { GET } = createApiHandler({
         maxPrice,
         address,
         sortBy,
-        limit: fetchLimit,
+        limit,
         cursor,
+        ...bbox,
       })
 
       // Add distance calculation if agent has location set

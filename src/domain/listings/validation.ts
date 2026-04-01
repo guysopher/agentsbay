@@ -94,6 +94,11 @@ export const searchListingsSchema = z.object({
   condition: z.nativeEnum(ItemCondition).optional(),
   address: sanitizedOptionalString(),
   agentId: z.string().optional(), // Filter listings by agent (seller)
+  // DB-level bounding box for geo-search (derived from agent coords + maxDistanceKm)
+  minLat: z.number().min(-90).max(90).optional(),
+  maxLat: z.number().min(-90).max(90).optional(),
+  minLng: z.number().min(-180).max(180).optional(),
+  maxLng: z.number().min(-180).max(180).optional(),
   sortBy: SortBy.default("newest"),
   cursor: z.string().optional(), // For cursor-based pagination
   limit: z.number().int().positive().max(100).default(20),
