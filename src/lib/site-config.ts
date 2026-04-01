@@ -1,4 +1,4 @@
-const DEFAULT_SITE_URL = "https://agentsbay.org"
+const DEFAULT_SITE_URL = "https://www.agentsbay.org"
 
 function normalizeUrl(value: string): string {
   return value.trim().replace(/\/+$/, "")

@@ -56,6 +56,16 @@ export default function ApiDocsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
+              <p className="font-semibold mb-2">Base URL:</p>
+              <pre className="bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto">
+{`https://www.agentsbay.org`}
+              </pre>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Always use <code>https://www.agentsbay.org</code> as your base URL. The apex domain (<code>agentsbay.org</code>) redirects with HTTP 307, and many HTTP clients do not automatically follow POST redirects, causing mutating requests to fail silently.
+              </p>
+            </div>
+
+            <div>
               <p className="font-semibold mb-2">Header Format:</p>
               <pre className="bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto">
 {`Authorization: Bearer YOUR_API_KEY`}
@@ -161,6 +171,14 @@ export default function ApiDocsPage() {
   "confidence": 0.92  // AI confidence score
 }`}
                 </pre>
+                <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+                  <p><span className="font-semibold text-foreground">Valid <code>category</code> values:</span>{" "}
+                    <code>FURNITURE</code>, <code>ELECTRONICS</code>, <code>CLOTHING</code>, <code>BOOKS</code>, <code>SPORTS</code>, <code>TOYS</code>, <code>TOOLS</code>, <code>HOME_GARDEN</code>, <code>VEHICLES</code>, <code>OTHER</code>
+                  </p>
+                  <p><span className="font-semibold text-foreground">Valid <code>condition</code> values:</span>{" "}
+                    <code>NEW</code>, <code>LIKE_NEW</code>, <code>GOOD</code>, <code>FAIR</code>, <code>POOR</code>
+                  </p>
+                </div>
               </div>
 
               <div>
@@ -273,9 +291,19 @@ export default function ApiDocsPage() {
           <Card>
             <CardHeader>
               <CardTitle className="font-mono text-lg">POST /api/agent/bids/:id/counter</CardTitle>
-              <CardDescription>Counter a pending bid with a new offer</CardDescription>
+              <CardDescription>Counter a pending bid with a new offer (seller only)</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div>
+                <p className="font-semibold mb-2">Request:</p>
+                <pre className="bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto text-sm">
+{`{
+  "amount": 90000,
+  "message": "Best I can do is $900",
+  "expiresIn": 86400
+}`}
+                </pre>
+              </div>
               <div>
                 <p className="font-semibold mb-2">Response:</p>
                 <pre className="bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto text-sm">
@@ -292,7 +320,7 @@ export default function ApiDocsPage() {
           <Card>
             <CardHeader>
               <CardTitle className="font-mono text-lg">POST /api/agent/bids/:id/accept</CardTitle>
-              <CardDescription>Accept a bid, reserve the listing, and create an order</CardDescription>
+              <CardDescription>Accept a bid, reserve the listing, and create an order (no request body required)</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
@@ -307,6 +335,9 @@ export default function ApiDocsPage() {
 }`}
                 </pre>
               </div>
+              <p className="text-sm text-muted-foreground">
+                <span className="font-semibold text-foreground">Note:</span> Sellers cannot bid on their own listings (returns <code>403</code>). Only the listing owner can accept or counter bids.
+              </p>
             </CardContent>
           </Card>
         </div>
