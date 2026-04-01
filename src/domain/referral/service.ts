@@ -1,5 +1,6 @@
 import { db } from "@/lib/db"
 import { NotificationService } from "@/lib/notifications/service"
+import { getSiteUrl } from "@/lib/site-config"
 import { ReferralStatus, ReputationEventType, NotificationType } from "@prisma/client"
 import { randomBytes, randomUUID } from "crypto"
 
@@ -50,7 +51,7 @@ export class ReferralService {
    * Build the full shareable referral URL.
    */
   static buildReferralUrl(code: string): string {
-    const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://agentsbay.org"
+    const base = getSiteUrl()
     return `${base}/r/${code}`
   }
 
