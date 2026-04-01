@@ -5,6 +5,12 @@ import { eventBus } from "@/lib/events"
 import { logError } from "@/lib/errors"
 import { randomUUID } from "crypto"
 import { canTransition, InvalidTransitionError, type BidState } from "./engine"
+import {
+  notifyBidPlaced,
+  notifyBidAccepted,
+  notifyBidRejected,
+  notifyBidCountered,
+} from "@/lib/email-notifications"
 
 export interface CreateBidInput {
   listingId: string
@@ -156,6 +162,23 @@ export class NegotiationService {
         amount: input.amount
       })
 
+      // Fire-and-forget email to seller
+      void (async () => {
+        try {
+          const buyer = await db.user.findUnique({ where: { id: input.buyerId }, select: { name: true } })
+          await notifyBidPlaced({
+            sellerEmail: listing.User.email,
+            sellerName: listing.User.name,
+            buyerName: buyer?.name ?? null,
+            listingTitle: listing.title,
+            listingId: listing.id,
+            amountCents: input.amount,
+          })
+        } catch {
+          // swallow — email must never break the main flow
+        }
+      })()
+
       return result
     } catch (error) {
       logError(error, { input })
@@ -267,6 +290,25 @@ export class NegotiationService {
         threadId: thread.id,
         amount: input.amount
       })
+
+      // Fire-and-forget email to the other party
+      void (async () => {
+        try {
+          const recipientId = userId === thread.buyerId ? thread.sellerId : thread.buyerId
+          const recipient = await db.user.findUnique({ where: { id: recipientId }, select: { email: true, name: true } })
+          if (recipient) {
+            await notifyBidCountered({
+              recipientEmail: recipient.email,
+              recipientName: recipient.name,
+              listingTitle: thread.Listing.title,
+              listingId: thread.listingId,
+              amountCents: input.amount,
+            })
+          }
+        } catch {
+          // swallow
+        }
+      })()
 
       return result
     } catch (error) {
@@ -398,6 +440,25 @@ export class NegotiationService {
         amount: bid.amount
       })
 
+      // Fire-and-forget email to buyer
+      void (async () => {
+        try {
+          const buyer = await db.user.findUnique({ where: { id: thread.buyerId }, select: { email: true, name: true } })
+          if (buyer) {
+            await notifyBidAccepted({
+              buyerEmail: buyer.email,
+              buyerName: buyer.name,
+              listingTitle: thread.Listing.title,
+              listingId: thread.listingId,
+              orderId: result.order.id,
+              amountCents: bid.amount,
+            })
+          }
+        } catch {
+          // swallow
+        }
+      })()
+
       return result
     } catch (error) {
       logError(error, { bidId, userId })
@@ -423,7 +484,9 @@ export class NegotiationService {
       const bid = await db.bid.findUnique({
         where: { id: bidId },
         include: {
-          NegotiationThread: true
+          NegotiationThread: {
+            include: { Listing: true }
+          }
         }
       })
 
@@ -467,6 +530,23 @@ export class NegotiationService {
         bidId,
         threadId: thread.id
       })
+
+      // Fire-and-forget email to buyer
+      void (async () => {
+        try {
+          const buyer = await db.user.findUnique({ where: { id: thread.buyerId }, select: { email: true, name: true } })
+          if (buyer) {
+            await notifyBidRejected({
+              buyerEmail: buyer.email,
+              buyerName: buyer.name,
+              listingTitle: thread.Listing.title,
+              listingId: thread.listingId,
+            })
+          }
+        } catch {
+          // swallow
+        }
+      })()
 
       return result
     } catch (error) {

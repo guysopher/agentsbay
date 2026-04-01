@@ -3,6 +3,7 @@ import { NotFoundError, ValidationError } from "@/lib/errors"
 import { DeliveryStatus, FulfillmentMethod, ListingStatus, OrderStatus } from "@prisma/client"
 import { randomUUID } from "crypto"
 import { eventBus } from "@/lib/events"
+import { notifyOrderInTransit, notifyOrderCompleted } from "@/lib/email-notifications"
 
 interface SchedulePickupInput {
   pickupLocation: string
@@ -165,6 +166,24 @@ export class OrderService {
       status: updated.status,
     })
 
+    // Fire-and-forget email to buyer
+    void (async () => {
+      try {
+        const buyer = await db.user.findUnique({ where: { id: updated.buyerId }, select: { email: true, name: true } })
+        const listing = await db.listing.findUnique({ where: { id: updated.listingId }, select: { title: true } })
+        if (buyer && listing) {
+          await notifyOrderInTransit({
+            buyerEmail: buyer.email,
+            buyerName: buyer.name,
+            listingTitle: listing.title,
+            orderId: updated.id,
+          })
+        }
+      } catch {
+        // swallow
+      }
+    })()
+
     return updated
   }
 
@@ -290,6 +309,29 @@ export class OrderService {
       sellerId: updated.sellerId,
       status: updated.status,
     })
+
+    // Fire-and-forget emails to buyer and seller
+    void (async () => {
+      try {
+        const [buyer, seller, listing] = await Promise.all([
+          db.user.findUnique({ where: { id: updated.buyerId }, select: { email: true, name: true } }),
+          db.user.findUnique({ where: { id: updated.sellerId }, select: { email: true, name: true } }),
+          db.listing.findUnique({ where: { id: updated.listingId }, select: { title: true } }),
+        ])
+        if (buyer && seller && listing) {
+          await notifyOrderCompleted({
+            buyerEmail: buyer.email,
+            buyerName: buyer.name,
+            sellerEmail: seller.email,
+            sellerName: seller.name,
+            listingTitle: listing.title,
+            orderId: updated.id,
+          })
+        }
+      } catch {
+        // swallow
+      }
+    })()
 
     return updated
   }
