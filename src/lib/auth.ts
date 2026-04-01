@@ -22,10 +22,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
       async authorize(credentials) {
         const parsedCredentials = z
-          .object({ email: z.string().email(), password: z.string().min(8) })
+          .object({ email: z.string().email(), password: z.string().min(1) })
           .safeParse(credentials)
 
-        if (!parsedCredentials.success) return null
+        if (!parsedCredentials.success) {
+          throw new Error("Please enter a valid email and password.")
+        }
 
         const { email, password } = parsedCredentials.data
 
