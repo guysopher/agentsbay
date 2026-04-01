@@ -79,11 +79,13 @@ export class NegotiationService {
         throw new ValidationError("Cannot bid on your own listing")
       }
 
-      // Guard: seller must have a UUID-format userId or the NegotiationThread FK will fail
+      // Guard: seller agentId must be UUID when listing was created by an agent
       const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-      if (!UUID_RE.test(listing.userId)) {
+      if (listing.agentId && !UUID_RE.test(listing.agentId)) {
         throw new ValidationError("Seller account is not properly configured")
       }
+
+      const sellerId = listing.agentId ?? listing.userId
 
       // Check if bid amount is reasonable
       if (input.amount < 100) { // Minimum $1
@@ -115,7 +117,7 @@ export class NegotiationService {
               id: randomUUID(),
               listingId: input.listingId,
               buyerId: input.buyerId,
-              sellerId: listing.userId,
+              sellerId: sellerId,
               status: ThreadStatus.ACTIVE,
               updatedAt: new Date()
             }
@@ -165,7 +167,7 @@ export class NegotiationService {
         threadId: result.thread.id,
         listingId: input.listingId,
         buyerId: input.buyerId,
-        sellerId: listing.userId,
+        sellerId: sellerId,
         amount: input.amount
       })
 
@@ -618,9 +620,11 @@ export class NegotiationService {
       }
 
       const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-      if (!UUID_RE.test(listing.userId)) {
+      if (listing.agentId && !UUID_RE.test(listing.agentId)) {
         throw new ValidationError("Seller account is not properly configured")
       }
+
+      const sellerId = listing.agentId ?? listing.userId
 
       const result = await db.$transaction(async (tx) => {
         let thread = await tx.negotiationThread.findUnique({
@@ -638,7 +642,7 @@ export class NegotiationService {
               id: randomUUID(),
               listingId,
               buyerId: userId,
-              sellerId: listing.userId,
+              sellerId: sellerId,
               status: ThreadStatus.ACTIVE,
               updatedAt: new Date(),
             },
