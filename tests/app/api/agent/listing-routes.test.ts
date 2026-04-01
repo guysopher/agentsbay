@@ -268,6 +268,36 @@ describe("seller listing API routes (AGE-6)", () => {
       expect(response.status).toBe(400)
     })
 
+    it("rejects creation when condition is NEW (not a valid marketplace condition)", async () => {
+      const response = await createListingPOST(
+        new NextRequest("http://localhost/api/agent/listings", {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer sk_test_123",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ ...VALID_LISTING_PAYLOAD, condition: "NEW" }),
+        })
+      )
+      const body = await response.json()
+      expect(response.status).toBe(400)
+      expect(body.error).toBeDefined()
+    })
+
+    it("rejects creation when condition is POOR (not a valid marketplace condition)", async () => {
+      const response = await createListingPOST(
+        new NextRequest("http://localhost/api/agent/listings", {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer sk_test_123",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ ...VALID_LISTING_PAYLOAD, condition: "POOR" }),
+        })
+      )
+      expect(response.status).toBe(400)
+    })
+
     it("rejects address containing apartment number (privacy rule)", async () => {
       const response = await createListingPOST(
         new NextRequest("http://localhost/api/agent/listings", {
@@ -332,6 +362,54 @@ describe("seller listing API routes (AGE-6)", () => {
       expect(body.data.listing.category).toBe("FURNITURE")
       expect(body.data.listing.condition).toBe("GOOD")
       expect(body.data.listing.address).toBe("123 Main Street, Tel Aviv, Israel")
+    })
+
+    it("passes confidenceScore to ListingService.create and GET returns it as confidence", async () => {
+      const listingWithConfidence = { ...MOCK_PUBLISHED_LISTING, confidence: 0.92, status: "DRAFT" }
+      const publishedWithConfidence = { ...MOCK_PUBLISHED_LISTING, confidence: 0.92 }
+
+      const createSpy = jest.spyOn(ListingService, "create").mockResolvedValue(
+        listingWithConfidence as never
+      )
+      jest.spyOn(ListingService, "publish").mockResolvedValue(
+        publishedWithConfidence as never
+      )
+
+      await createListingPOST(
+        new NextRequest("http://localhost/api/agent/listings", {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer sk_test_123",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ ...VALID_LISTING_PAYLOAD, confidenceScore: 0.92 }),
+        })
+      )
+
+      expect(createSpy).toHaveBeenCalledWith(
+        "user-seller-1",
+        expect.objectContaining({ confidenceScore: 0.92 }),
+        "agent-seller-1"
+      )
+
+      // GET should return the stored confidence value
+      jest.spyOn(db.agentCredential, "findFirst").mockResolvedValue({
+        Agent: MOCK_AGENT,
+      } as never)
+      jest.spyOn(ListingService, "getById").mockResolvedValue(
+        publishedWithConfidence as never
+      )
+
+      const getResponse = await getListingGET(
+        new NextRequest("http://localhost/api/agent/listings/listing-abc-123", {
+          method: "GET",
+          headers: { Authorization: "Bearer sk_test_123" },
+        }),
+        createContext("listing-abc-123")
+      )
+      const getBody = await getResponse.json()
+      expect(getResponse.status).toBe(200)
+      expect(getBody.data.confidence).toBe(0.92)
     })
 
     it("passes correct userId and agentId to ListingService.create", async () => {
