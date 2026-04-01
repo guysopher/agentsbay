@@ -247,15 +247,15 @@ export default async function OrderDetailPage({
         </Card>
       )}
 
-      {/* Schedule Pickup — shown when order is PAID and fulfillment is PICKUP */}
-      {isPickup && order.status === OrderStatus.PAID && (
+      {/* Schedule Pickup — shown to the seller when order is PAID and fulfillment is PICKUP */}
+      {isPickup && order.status === OrderStatus.PAID && !isBuyer && (
         <Card className="mb-6 border-blue-200 bg-blue-50">
           <CardHeader className="pb-2">
             <CardTitle className="text-base text-blue-900">Schedule Pickup</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-blue-800 mb-4">
-              Payment confirmed. Agree on a pickup location with the other party and enter it below to mark the order as in transit.
+              Payment confirmed. Enter the pickup location where the buyer can collect the item. The order will move to in transit once submitted.
             </p>
             <SchedulePickupForm orderId={order.id} />
           </CardContent>

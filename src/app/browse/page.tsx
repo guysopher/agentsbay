@@ -41,6 +41,8 @@ async function ListingGrid({
   minPrice,
   maxPrice,
   sortBy,
+  cursor,
+  baseHref,
 }: {
   q?: string
   category?: ListingCategory
@@ -48,8 +50,10 @@ async function ListingGrid({
   minPrice?: number
   maxPrice?: number
   sortBy?: SortBy
+  cursor?: string
+  baseHref: string
 }) {
-  const { items: listings } = await ListingService.search({
+  const { items: listings, nextCursor, hasMore } = await ListingService.search({
     query: q,
     category,
     condition,
@@ -57,6 +61,7 @@ async function ListingGrid({
     maxPrice,
     sortBy: sortBy ?? "newest",
     limit: 20,
+    cursor,
   })
 
   if (listings.length === 0) {
@@ -67,16 +72,35 @@ async function ListingGrid({
     )
   }
 
+  const nextHref = hasMore && nextCursor ? `${baseHref}&cursor=${encodeURIComponent(nextCursor)}` : null
+
   return (
     <>
       <p className="mb-4 text-sm text-muted-foreground">
-        {listings.length} listing{listings.length !== 1 ? "s" : ""} found
+        Showing {listings.length} listing{listings.length !== 1 ? "s" : ""}
       </p>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {listings.map((listing) => (
           <ListingCard key={listing.id} listing={listing} />
         ))}
       </div>
+      {(cursor || nextHref) && (
+        <div className="flex items-center justify-between mt-8">
+          <Link
+            href={baseHref.replace(/&cursor=[^&]*/, "")}
+            className={`text-sm font-medium underline-offset-4 hover:underline ${!cursor ? "invisible" : ""}`}
+          >
+            ← Back to start
+          </Link>
+          {nextHref ? (
+            <Link href={nextHref} className="text-sm font-medium underline-offset-4 hover:underline">
+              Next page →
+            </Link>
+          ) : (
+            <span className="text-sm text-muted-foreground">End of results</span>
+          )}
+        </div>
+      )}
     </>
   )
 }
@@ -99,7 +123,7 @@ function ListingGridSkeleton() {
 export default async function BrowsePage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; category?: string; condition?: string; minPrice?: string; maxPrice?: string; sortBy?: string }>
+  searchParams: Promise<{ q?: string; category?: string; condition?: string; minPrice?: string; maxPrice?: string; sortBy?: string; cursor?: string }>
 }) {
   const params = await searchParams
 
@@ -123,6 +147,16 @@ export default async function BrowsePage({
   const sortBy = VALID_SORTS.includes(params.sortBy as SortBy)
     ? (params.sortBy as SortBy)
     : undefined
+
+  // Build a base href that preserves all current filters (without cursor) for pagination links
+  const filterParts: string[] = []
+  if (params.q) filterParts.push(`q=${encodeURIComponent(params.q)}`)
+  if (params.category) filterParts.push(`category=${encodeURIComponent(params.category)}`)
+  if (params.condition) filterParts.push(`condition=${encodeURIComponent(params.condition)}`)
+  if (params.minPrice) filterParts.push(`minPrice=${encodeURIComponent(params.minPrice)}`)
+  if (params.maxPrice) filterParts.push(`maxPrice=${encodeURIComponent(params.maxPrice)}`)
+  if (params.sortBy) filterParts.push(`sortBy=${encodeURIComponent(params.sortBy)}`)
+  const baseHref = `/browse${filterParts.length ? `?${filterParts.join("&")}` : "?"}`
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -193,6 +227,8 @@ export default async function BrowsePage({
           minPrice={minPrice}
           maxPrice={maxPrice}
           sortBy={sortBy}
+          cursor={params.cursor}
+          baseHref={baseHref}
         />
       </Suspense>
 
