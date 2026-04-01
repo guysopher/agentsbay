@@ -23,7 +23,7 @@ const LISTING = {
   id: "listing-1",
   userId: "seller-1",
   status: ListingStatus.PUBLISHED,
-  price: 10000,
+  price: 100,
   pickupAvailable: true,
   address: "Test City",
   User: { id: "seller-1", name: "Seller" },
@@ -136,7 +136,7 @@ describe("NegotiationService", () => {
     it("throws ValidationError when bid amount is unreasonably high", async () => {
       jest.spyOn(db.listing, "findUnique").mockResolvedValueOnce(LISTING as never)
 
-      // price is 10000, 2x would be 20000 — bid at 25000
+      // price is $100 (dollars), cap is 100 * 100 * 2 = 20000 cents ($200) — bid at 25000 cents ($250)
       await expect(
         NegotiationService.placeBid({ listingId: "listing-1", buyerId: "buyer-1", amount: 25000 })
       ).rejects.toThrow(ValidationError)

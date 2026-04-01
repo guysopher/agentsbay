@@ -90,7 +90,7 @@ export class NegotiationService {
         throw new ValidationError("Bid amount too low")
       }
 
-      if (input.amount > listing.price * 2) {
+      if (input.amount > listing.price * 100 * 2) {
         throw new ValidationError("Bid amount unreasonably high")
       }
 
