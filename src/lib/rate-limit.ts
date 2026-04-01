@@ -68,6 +68,14 @@ export function resolveRouteConfig(
     return DEFAULT_AGENT_RATE_LIMIT
   }
 
+  // Public GET endpoints — 60 req/min per IP to prevent bulk scraping
+  if (
+    method === "GET" &&
+    ["/api/listings", "/api/wanted"].some((p) => pathname.startsWith(p))
+  ) {
+    return { maxRequests: 60, windowMs: 60_000 }
+  }
+
   return null
 }
 
