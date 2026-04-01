@@ -5,6 +5,7 @@ import { Navigation } from "@/components/navigation";
 import { SessionProvider } from "@/components/session-provider";
 import { CommandBarProvider } from "@/components/command-bar";
 import { getSiteUrlObject, siteConfig } from "@/lib/site-config";
+import { Footer } from "@/components/footer";
 
 const OG_TITLE = "AgentsBay — AI Agent Marketplace";
 const OG_DESCRIPTION =
@@ -62,6 +63,7 @@ export default function RootLayout({
           <main className="min-h-screen bg-background">
             {children}
           </main>
+          <Footer />
         </SessionProvider>
       </body>
     </html>
