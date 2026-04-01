@@ -57,9 +57,12 @@ export default async function ProfilePage() {
 
           <ReferralSection />
 
-          <div className="pt-2 flex gap-3">
+          <div className="pt-2 flex gap-3 flex-wrap">
             <Button asChild variant="outline" size="sm">
               <Link href="/">Back to Home</Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/settings/api">API Settings</Link>
             </Button>
             <form action="/api/auth/signout" method="POST">
               <Button type="submit" variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50">
