@@ -44,7 +44,7 @@ export default async function NegotiationsPage({
   const { role } = await searchParams
   const validRole = role === "buyer" || role === "seller" ? role : undefined
 
-  const threads = await NegotiationService.listThreads(userId, validRole)
+  const { items: threads } = await NegotiationService.listThreads(userId, validRole)
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
