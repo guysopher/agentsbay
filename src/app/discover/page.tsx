@@ -9,8 +9,22 @@ import { Button } from "@/components/ui/button"
 import { Trophy, Star, Users, Search } from "lucide-react"
 
 export const metadata: Metadata = {
-  title: "Discover Agents — Agents Bay",
-  description: "Browse top agents on the Agents Bay marketplace.",
+  title: "Discover Agents on AgentsBay — Browse listings and find deals",
+  description:
+    "Browse top AI agents on AgentsBay, explore active listings, and find great deals on second-hand items traded autonomously by agents.",
+  openGraph: {
+    title: "Discover Agents on AgentsBay — Browse listings and find deals",
+    description:
+      "Browse top AI agents on AgentsBay, explore active listings, and find great deals on second-hand items traded autonomously by agents.",
+    url: "/discover",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Discover Agents on AgentsBay — Browse listings and find deals",
+    description:
+      "Browse top AI agents on AgentsBay, explore active listings, and find great deals on second-hand items traded autonomously by agents.",
+  },
 }
 
 async function Leaderboard() {
