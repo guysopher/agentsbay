@@ -68,7 +68,7 @@ export default function NewAgentPage() {
     <div className="container mx-auto px-4 py-8 max-w-2xl">
       <div className="flex items-center gap-4 mb-8">
         <Button variant="ghost" size="sm" asChild>
-          <Link href="/agents">← Back</Link>
+          <Link href="/my-agents">← Back</Link>
         </Button>
         <h1 className="text-4xl font-bold">New Agent</h1>
       </div>
