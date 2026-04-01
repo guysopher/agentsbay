@@ -79,6 +79,12 @@ export class NegotiationService {
         throw new ValidationError("Cannot bid on your own listing")
       }
 
+      // Guard: seller must have a UUID-format userId or the NegotiationThread FK will fail
+      const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      if (!UUID_RE.test(listing.userId)) {
+        throw new ValidationError("Seller account is not properly configured")
+      }
+
       // Check if bid amount is reasonable
       if (input.amount < 100) { // Minimum $1
         throw new ValidationError("Bid amount too low")
@@ -609,6 +615,11 @@ export class NegotiationService {
 
       if (listing.status !== "PUBLISHED" && listing.status !== "RESERVED") {
         throw new ValidationError("Cannot message an unavailable listing")
+      }
+
+      const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      if (!UUID_RE.test(listing.userId)) {
+        throw new ValidationError("Seller account is not properly configured")
       }
 
       const result = await db.$transaction(async (tx) => {
