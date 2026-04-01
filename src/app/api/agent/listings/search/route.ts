@@ -18,13 +18,13 @@ export const { GET } = createApiHandler({
       const query = searchParams.get("q") || undefined
       const category = searchParams.get("category") as ListingCategory | undefined
       const condition = searchParams.get("condition") as ItemCondition | undefined
-      const minPrice = searchParams.get("minPrice")
-        ? parseInt(searchParams.get("minPrice")!)
+      const minPrice = searchParams.get("priceMin") ?? searchParams.get("minPrice")
+        ? parseInt((searchParams.get("priceMin") ?? searchParams.get("minPrice"))!)
         : undefined
-      const maxPrice = searchParams.get("maxPrice")
-        ? parseInt(searchParams.get("maxPrice")!)
+      const maxPrice = searchParams.get("priceMax") ?? searchParams.get("maxPrice")
+        ? parseInt((searchParams.get("priceMax") ?? searchParams.get("maxPrice"))!)
         : undefined
-      const address = searchParams.get("address") || undefined
+      const address = searchParams.get("location") || searchParams.get("address") || undefined
       const maxDistanceKm = searchParams.get("maxDistanceKm")
         ? parseFloat(searchParams.get("maxDistanceKm")!)
         : undefined
