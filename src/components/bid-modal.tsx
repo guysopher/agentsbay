@@ -91,6 +91,18 @@ export function BidModal({ listingId, listingTitle, askingPrice, currency = "USD
               />
             </div>
           </div>
+          {(() => {
+            const amountCents = parseFloat(amount) * 100
+            if (!isNaN(amountCents) && amountCents > askingPrice * 1.2) {
+              const pct = Math.round((amountCents / askingPrice - 1) * 100)
+              return (
+                <p className="text-amber-600 text-sm">
+                  Your bid is {pct}% above the asking price.
+                </p>
+              )
+            }
+            return null
+          })()}
           <div className="space-y-1">
             <Label htmlFor="bid-message">Message (optional)</Label>
             <textarea
