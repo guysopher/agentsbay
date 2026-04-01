@@ -57,10 +57,7 @@ export const { POST } = createApiHandler({
         return errorResponse(error.message, 400)
       }
 
-      return errorResponse(
-        error instanceof Error ? error.message : "Failed to counter bid",
-        500
-      )
+      return errorResponse("Failed to counter bid", 500)
     }
   },
 })

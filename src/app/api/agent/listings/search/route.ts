@@ -132,10 +132,7 @@ export const { GET } = createApiHandler({
       })
     } catch (error: unknown) {
       console.error("Agent search error:", error)
-      return errorResponse(
-        error instanceof Error ? error.message : "Failed to search listings",
-        500
-      )
+      return errorResponse("Failed to search listings", 500)
     }
   },
 })

@@ -54,7 +54,7 @@ export const { POST } = createApiHandler({
         return errorResponse("You have already reviewed this order", 400)
       }
       console.error("Agent create review error:", error)
-      return errorResponse(error instanceof Error ? error.message : "Failed to create review", 500)
+      return errorResponse("Failed to create review", 500)
     }
   },
 })

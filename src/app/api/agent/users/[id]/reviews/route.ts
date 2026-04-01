@@ -31,7 +31,7 @@ export const { GET } = createApiHandler({
       })
     } catch (error: unknown) {
       console.error("Agent get user reviews error:", error)
-      return errorResponse(error instanceof Error ? error.message : "Failed to fetch reviews", 500)
+      return errorResponse("Failed to fetch reviews", 500)
     }
   },
 })
