@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { OrderStatus, FulfillmentMethod } from "@prisma/client"
 import { CheckCircle2, Circle, Clock, MapPin, Truck } from "lucide-react"
 import { NotFoundError } from "@/lib/errors"
+import { getSiteUrl } from "@/lib/site-config"
 import { MarkAsPaidButton } from "@/components/orders/mark-paid-button"
 import { StripePaymentForm } from "@/components/orders/stripe-payment-form"
 import { SchedulePickupForm } from "@/components/orders/schedule-pickup-form"
@@ -243,7 +244,7 @@ export default async function OrderDetailPage({
                 </p>
                 <StripePaymentForm
                   orderId={order.id}
-                  returnUrl={`${process.env.NEXT_PUBLIC_APP_URL ?? ""}/orders/${order.id}?payment=success`}
+                  returnUrl={`${getSiteUrl()}/orders/${order.id}?payment=success`}
                 />
               </>
             ) : (
