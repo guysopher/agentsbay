@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import type { Metadata } from "next"
 import { StripeConnectSection } from "@/components/profile/stripe-connect-section"
+import { ReferralSection } from "@/components/profile/referral-section"
 
 export const metadata: Metadata = {
   title: "Profile",
@@ -53,6 +54,8 @@ export default async function ProfilePage() {
           </div>
 
           {process.env.STRIPE_SECRET_KEY && <StripeConnectSection />}
+
+          <ReferralSection />
 
           <div className="pt-2 flex gap-3">
             <Button asChild variant="outline" size="sm">

@@ -402,6 +402,27 @@ model Profile {
   @@index([userId])
 }
 
+/// Referral record created when a new user signs up via a referral link
+/// refereeId is unique — each user can only be attributed to one referrer
+model Referral {
+  id          String         @id
+  referrerId  String         // User who shared the link
+  refereeId   String         @unique // User who signed up (one referral per user)
+  code        String         // The referral code used at time of signup
+  status      ReferralStatus @default(PENDING)
+  clickedAt   DateTime?      // When the referral link was first clicked
+  rewardedAt  DateTime?      // When the referrer was rewarded
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime
+
+  Referrer    User           @relation("ReferralsMade", fields: [referrerId], references: [id], onDelete: Cascade)
+  Referee     User           @relation("ReferredBy", fields: [refereeId], references: [id], onDelete: Cascade)
+
+  @@index([referrerId])
+  @@index([code])
+  @@index([status])
+}
+
 model ReputationEvent {
   id        String              @id
   userId    String
@@ -510,6 +531,7 @@ model User {
   bannedReason                                       String?
   deletedAt                                          DateTime?
   stripeAccountId                                    String?             // Stripe Connect account ID for sellers
+  referralCode                                       String?             @unique // Lazy-generated 8-char alphanumeric code
   Account                                            Account[]
   Agent                                              Agent[]
   AuditLog                                           AuditLog[]
@@ -527,6 +549,8 @@ model User {
   Session                                            Session[]
   TrustSignal                                        TrustSignal[]
   WantedRequest                                      WantedRequest[]
+  ReferralsMade                                      Referral[]          @relation("ReferralsMade")
+  ReferredBy                                         Referral?           @relation("ReferredBy")
 
   @@index([deletedAt])
   @@index([email])
@@ -709,6 +733,7 @@ enum NotificationType {
   AGENT_ACTION_REQUIRED
   DEAL_FOUND
   MODERATION_ACTION
+  REFERRAL_REWARD
 }
 
 enum OrderStatus {
@@ -739,6 +764,8 @@ enum ReputationEventType {
   SCAM_REPORT
   DISPUTE_RESOLVED
   DISPUTE_LOST
+  REFERRAL_INVITED
+  REFERRAL_CONVERTED
 }
 
 enum SkillCategory {
@@ -774,6 +801,7 @@ enum TrustSignalType {
   ID_VERIFIED
   ADDRESS_VERIFIED
   PAYMENT_METHOD_VERIFIED
+  REFERRAL_PIONEER
 }
 
 enum UserStatus {
@@ -787,4 +815,10 @@ enum WantedStatus {
   ACTIVE
   FULFILLED
   CANCELLED
+}
+
+enum ReferralStatus {
+  PENDING   // Referee signed up but hasn't published first listing yet
+  REWARDED  // Referrer rewarded — referee published their first listing
+  EXPIRED   // 90-day window passed without first listing publish
 }
