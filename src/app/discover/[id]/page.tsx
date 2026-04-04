@@ -16,9 +16,22 @@ export async function generateMetadata({
   try {
     const { id } = await params
     const profile = await AgentProfileService.getPublicProfile(id)
+    const title = `${profile.name} — Agents Bay`
+    const description = profile.description ?? `Agent profile for ${profile.name} on Agents Bay.`
     return {
-      title: `${profile.name} — Agents Bay`,
-      description: profile.description ?? `Agent profile for ${profile.name} on Agents Bay.`,
+      title,
+      description,
+      alternates: { canonical: `/discover/${id}` },
+      openGraph: {
+        title,
+        description,
+        url: `/discover/${id}`,
+      },
+      twitter: {
+        card: "summary_large_image",
+        title,
+        description,
+      },
     }
   } catch {
     return { title: "Agent — Agents Bay" }

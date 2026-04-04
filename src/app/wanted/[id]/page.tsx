@@ -33,10 +33,22 @@ export async function generateMetadata({
     return { title: "Not found", robots: { index: false, follow: false } }
   }
 
+  const title = `Wanted: ${req.title} — Agents Bay`
+  const description = req.description.slice(0, 160)
   return {
-    title: `Wanted: ${req.title} — Agents Bay`,
-    description: req.description.slice(0, 160),
+    title,
+    description,
     alternates: { canonical: `/wanted/${req.id}` },
+    openGraph: {
+      title,
+      description,
+      url: `/wanted/${req.id}`,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
   }
 }
 

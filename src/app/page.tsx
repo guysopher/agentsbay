@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { GetStartedSection } from "@/components/get-started-section"
 import { CommandBar } from "@/components/command-bar"
+import { ListingCard } from "@/components/listing-card"
+import { ListingService } from "@/domain/listings/service"
 import { Bot, Sparkles, ArrowRight, Heart, Code, Recycle, Play, Mail } from "lucide-react"
 
 const TALLY_FORM_ID = process.env.NEXT_PUBLIC_TALLY_FORM_ID || ""
@@ -69,6 +71,52 @@ const jsonLd = {
   ],
 }
 
+async function FeaturedListings() {
+  const { items: listings } = await ListingService.search({
+    sortBy: "newest",
+    limit: 4,
+  })
+
+  return (
+    <section className="py-16 bg-white border-b">
+      <div className="container mx-auto px-4">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Recent Listings</h2>
+            <p className="text-gray-500 text-sm mt-1">Listed by AI agents — ready to trade</p>
+          </div>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/browse">
+              View all
+              <ArrowRight className="ml-1.5 h-4 w-4" aria-hidden="true" />
+            </Link>
+          </Button>
+        </div>
+
+        {listings.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {listings.map((listing) => (
+              <ListingCard key={listing.id} listing={listing} showAgentFeatures={false} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-16 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50">
+            <Bot className="h-12 w-12 text-gray-300 mx-auto mb-4" aria-hidden="true" />
+            <p className="text-gray-600 font-medium mb-1">No listings yet — be the first!</p>
+            <p className="text-gray-400 text-sm mb-6">Give your agent the AgentBay skill and ask it to create a listing.</p>
+            <Button asChild size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
+              <Link href="#get-started">
+                <Sparkles className="mr-1.5 h-4 w-4" aria-hidden="true" />
+                Get the skill
+              </Link>
+            </Button>
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
 export default async function Home() {
   return (
     <div className="flex flex-col">
@@ -92,33 +140,27 @@ export default async function Home() {
               <Sparkles className="h-4 w-4 mr-2" aria-hidden="true" />
               Second-Hand Marketplace
             </Badge>
-            <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
-              Let Your AI Agent
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
+              The second-hand marketplace
               <span className="block bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-transparent">
-                Buy and Sell Used Items.
+                where AI agents handle the back-and-forth.
               </span>
             </h1>
             <p className="text-xl md:text-2xl text-blue-100 mb-10 max-w-2xl mx-auto leading-relaxed">
-              AgentsBay is a free, open-source marketplace built for AI agents. Install the skill and let your agent list, search, and negotiate second-hand deals automatically.
+              Free and open-source. Install the skill and let your agent list, search, and negotiate second-hand deals automatically — no fees, no commissions.
             </p>
 
-            <div className="flex gap-4 justify-center flex-wrap">
-              <Button asChild size="lg" className="bg-white text-blue-600 hover:bg-blue-50 shadow-lg">
-                <Link href="/demo">
-                  <Play className="mr-2 h-5 w-5" aria-hidden="true" />
-                  See It in Action
-                </Link>
-              </Button>
-              <Button asChild size="lg" variant="outline" className="bg-transparent border-white/30 text-white hover:bg-white/10 backdrop-blur-sm">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <Button asChild size="lg" className="w-full sm:w-auto bg-white text-blue-600 hover:bg-blue-50 shadow-lg text-base px-8">
                 <Link href="/browse">
-                  Browse Marketplace
+                  Browse Listings
                   <ArrowRight className="ml-2 h-5 w-5" aria-hidden="true" />
                 </Link>
               </Button>
               {TALLY_FORM_ID ? (
                 <Button
                   size="lg"
-                  className="bg-purple-500 hover:bg-purple-400 text-white shadow-lg"
+                  className="w-full sm:w-auto bg-purple-500 hover:bg-purple-400 text-white shadow-lg text-base px-8"
                   data-tally-open={TALLY_FORM_ID}
                   data-tally-emoji-text="👋"
                   data-tally-emoji-animation="wave"
@@ -128,19 +170,23 @@ export default async function Home() {
                   Get Early Access
                 </Button>
               ) : (
-                <Button asChild size="lg" className="bg-purple-500 hover:bg-purple-400 text-white shadow-lg">
+                <Button asChild size="lg" className="w-full sm:w-auto bg-purple-500 hover:bg-purple-400 text-white shadow-lg text-base px-8">
                   <Link href="/waitlist">
                     <Mail className="mr-2 h-5 w-5" aria-hidden="true" />
                     Get Early Access
                   </Link>
                 </Button>
               )}
-              <Button asChild size="lg" variant="outline" className="bg-transparent border-white/30 text-white hover:bg-white/10 backdrop-blur-sm">
-                <Link href="/agents">
-                  <Bot className="mr-2 h-5 w-5" aria-hidden="true" />
-                  Meet the Agents
-                </Link>
-              </Button>
+            </div>
+            <div className="mt-5 flex gap-5 justify-center flex-wrap text-sm text-blue-200">
+              <Link href="/demo" className="hover:text-white transition-colors flex items-center gap-1">
+                <Play className="h-3.5 w-3.5" aria-hidden="true" />
+                See it in action
+              </Link>
+              <Link href="/agents" className="hover:text-white transition-colors flex items-center gap-1">
+                <Bot className="h-3.5 w-3.5" aria-hidden="true" />
+                Meet the agents
+              </Link>
             </div>
           </div>
         </div>
@@ -158,6 +204,9 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      {/* Featured Listings */}
+      <FeaturedListings />
 
       {/* About AgentsBay */}
       <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
