@@ -160,6 +160,190 @@ describe("NegotiationService", () => {
         NegotiationService.placeBid({ listingId: "listing-1", buyerId: "buyer-1", amount: 8500 })
       ).rejects.toThrow(ValidationError)
     })
+
+    // ── Regression: AGE-313 — sellerId FK constraint fix ─────────────────────
+    // NegotiationThread.sellerId must be a User.id. Before this fix, agent-created
+    // listings caused a FK violation because listing.agentId (an Agent ID) was used
+    // instead of listing.userId. Bids with amount >= 100 hit the DB and returned 500.
+
+    it("regression AGE-313: uses listing.userId as sellerId for agent-created listings", async () => {
+      const agentCreatedListing = {
+        ...LISTING,
+        userId: "seller-user-1",
+        agentId: "aaaaaaaa-0000-0000-0000-000000000099", // valid UUID agent ID — must NOT be used as sellerId
+      }
+      jest.spyOn(db.listing, "findUnique").mockResolvedValueOnce(agentCreatedListing as never)
+
+      let capturedSellerIdOnCreate: string | undefined
+      jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+        const thread = { ...THREAD, sellerId: agentCreatedListing.userId }
+        return fn({
+          negotiationThread: {
+            findUnique: jest.fn().mockResolvedValue(null),
+            create: jest.fn().mockImplementation(({ data }: { data: { sellerId: string } }) => {
+              capturedSellerIdOnCreate = data.sellerId
+              return Promise.resolve(thread)
+            }),
+          },
+          bid: {
+            create: jest.fn().mockResolvedValue({ id: "bid-new", amount: 10000, status: BidStatus.PENDING }),
+            updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+          },
+        })
+      })
+
+      await NegotiationService.placeBid({
+        listingId: "listing-1",
+        buyerId: "buyer-1",
+        buyerAgentId: "agent-buyer",
+        amount: 10000,
+      })
+
+      // sellerId must be the human User ID — never the agent ID
+      expect(capturedSellerIdOnCreate).toBe("seller-user-1")
+      expect(capturedSellerIdOnCreate).not.toBe("aaaaaaaa-0000-0000-0000-000000000099")
+    })
+
+    it("regression AGE-313: uses listing.userId as sellerId for user-created listings (no agentId)", async () => {
+      const userCreatedListing = {
+        ...LISTING,
+        userId: "seller-user-2",
+        agentId: null,
+      }
+      jest.spyOn(db.listing, "findUnique").mockResolvedValueOnce(userCreatedListing as never)
+
+      let capturedSellerIdOnCreate: string | undefined
+      jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+        const thread = { ...THREAD, sellerId: userCreatedListing.userId }
+        return fn({
+          negotiationThread: {
+            findUnique: jest.fn().mockResolvedValue(null),
+            create: jest.fn().mockImplementation(({ data }: { data: { sellerId: string } }) => {
+              capturedSellerIdOnCreate = data.sellerId
+              return Promise.resolve(thread)
+            }),
+          },
+          bid: {
+            create: jest.fn().mockResolvedValue({ id: "bid-new", amount: 10000, status: BidStatus.PENDING }),
+            updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+          },
+        })
+      })
+
+      await NegotiationService.placeBid({
+        listingId: "listing-1",
+        buyerId: "buyer-1",
+        amount: 10000,
+      })
+
+      expect(capturedSellerIdOnCreate).toBe("seller-user-2")
+    })
+
+    it("regression AGE-313: amount >= 100 succeeds and does not throw for agent-created listing", async () => {
+      const agentCreatedListing = {
+        ...LISTING,
+        userId: "seller-user-1",
+        agentId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        price: 500,  // $500, so 50000 cents cap — amounts up to 100000 allowed
+      }
+      jest.spyOn(db.listing, "findUnique").mockResolvedValueOnce(agentCreatedListing as never)
+      jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+        return fn({
+          negotiationThread: {
+            findUnique: jest.fn().mockResolvedValue(null),
+            create: jest.fn().mockResolvedValue({ ...THREAD, sellerId: "seller-user-1" }),
+          },
+          bid: {
+            create: jest.fn().mockResolvedValue({ id: "bid-new", amount: 10000, status: BidStatus.PENDING }),
+            updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+          },
+        })
+      })
+
+      // Must NOT throw — this was returning 500 before AGE-313 was fixed
+      await expect(
+        NegotiationService.placeBid({ listingId: "listing-1", buyerId: "buyer-1", amount: 10000 })
+      ).resolves.toBeDefined()
+    })
+  })
+
+  // ─── sendMessage (AGE-313 regression) ───────────────────────────────────────
+
+  describe("sendMessage — regression AGE-313", () => {
+    it("uses listing.userId as sellerId for agent-created listings", async () => {
+      const agentCreatedListing = {
+        id: "listing-1",
+        userId: "seller-user-1",
+        agentId: "aaaaaaaa-0000-0000-0000-000000000099", // valid UUID agent ID
+        status: "PUBLISHED",
+        price: 100,
+      }
+      jest.spyOn(db.listing, "findUnique").mockResolvedValueOnce(agentCreatedListing as never)
+
+      let capturedSellerIdOnCreate: string | undefined
+      jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+        const thread = { id: "thread-1", sellerId: agentCreatedListing.userId }
+        const message = { id: "msg-1", createdAt: new Date() }
+        return fn({
+          negotiationThread: {
+            findUnique: jest.fn().mockResolvedValue(null),
+            create: jest.fn().mockImplementation(({ data }: { data: { sellerId: string } }) => {
+              capturedSellerIdOnCreate = data.sellerId
+              return Promise.resolve(thread)
+            }),
+            update: jest.fn().mockResolvedValue(thread),
+          },
+          negotiationMessage: {
+            create: jest.fn().mockResolvedValue(message),
+          },
+        })
+      })
+
+      await NegotiationService.sendMessage("listing-1", "buyer-1", {
+        content: "Is this still available?",
+        isAgent: true,
+      })
+
+      expect(capturedSellerIdOnCreate).toBe("seller-user-1")
+      expect(capturedSellerIdOnCreate).not.toBe("aaaaaaaa-0000-0000-0000-000000000099")
+    })
+
+    it("uses listing.userId as sellerId for user-created listings (no agentId)", async () => {
+      const userCreatedListing = {
+        id: "listing-1",
+        userId: "seller-user-2",
+        agentId: null,
+        status: "PUBLISHED",
+        price: 100,
+      }
+      jest.spyOn(db.listing, "findUnique").mockResolvedValueOnce(userCreatedListing as never)
+
+      let capturedSellerIdOnCreate: string | undefined
+      jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+        const thread = { id: "thread-1", sellerId: userCreatedListing.userId }
+        const message = { id: "msg-1", createdAt: new Date() }
+        return fn({
+          negotiationThread: {
+            findUnique: jest.fn().mockResolvedValue(null),
+            create: jest.fn().mockImplementation(({ data }: { data: { sellerId: string } }) => {
+              capturedSellerIdOnCreate = data.sellerId
+              return Promise.resolve(thread)
+            }),
+            update: jest.fn().mockResolvedValue(thread),
+          },
+          negotiationMessage: {
+            create: jest.fn().mockResolvedValue(message),
+          },
+        })
+      })
+
+      await NegotiationService.sendMessage("listing-1", "buyer-1", {
+        content: "Hello",
+        isAgent: false,
+      })
+
+      expect(capturedSellerIdOnCreate).toBe("seller-user-2")
+    })
   })
 
   // ─── counterBid ──────────────────────────────────────────────────────────────

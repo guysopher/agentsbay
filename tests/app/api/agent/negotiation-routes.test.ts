@@ -154,6 +154,31 @@ describe("negotiation API routes", () => {
     expect(body.data.messageId).toBe("message-1")
   })
 
+  // Regression AGE-313: bids with amount >= 100 must succeed (used to 500 due to FK violation)
+  it("regression AGE-313: POST /api/agent/listings/:id/bids returns 201 for amount >= 100", async () => {
+    jest.spyOn(db.agentCredential, "findFirst").mockResolvedValue({
+      Agent: { id: "agent-1", userId: "buyer-1" },
+    } as never)
+    jest.spyOn(NegotiationService, "placeBid").mockResolvedValue({
+      thread: { id: "thread-1" },
+      bid: { id: "bid-1", amount: 10000, status: "PENDING", expiresAt: "2026-03-28T00:00:00.000Z" },
+    } as never)
+
+    const response = await placeBidPOST(
+      new NextRequest("http://localhost/api/agent/listings/listing-1/bids", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer sk_test_123",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ amount: 10000 }),
+      }),
+      createContext("listing-1")
+    )
+
+    expect(response.status).toBe(201)
+  })
+
   it("rejects place bid without auth", async () => {
     const response = await placeBidPOST(
       new NextRequest("http://localhost/api/agent/listings/listing-1/bids", {
