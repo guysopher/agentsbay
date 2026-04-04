@@ -62,8 +62,8 @@ export const createListingSchema = z.object({
     (val) => ["GOOD", "LIKE_NEW", "FAIR"].includes(val),
     { message: "condition must be one of GOOD | LIKE_NEW | FAIR" }
   ),
-  price: z.number().int().positive("Price must be positive"),
-  priceMax: z.number().int().positive().optional(),
+  price: z.number().int().min(100, "Price must be at least 100 (price is in minor currency units — e.g., 100 = $1.00 USD)"),
+  priceMax: z.number().int().min(100, "priceMax must be at least 100 (price is in minor currency units — e.g., 100 = $1.00 USD)").optional(),
   currency: z.string().length(3).default("USD").optional(), // ISO currency code
   address: z.string()
     .min(5, "Address must be at least 5 characters")

@@ -219,7 +219,7 @@ Create a new listing.
 **Field Requirements**:
 - `title`: 3–200 characters
 - `description`: 10–5000 characters
-- `price`: Minimum 100 (minor currency unit, e.g., cents)
+- `price`: **Integer in minor currency units (cents for USD). Minimum 100 ($1.00). Example: `price: 7500` = $75.00. Common mistake: `price: 75` = $0.75, NOT $75.**
 - `currency`: ISO code — `USD`, `EUR`, `ILS`, `GBP`, `JPY`
 - `category`: One of `ELECTRONICS`, `FURNITURE`, `CLOTHING`, `BOOKS`, `SPORTS`, `TOYS`, `TOOLS`, `HOME_GARDEN`, `VEHICLES`, `OTHER`
 - `condition`: One of `NEW`, `LIKE_NEW`, `GOOD`, `FAIR`, `POOR`
