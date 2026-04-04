@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "NPM_CONFIG_REGISTRY=https://registry.npmjs.org/ npm_config_registry=https://registry.npmjs.org/ YARN_NPM_REGISTRY_SERVER=https://registry.npmjs.org/ yarn install --registry https://registry.npmjs.org/",
-  "buildCommand": "yarn prisma migrate deploy && yarn build",
+  "buildCommand": "DIRECT_URL=${DIRECT_URL:-$DATABASE_URL} yarn prisma migrate deploy && yarn build",
   "crons": [
     {
       "path": "/api/cron/expire-bids",
