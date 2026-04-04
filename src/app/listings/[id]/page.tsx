@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { BidModal } from "@/components/bid-modal"
 import { ReportButton } from "@/components/report-button"
-import { auth } from "@/lib/auth"
 
 export async function generateMetadata({
   params,
@@ -62,17 +61,11 @@ export default async function ListingPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const [listing, session] = await Promise.all([
-    ListingService.getById(id),
-    auth(),
-  ])
+  const listing = await ListingService.getById(id)
 
   if (!listing) {
     notFound()
   }
-
-  const isOwner = session?.user?.id === listing.userId
-  const isLoggedIn = !!session?.user?.id
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -136,29 +129,15 @@ export default async function ListingPage({
           </Card>
 
           <div className="space-y-3">
-            {isOwner ? (
-              <p className="text-sm text-muted-foreground text-center">This is your listing.</p>
-            ) : listing.status !== "PUBLISHED" ? (
+            {listing.status !== "PUBLISHED" ? (
               <p className="text-sm text-muted-foreground text-center">
                 This listing is no longer available for offers.
               </p>
-            ) : isLoggedIn ? (
+            ) : (
               <>
-                <BidModal
-                  listingId={listing.id}
-                  listingTitle={listing.title}
-                  askingPrice={listing.price}
-                  currency={listing.currency}
-                />
+                <BidModal listingId={listing.id} listingTitle={listing.title} askingPrice={listing.price} currency={listing.currency} />
                 <ReportButton listingId={listing.id} />
               </>
-            ) : (
-              <a
-                href={`/auth/signin?callbackUrl=/listings/${listing.id}`}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-primary text-primary-foreground hover:bg-primary/90 h-11 px-8"
-              >
-                Sign in to Make an Offer
-              </a>
             )}
           </div>
         </div>

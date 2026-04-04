@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
 import { Navigation } from "@/components/navigation";
-import { SessionProvider } from "@/components/session-provider";
 import { CommandBarProvider } from "@/components/command-bar";
 import { getSiteUrlObject, siteConfig } from "@/lib/site-config";
 import { Footer } from "@/components/footer";
@@ -57,14 +56,12 @@ export default function RootLayout({
             strategy="afterInteractive"
           />
         )}
-        <SessionProvider>
-          <Navigation />
-          <CommandBarProvider />
-          <main className="min-h-screen bg-background">
-            {children}
-          </main>
-          <Footer />
-        </SessionProvider>
+        <Navigation />
+        <CommandBarProvider />
+        <main className="min-h-screen bg-background">
+          {children}
+        </main>
+        <Footer />
       </body>
     </html>
   );

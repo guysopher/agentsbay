@@ -1,7 +1,3 @@
-// AgentBay Prisma Schema
-// Database schema for the AI agent-powered secondhand marketplace
-// Last updated: 2026-03-25
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,10 +7,6 @@ datasource db {
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
-
-// ============================================================================
-// AUTHENTICATION MODELS (NextAuth.js)
-// ============================================================================
 
 /// OAuth account connections (Google, GitHub, etc.)
 /// Used by NextAuth for third-party authentication
@@ -37,41 +29,31 @@ model Account {
   @@index([userId])
 }
 
-// ============================================================================
-// AGENT MODELS
-// ============================================================================
-
 /// AI Agent that can buy/sell on behalf of a user
 /// Supports autonomous negotiation with configurable limits
 /// Max 5 agents per user
 model Agent {
   id                 String            @id
-  userId             String            // Owner of the agent
+  userId             String
   name               String            @default("Agent")
-  description        String?           // Agent's purpose/description
-
-  // Lifecycle
-  isActive           Boolean           @default(true)  // Agent can be temporarily disabled
+  description        String?
+  isActive           Boolean           @default(true)
   createdAt          DateTime          @default(now())
   updatedAt          DateTime
-  deletedAt          DateTime?         // Soft delete timestamp
-
-  // Negotiation Settings
-  autoNegotiate      Boolean           @default(false)         // Enable autonomous negotiation
-  maxBidAmount       Int?                                      // Max amount agent can bid (cents)
-  minAcceptAmount    Int?                                      // Auto-accept bids above this (cents)
-  maxAcceptAmount    Int?                                      // Auto-accept bids below this (cents)
-  autoRejectBelow    Int?                                      // Auto-reject bids below this (cents)
-  autoCounterEnabled Boolean           @default(false)         // Enable auto-counter offers
-  requireApproval    Boolean           @default(true)          // Require human approval for actions
-
-  // Location Preferences
-  preferredLocation  String?           // Preferred search location
-  maxDistance        Int?              // Max distance for searches (km)
-  currency           String?           // Preferred currency
-  latitude           Float?            // Location coordinates
+  deletedAt          DateTime?
+  autoNegotiate      Boolean           @default(false)
+  maxBidAmount       Int?
+  minAcceptAmount    Int?
+  maxAcceptAmount    Int?
+  autoRejectBelow    Int?
+  autoCounterEnabled Boolean           @default(false)
+  requireApproval    Boolean           @default(true)
+  preferredLocation  String?
+  maxDistance        Int?
+  currency           String?
+  latitude           Float?
   longitude          Float?
-  locale             String?           // Locale for formatting
+  locale             String?
   User               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   AgentCredential    AgentCredential[]
   AgentSkill         AgentSkill[]
@@ -117,20 +99,16 @@ model AgentSkill {
   @@index([skillId])
 }
 
-// ============================================================================
-// AUDIT & LOGGING
-// ============================================================================
-
 /// Audit log for tracking all user and agent actions
 /// Immutable record of who did what and when
 model AuditLog {
   id         String   @id
-  userId     String?           // User who performed action (if user)
-  agentId    String?           // Agent who performed action (if agent)
-  action     String            // Action performed (e.g., "listing.created")
-  entityType String            // Type of entity (e.g., "listing", "bid")
-  entityId   String            // ID of the affected entity
-  metadata   Json?             // Additional context (JSON)
+  userId     String?
+  agentId    String?
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json?
   createdAt  DateTime @default(now())
   Agent      Agent?   @relation(fields: [agentId], references: [id])
   User       User?    @relation(fields: [userId], references: [id])
@@ -141,22 +119,18 @@ model AuditLog {
   @@index([userId])
 }
 
-// ============================================================================
-// MARKETPLACE MODELS
-// ============================================================================
-
 /// Individual bid/offer in a negotiation
 /// Part of a NegotiationThread between buyer and seller
 /// Status transitions: PENDING → ACCEPTED/REJECTED/COUNTERED/EXPIRED
 model Bid {
   id                String            @id
-  threadId          String            // Negotiation thread this bid belongs to
-  agentId           String?           // Agent that placed bid (if agent-initiated)
-  placedByUserId    String?           // User who placed this bid (for turn enforcement)
-  amount            Int               // Bid amount in minor currency units (cents)
-  message           String?           // Optional message with bid
+  threadId          String
+  agentId           String?
+  placedByUserId    String?
+  amount            Int
+  message           String?
   status            BidStatus         @default(PENDING)
-  expiresAt         DateTime?         // When bid expires (optional)
+  expiresAt         DateTime?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime
   Agent             Agent?            @relation(fields: [agentId], references: [id])
@@ -190,46 +164,35 @@ model DeliveryRequest {
 /// Can be created by users or agents
 model Listing {
   id                String              @id
-  userId            String              // Owner of the listing
-  agentId           String?             // Agent that created listing (if agent-created)
-
-  // Item Details
-  title             String              // Item title (3-200 chars)
-  description       String              // Item description (10-5000 chars)
-  category          ListingCategory     // Item category
-  condition         ItemCondition       // Item condition
-  price             Int                 // Price in minor currency units (cents)
+  userId            String
+  agentId           String?
+  title             String
+  description       String
+  category          ListingCategory
+  condition         ItemCondition
+  price             Int
   currency          String              @default("USD")
-  labels            String[]            @default([])  // Tags/keywords
-
-  // Location (NO apartment/unit numbers for privacy)
-  address           String              // Street address or city only
-  latitude          Float?              // Geocoded coordinates
+  labels            String[]            @default([])
+  address           String
+  latitude          Float?
   longitude         Float?
-
-  // Status & Lifecycle
   status            ListingStatus       @default(DRAFT)
-  confidence        Float?              // AI confidence score (if AI-generated)
+  confidence        Float?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime
-  publishedAt       DateTime?           // When published to marketplace
-  soldAt            DateTime?           // When marked as sold
-  deletedAt         DateTime?           // Soft delete timestamp
-
-  // Delivery Options
+  publishedAt       DateTime?
+  soldAt            DateTime?
+  deletedAt         DateTime?
   pickupAvailable   Boolean             @default(true)
   deliveryAvailable Boolean             @default(false)
   priceMax          Int?
   contactDiscord    String?
   contactTelegram   String?
   contactWhatsApp   String?
-
-  // Duplicate detection
-  duplicateOfId     String?             // ID of original listing this duplicates (for moderation)
+  duplicateOfId     String?
+  Agent             Agent?              @relation(fields: [agentId], references: [id])
   DuplicateOf       Listing?            @relation("DuplicateListings", fields: [duplicateOfId], references: [id])
   Duplicates        Listing[]           @relation("DuplicateListings")
-
-  Agent             Agent?              @relation(fields: [agentId], references: [id])
   User              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   ListingImage      ListingImage[]
   ModerationCase    ModerationCase[]
@@ -366,11 +329,11 @@ model Order {
   cancelledAt       DateTime?
   DeliveryRequest   DeliveryRequest?
   ModerationCase    ModerationCase[]
-  Review            Review[]
   User              User              @relation(fields: [buyerId], references: [id])
   Listing           Listing           @relation(fields: [listingId], references: [id])
   NegotiationThread NegotiationThread @relation(fields: [threadId], references: [id])
   Payment           Payment?
+  Review            Review[]
 
   @@index([buyerId])
   @@index([listingId])
@@ -414,18 +377,17 @@ model Profile {
 /// Referral record created when a new user signs up via a referral link
 /// refereeId is unique — each user can only be attributed to one referrer
 model Referral {
-  id          String         @id
-  referrerId  String         // User who shared the link
-  refereeId   String         @unique // User who signed up (one referral per user)
-  code        String         // The referral code used at time of signup
-  status      ReferralStatus @default(PENDING)
-  clickedAt   DateTime?      // When the referral link was first clicked
-  rewardedAt  DateTime?      // When the referrer was rewarded
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime
-
-  Referrer    User           @relation("ReferralsMade", fields: [referrerId], references: [id], onDelete: Cascade)
-  Referee     User           @relation("ReferredBy", fields: [refereeId], references: [id], onDelete: Cascade)
+  id         String         @id
+  referrerId String
+  refereeId  String         @unique
+  code       String
+  status     ReferralStatus @default(PENDING)
+  clickedAt  DateTime?
+  rewardedAt DateTime?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime
+  Referee    User           @relation("ReferredBy", fields: [refereeId], references: [id], onDelete: Cascade)
+  Referrer   User           @relation("ReferralsMade", fields: [referrerId], references: [id], onDelete: Cascade)
 
   @@index([referrerId])
   @@index([code])
@@ -512,13 +474,12 @@ model Review {
   orderId    String
   reviewerId String
   revieweeId String
-  rating     Int      // 1–5
-  comment    String?  // max 1000 chars
+  rating     Int
+  comment    String?
   createdAt  DateTime @default(now())
-
-  Order    Order @relation(fields: [orderId], references: [id])
-  Reviewer User  @relation("ReviewsGiven", fields: [reviewerId], references: [id])
-  Reviewee User  @relation("ReviewsReceived", fields: [revieweeId], references: [id])
+  Order      Order    @relation(fields: [orderId], references: [id])
+  Reviewee   User     @relation("ReviewsReceived", fields: [revieweeId], references: [id])
+  Reviewer   User     @relation("ReviewsGiven", fields: [reviewerId], references: [id])
 
   @@unique([orderId, reviewerId])
   @@index([revieweeId])
@@ -539,8 +500,8 @@ model User {
   bannedAt                                           DateTime?
   bannedReason                                       String?
   deletedAt                                          DateTime?
-  stripeAccountId                                    String?             // Stripe Connect account ID for sellers
-  referralCode                                       String?             @unique // Lazy-generated 8-char alphanumeric code
+  stripeAccountId                                    String?
+  referralCode                                       String?             @unique
   emailNotificationsEnabled                          Boolean             @default(true)
   Account                                            Account[]
   Agent                                              Agent[]
@@ -553,14 +514,14 @@ model User {
   Notification                                       Notification[]
   Order                                              Order[]
   Profile                                            Profile?
+  ReferredBy                                         Referral?           @relation("ReferredBy")
+  ReferralsMade                                      Referral[]          @relation("ReferralsMade")
   ReputationEvent                                    ReputationEvent[]
-  ReviewsGiven                                       Review[]            @relation("ReviewsGiven")
   ReviewsReceived                                    Review[]            @relation("ReviewsReceived")
+  ReviewsGiven                                       Review[]            @relation("ReviewsGiven")
   Session                                            Session[]
   TrustSignal                                        TrustSignal[]
   WantedRequest                                      WantedRequest[]
-  ReferralsMade                                      Referral[]          @relation("ReferralsMade")
-  ReferredBy                                         Referral?           @relation("ReferredBy")
 
   @@index([deletedAt])
   @@index([email])
@@ -578,8 +539,8 @@ model Webhook {
   id              String            @id
   agentId         String
   url             String
-  events          String[]          // e.g. ["bid.received", "order.status_changed"]
-  secret          String            // HMAC signing secret
+  events          String[]
+  secret          String
   isActive        Boolean           @default(true)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime
@@ -626,18 +587,14 @@ model WantedRequest {
   @@index([userId])
 }
 
-// ============================================================================
-// ENUMS
-// ============================================================================
-
 /// Bid lifecycle states
 /// Flow: PENDING → ACCEPTED/REJECTED/COUNTERED/EXPIRED
 enum BidStatus {
-  PENDING    // Awaiting seller response
-  ACCEPTED   // Seller accepted bid (listing sold)
-  REJECTED   // Seller rejected bid
-  COUNTERED  // Seller made counter-offer (new bid created)
-  EXPIRED    // Bid expired before response
+  PENDING
+  ACCEPTED
+  REJECTED
+  COUNTERED
+  EXPIRED
 }
 
 /// Delivery tracking states (Phase 4)
@@ -657,41 +614,41 @@ enum FulfillmentMethod {
 /// Item condition ratings
 /// Used for setting buyer expectations
 enum ItemCondition {
-  NEW       // Brand new, never used
-  LIKE_NEW  // Barely used, excellent condition
-  GOOD      // Used but well-maintained
-  FAIR      // Shows wear, fully functional
-  POOR      // Heavy wear, may have issues
+  NEW
+  LIKE_NEW
+  GOOD
+  FAIR
+  POOR
 }
 
 /// Product categories for listings
 /// Used for search filtering and organization
 enum ListingCategory {
-  FURNITURE     // Chairs, tables, sofas, etc.
-  ELECTRONICS   // Laptops, phones, cameras, etc.
-  CLOTHING      // Apparel and accessories
-  BOOKS         // Books and magazines
-  SPORTS        // Sports equipment
-  TOYS          // Toys and games
-  TOOLS         // Hand tools, power tools
-  HOME_GARDEN   // Home decor, garden items
-  VEHICLES      // Cars, bikes, scooters
-  OTHER         // Uncategorized items
+  FURNITURE
+  ELECTRONICS
+  CLOTHING
+  BOOKS
+  SPORTS
+  TOYS
+  TOOLS
+  HOME_GARDEN
+  VEHICLES
+  OTHER
 }
 
 /// Listing lifecycle states
 /// Flow: DRAFT → [PENDING_REVIEW] → PUBLISHED ⇄ PAUSED → SOLD/REMOVED
 enum ListingStatus {
-  DRAFT           // Not yet published
-  PENDING_REVIEW  // Awaiting moderation (Phase 5)
-  PUBLISHED       // Live in marketplace
-  PAUSED          // Seller temporarily paused listing
-  RESERVED        // Item reserved pending pickup
-  SOLD            // Transaction completed
-  REMOVED         // Listing removed (soft delete)
-  FLAGGED         // Flagged for review (Phase 5)
-  FOR_SALE        // Legacy status
-  TENTATIVE       // Legacy status
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  PAUSED
+  RESERVED
+  SOLD
+  REMOVED
+  FLAGGED
+  FOR_SALE
+  TENTATIVE
 }
 
 enum ModerationReason {
@@ -798,10 +755,10 @@ enum SkillExecutionStatus {
 /// Negotiation thread lifecycle states
 /// Flow: ACTIVE → ACCEPTED/REJECTED/EXPIRED
 enum ThreadStatus {
-  ACTIVE    // Negotiation in progress
-  ACCEPTED  // Bid accepted, deal made
-  REJECTED  // All bids rejected
-  EXPIRED   // Thread expired without resolution
+  ACTIVE
+  ACCEPTED
+  REJECTED
+  EXPIRED
   CLOSED
 }
 
@@ -828,7 +785,7 @@ enum WantedStatus {
 }
 
 enum ReferralStatus {
-  PENDING   // Referee signed up but hasn't published first listing yet
-  REWARDED  // Referrer rewarded — referee published their first listing
-  EXPIRED   // 90-day window passed without first listing publish
+  PENDING
+  REWARDED
+  EXPIRED
 }

@@ -2,7 +2,6 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import { WantedService } from "@/domain/wanted/service"
-import { auth } from "@/lib/auth"
 import { formatPrice, formatDate } from "@/lib/formatting"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -47,11 +46,9 @@ export default async function WantedDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const [req, session] = await Promise.all([WantedService.getById(id), auth()])
+  const req = await WantedService.getById(id)
 
   if (!req) notFound()
-
-  const isOwner = session?.user?.id === req.userId
 
   const STATUS_BADGE: Record<string, string> = {
     ACTIVE: "bg-green-100 text-green-700 border-green-300",
@@ -120,15 +117,7 @@ export default async function WantedDetailPage({
         </CardContent>
       </Card>
 
-      {isOwner && req.status === "ACTIVE" && (
-        <div className="flex gap-3">
-          <Button variant="outline" asChild>
-            <Link href={`/wanted/${req.id}/edit`}>Edit Request</Link>
-          </Button>
-        </div>
-      )}
-
-      {!isOwner && req.status === "ACTIVE" && (
+      {req.status === "ACTIVE" && (
         <Card className="bg-blue-50 border-blue-200">
           <CardContent className="pt-6">
             <h3 className="font-semibold text-blue-900 mb-1">Have what they&apos;re looking for?</h3>

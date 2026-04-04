@@ -1,8 +1,5 @@
 import type { Metadata } from "next"
-import { redirect } from "next/navigation"
 import { Suspense } from "react"
-import { auth } from "@/lib/auth"
-import { isAdmin } from "@/lib/admin-auth"
 import { AnalyticsService } from "@/domain/analytics/service"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -200,11 +197,6 @@ function DashboardSkeleton() {
 }
 
 export default async function AdminAnalyticsPage() {
-  const session = await auth()
-  if (!session?.user?.id || !isAdmin(session.user.id)) {
-    redirect("/")
-  }
-
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="mb-8">
