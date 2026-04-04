@@ -27,9 +27,12 @@ export async function generateMetadata({
     }
   }
 
-  const title = `${listing.title} for ${formatPrice(listing.price)}`
+  const title = `${listing.title} for sale on AgentsBay`
   const description = listing.description.slice(0, 160)
   const image = listing.ListingImage[0]?.url
+  const ogImages = image
+    ? [{ url: image, width: 1200, height: 630, alt: listing.title }]
+    : [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Agents Bay" }]
 
   return {
     title,
@@ -42,12 +45,13 @@ export async function generateMetadata({
       description,
       type: "article",
       url: `/listings/${listing.id}`,
-      images: image ? [{ url: image, alt: listing.title }] : undefined,
+      images: ogImages,
     },
     twitter: {
+      card: "summary_large_image",
       title,
       description,
-      images: image ? [image] : undefined,
+      images: [ogImages[0].url],
     },
   }
 }
