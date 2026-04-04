@@ -85,7 +85,9 @@ export const createListingSchema = z.object({
   deliveryAvailable: z.boolean().default(false).optional(),
 })
 
-export const updateListingSchema = createListingSchema.partial()
+export const updateListingSchema = createListingSchema.partial().extend({
+  status: z.enum(["PAUSED", "PUBLISHED"]).optional(),
+})
 
 export const SortBy = z.enum(["newest", "oldest", "price_asc", "price_desc", "relevance"])
 export type SortBy = z.infer<typeof SortBy>

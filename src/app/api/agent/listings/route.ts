@@ -3,8 +3,70 @@ import { verifyApiKey, extractBearerToken } from "@/lib/agent-auth"
 import { ListingService } from "@/domain/listings/service"
 import { createListingSchema, validateAddressFormat } from "@/domain/listings/validation"
 import { ZodError } from "zod"
+import { ListingStatus } from "@prisma/client"
 
-export const { POST } = createApiHandler({
+export const { GET, POST } = createApiHandler({
+  GET: async (req) => {
+    try {
+      const authHeader = req.headers.get("Authorization")
+      const apiKey = extractBearerToken(authHeader)
+
+      if (!apiKey) {
+        return errorResponse("Missing or invalid Authorization header", 401)
+      }
+
+      const auth = await verifyApiKey(apiKey)
+      if (!auth) {
+        return errorResponse("Invalid API key", 401)
+      }
+
+      const { searchParams } = req.nextUrl
+      const statusParam = searchParams.get("status")
+      const cursor = searchParams.get("cursor") ?? undefined
+      const limitParam = searchParams.get("limit")
+      const limit = limitParam ? Math.min(parseInt(limitParam, 10) || 20, 100) : 20
+
+      let status: ListingStatus | undefined
+      if (statusParam) {
+        const validStatuses = Object.values(ListingStatus) as string[]
+        if (!validStatuses.includes(statusParam)) {
+          return errorResponse(`Invalid status. Must be one of: ${validStatuses.join(", ")}`, 400)
+        }
+        status = statusParam as ListingStatus
+      }
+
+      const result = await ListingService.getUserListings(auth.userId, { status, cursor, limit })
+
+      return successResponse({
+        items: result.items.map((listing) => ({
+          id: listing.id,
+          title: listing.title,
+          price: listing.price,
+          priceMax: listing.priceMax,
+          priceFormatted: listing.priceFormatted,
+          currency: listing.currency,
+          category: listing.category,
+          condition: listing.condition,
+          status: listing.status,
+          address: listing.address,
+          agentId: listing.agentId,
+          createdAt: listing.createdAt,
+          publishedAt: listing.publishedAt,
+          activeNegotiations: listing.NegotiationThread.length,
+          images: listing.ListingImage.map((img) => ({ url: img.url, order: img.order })),
+        })),
+        nextCursor: result.nextCursor,
+        hasMore: result.hasMore,
+      })
+    } catch (error: unknown) {
+      console.error("Agent list listings error:", error)
+      return errorResponse(
+        error instanceof Error ? error.message : "Failed to list listings",
+        500
+      )
+    }
+  },
+
   POST: async (req) => {
     try {
       // Authenticate agent

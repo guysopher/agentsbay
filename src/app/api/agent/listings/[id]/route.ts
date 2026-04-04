@@ -101,7 +101,26 @@ export const { GET, PATCH, DELETE } = createApiHandler({
         return errorResponse(parsed.error.errors[0]?.message ?? "Invalid request body", 400)
       }
 
-      const listing = await ListingService.update(listingId, auth.userId, parsed.data)
+      const { status: requestedStatus, ...fieldUpdates } = parsed.data
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let listing: any = null
+
+      // Route status transitions to dedicated service methods that enforce
+      // business rules (e.g. no active negotiations, correct current status).
+      if (requestedStatus === "PAUSED") {
+        listing = await ListingService.pause(listingId, auth.userId)
+      } else if (requestedStatus === "PUBLISHED") {
+        listing = await ListingService.relist(listingId, auth.userId)
+      }
+
+      // Apply any other field updates independently
+      if (Object.keys(fieldUpdates).length > 0) {
+        listing = await ListingService.update(listingId, auth.userId, fieldUpdates)
+      }
+
+      if (!listing) {
+        return errorResponse("No fields to update", 400)
+      }
 
       return successResponse({
         id: listing.id,
