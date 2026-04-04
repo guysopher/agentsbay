@@ -11,6 +11,7 @@ import {
   notifyBidRejected,
   notifyBidCountered,
   notifyOrderCreated,
+  notifyNewMessage,
 } from "@/lib/email-notifications"
 
 export interface CreateBidInput {
@@ -675,9 +676,113 @@ export class NegotiationService {
         listingId,
       })
 
+      // Fire-and-forget email to seller
+      void (async () => {
+        try {
+          const [seller, buyer] = await Promise.all([
+            db.user.findUnique({ where: { id: sellerId }, select: { id: true, email: true, name: true, emailNotificationsEnabled: true } }),
+            db.user.findUnique({ where: { id: userId }, select: { name: true } }),
+          ])
+          if (seller?.emailNotificationsEnabled) {
+            await notifyNewMessage({
+              recipientEmail: seller.email,
+              recipientName: seller.name,
+              recipientUserId: seller.id,
+              senderName: buyer?.name ?? null,
+              listingTitle: listing.title,
+              threadId: result.thread.id,
+            })
+          }
+        } catch {
+          // swallow — email must never break the main flow
+        }
+      })()
+
       return result
     } catch (error) {
       logError(error, { listingId, userId, input })
+      throw error
+    }
+  }
+
+  /**
+   * Send a message within an existing negotiation thread.
+   * Either the buyer or seller can send messages. The other party is notified by email.
+   * @param threadId - ID of the negotiation thread
+   * @param userId - ID of the user sending the message (must be buyer or seller)
+   * @param input - Message content and agent flag
+   * @returns Created message
+   * @throws {NotFoundError} If thread doesn't exist
+   * @throws {ForbiddenError} If user is not a participant
+   * @throws {ValidationError} If thread is not active
+   */
+  static async sendMessageToThread(
+    threadId: string,
+    userId: string,
+    input: SendMessageInput
+  ) {
+    try {
+      const thread = await db.negotiationThread.findUnique({
+        where: { id: threadId },
+        include: { Listing: true },
+      })
+
+      if (!thread) {
+        throw new NotFoundError("Thread")
+      }
+
+      if (thread.buyerId !== userId && thread.sellerId !== userId) {
+        throw new ForbiddenError("Not authorized for this thread")
+      }
+
+      if (thread.status !== ThreadStatus.ACTIVE) {
+        throw new ValidationError(`Thread is ${thread.status}`)
+      }
+
+      const message = await db.$transaction(async (tx) => {
+        const msg = await tx.negotiationMessage.create({
+          data: {
+            id: randomUUID(),
+            threadId,
+            content: input.content,
+            isAgent: input.isAgent,
+          },
+        })
+
+        await tx.negotiationThread.update({
+          where: { id: threadId },
+          data: { updatedAt: msg.createdAt },
+        })
+
+        return msg
+      })
+
+      // Fire-and-forget email to the other party
+      void (async () => {
+        try {
+          const recipientId = userId === thread.buyerId ? thread.sellerId : thread.buyerId
+          const [recipient, sender] = await Promise.all([
+            db.user.findUnique({ where: { id: recipientId }, select: { id: true, email: true, name: true, emailNotificationsEnabled: true } }),
+            db.user.findUnique({ where: { id: userId }, select: { name: true } }),
+          ])
+          if (recipient?.emailNotificationsEnabled) {
+            await notifyNewMessage({
+              recipientEmail: recipient.email,
+              recipientName: recipient.name,
+              recipientUserId: recipient.id,
+              senderName: sender?.name ?? null,
+              listingTitle: thread.Listing.title,
+              threadId,
+            })
+          }
+        } catch {
+          // swallow
+        }
+      })()
+
+      return { message }
+    } catch (error) {
+      logError(error, { threadId, userId, input })
       throw error
     }
   }
