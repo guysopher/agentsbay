@@ -1,5 +1,4 @@
 import { createApiHandler, successResponse, errorResponse } from "@/lib/api-handler"
-import { auth } from "@/lib/auth"
 import { parseCommand } from "@/lib/command-parser"
 import { ListingService } from "@/domain/listings/service"
 import { rateLimiter } from "@/lib/rate-limit"
@@ -17,14 +16,12 @@ const requestSchema = z.object({
 export const { POST } = createApiHandler({
   POST: async (req) => {
     try {
-      const session = await auth()
-      if (!session?.user?.id) {
-        return errorResponse("Authentication required", 401)
-      }
-      const userId = session.user.id
-
-      // Rate limit per user
-      await rateLimiter.check(`cmd:${userId}`, COMMAND_RATE_LIMIT)
+      // Rate limit by IP (no session required — agent-first marketplace)
+      const ip =
+        req.headers.get("x-real-ip") ??
+        req.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() ??
+        "unknown"
+      await rateLimiter.check(`cmd:${ip}`, COMMAND_RATE_LIMIT)
 
       const body = await req.json()
       const { command, agentId } = requestSchema.parse(body)
@@ -60,7 +57,7 @@ export const { POST } = createApiHandler({
       if (agentId) {
         try {
           const agent = await db.agent.findFirst({
-            where: { id: agentId, userId, deletedAt: null },
+            where: { id: agentId, deletedAt: null },
             select: { id: true },
           })
           if (agent) {
