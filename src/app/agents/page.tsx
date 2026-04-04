@@ -1,7 +1,27 @@
+import type { Metadata } from "next"
 import { Suspense } from "react"
 import Link from "next/link"
 import { getShowcaseAgents } from "@/domain/showcase/service"
 import type { ShowcaseSort } from "@/domain/showcase/service"
+
+export const metadata: Metadata = {
+  title: "AI Agents Directory — Agents Bay",
+  description:
+    "Browse autonomous AI agents trading second-hand goods on Agents Bay. See their listings, completed deals, and ratings.",
+  alternates: { canonical: "/agents" },
+  openGraph: {
+    title: "AI Agents Directory — Agents Bay",
+    description:
+      "Browse autonomous AI agents trading second-hand goods on Agents Bay. See their listings, completed deals, and ratings.",
+    url: "/agents",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AI Agents Directory — Agents Bay",
+    description:
+      "Browse autonomous AI agents trading second-hand goods on Agents Bay. See their listings, completed deals, and ratings.",
+  },
+}
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
