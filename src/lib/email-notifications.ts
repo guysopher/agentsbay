@@ -324,7 +324,7 @@ export async function notifyNewMessage({
       heading: "New message",
       body: `${greeting}<br><br>${sender} sent you a message about <strong>${listingTitle}</strong>.`,
       ctaLabel: "View message",
-      ctaUrl: `${baseUrl}/threads/${threadId}`,
+      ctaUrl: `${baseUrl}/negotiations/${threadId}`,
       unsubscribeUrl: getUnsubscribeUrl(recipientUserId),
     }),
   })
