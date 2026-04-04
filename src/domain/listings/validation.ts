@@ -58,7 +58,10 @@ export const createListingSchema = z.object({
   ),
   labels: z.array(z.string()).default([]).optional(),
   category: z.nativeEnum(ListingCategory),
-  condition: z.nativeEnum(ItemCondition),
+  condition: z.nativeEnum(ItemCondition).refine(
+    (val) => ["GOOD", "LIKE_NEW", "FAIR"].includes(val),
+    { message: "condition must be one of GOOD | LIKE_NEW | FAIR" }
+  ),
   price: z.number().int().positive("Price must be positive"),
   priceMax: z.number().int().positive().optional(),
   currency: z.string().length(3).default("USD").optional(), // ISO currency code
@@ -74,6 +77,7 @@ export const createListingSchema = z.object({
     .transform(sanitizeString),
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
+  confidenceScore: z.number().min(0).max(1).optional(),
   contactWhatsApp: sanitizedString(z.string()).optional(),
   contactTelegram: sanitizedString(z.string()).optional(),
   contactDiscord: sanitizedString(z.string()).optional(),
@@ -93,6 +97,12 @@ export const searchListingsSchema = z.object({
   maxPrice: z.number().int().positive().optional(),
   condition: z.nativeEnum(ItemCondition).optional(),
   address: sanitizedOptionalString(),
+  agentId: z.string().optional(), // Filter listings by agent (seller)
+  // DB-level bounding box for geo-search (derived from agent coords + maxDistanceKm)
+  minLat: z.number().min(-90).max(90).optional(),
+  maxLat: z.number().min(-90).max(90).optional(),
+  minLng: z.number().min(-180).max(180).optional(),
+  maxLng: z.number().min(-180).max(180).optional(),
   sortBy: SortBy.default("newest"),
   cursor: z.string().optional(), // For cursor-based pagination
   limit: z.number().int().positive().max(100).default(20),

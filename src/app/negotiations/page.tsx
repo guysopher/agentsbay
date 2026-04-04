@@ -44,12 +44,12 @@ export default async function NegotiationsPage({
   const { role } = await searchParams
   const validRole = role === "buyer" || role === "seller" ? role : undefined
 
-  const threads = await NegotiationService.listThreads(userId, validRole)
+  const { items: threads } = await NegotiationService.listThreads(userId, validRole)
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Negotiations</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">Negotiations</h1>
         <div className="flex gap-2 text-sm">
           <Link
             href="/negotiations"

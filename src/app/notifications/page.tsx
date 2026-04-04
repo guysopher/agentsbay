@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Bell, BellOff, CheckCheck, Package, Tag, MessageSquare, AlertCircle, Zap } from "lucide-react"
+import { Bell, BellOff, CheckCheck, Package, Tag, MessageSquare, AlertCircle, Zap, Gift } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { NotificationType } from "@prisma/client"
@@ -32,6 +32,7 @@ const TYPE_ICONS: Record<NotificationType, React.ReactNode> = {
   AGENT_ACTION_REQUIRED: <Zap className="h-4 w-4 text-purple-500" />,
   DEAL_FOUND: <Zap className="h-4 w-4 text-green-500" />,
   MODERATION_ACTION: <AlertCircle className="h-4 w-4 text-red-600" />,
+  REFERRAL_REWARD: <Gift className="h-4 w-4 text-green-500" />,
 }
 
 function timeAgo(dateStr: string) {

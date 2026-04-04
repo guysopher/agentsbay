@@ -1,3 +1,5 @@
+export {};
+
 type CampaignChannel = {
   channel: string
   audience: string

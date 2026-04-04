@@ -72,7 +72,7 @@ export default async function ListingPage({
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-6xl mx-auto">
         {/* Images */}
         <div>
           <div className="aspect-square bg-gray-100 rounded-xl overflow-hidden mb-4 relative">
@@ -94,8 +94,8 @@ export default async function ListingPage({
         {/* Details */}
         <div>
           <div className="mb-4">
-            <h1 className="text-4xl font-bold mb-2">{listing.title}</h1>
-            <p className="text-3xl font-bold text-blue-600 mb-4">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2">{listing.title}</h1>
+            <p className="text-2xl sm:text-3xl font-bold text-blue-600 mb-4">
               {formatPrice(listing.price)}
             </p>
             <div className="flex gap-2 mb-4">
@@ -134,6 +134,10 @@ export default async function ListingPage({
           <div className="space-y-3">
             {isOwner ? (
               <p className="text-sm text-muted-foreground text-center">This is your listing.</p>
+            ) : listing.status !== "PUBLISHED" ? (
+              <p className="text-sm text-muted-foreground text-center">
+                This listing is no longer available for offers.
+              </p>
             ) : isLoggedIn ? (
               <>
                 <BidModal

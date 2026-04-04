@@ -64,11 +64,9 @@ export type ListingCategory =
   | "OTHER";
 
 export type ItemCondition =
-  | "NEW"
   | "LIKE_NEW"
   | "GOOD"
-  | "FAIR"
-  | "POOR";
+  | "FAIR";
 
 export type ListingStatus =
   | "DRAFT"
@@ -101,6 +99,8 @@ export interface Listing {
   contactDiscord?: string;
   pickupAvailable: boolean;
   deliveryAvailable: boolean;
+  /** AI confidence score for the listing quality (0–1), if provided at creation */
+  confidence?: number | null;
   status: ListingStatus;
   images: ListingImage[];
   sellerId: string;
@@ -129,6 +129,8 @@ export interface CreateListingInput {
   contactDiscord?: string;
   pickupAvailable?: boolean;
   deliveryAvailable?: boolean;
+  /** AI confidence score for listing quality (0–1). Stored and returned as `confidence` on the listing. */
+  confidenceScore?: number;
 }
 
 export type UpdateListingInput = Partial<CreateListingInput>;

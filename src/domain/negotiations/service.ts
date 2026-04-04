@@ -5,6 +5,13 @@ import { eventBus } from "@/lib/events"
 import { logError } from "@/lib/errors"
 import { randomUUID } from "crypto"
 import { canTransition, InvalidTransitionError, type BidState } from "./engine"
+import {
+  notifyBidPlaced,
+  notifyBidAccepted,
+  notifyBidRejected,
+  notifyBidCountered,
+  notifyOrderCreated,
+} from "@/lib/email-notifications"
 
 export interface CreateBidInput {
   listingId: string
@@ -56,7 +63,7 @@ export class NegotiationService {
       // Get listing and verify it exists
       const listing = await db.listing.findUnique({
         where: { id: input.listingId },
-        include: { User: true }
+        include: { User: { select: { id: true, email: true, name: true, emailNotificationsEnabled: true } } }
       })
 
       if (!listing) {
@@ -64,7 +71,7 @@ export class NegotiationService {
       }
 
       if (listing.status !== "PUBLISHED") {
-        throw new ValidationError("Cannot bid on unpublished listing")
+        throw new ValidationError("This listing is no longer available for offers")
       }
 
       // Can't bid on own listing
@@ -72,12 +79,20 @@ export class NegotiationService {
         throw new ValidationError("Cannot bid on your own listing")
       }
 
+      // Guard: seller agentId must be UUID when listing was created by an agent
+      const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      if (listing.agentId && !UUID_RE.test(listing.agentId)) {
+        throw new ValidationError("Seller account is not properly configured")
+      }
+
+      const sellerId = listing.agentId ?? listing.userId
+
       // Check if bid amount is reasonable
       if (input.amount < 100) { // Minimum $1
         throw new ValidationError("Bid amount too low")
       }
 
-      if (input.amount > listing.price * 2) {
+      if (input.amount > listing.price * 100 * 2) {
         throw new ValidationError("Bid amount unreasonably high")
       }
 
@@ -102,7 +117,7 @@ export class NegotiationService {
               id: randomUUID(),
               listingId: input.listingId,
               buyerId: input.buyerId,
-              sellerId: listing.userId,
+              sellerId: sellerId,
               status: ThreadStatus.ACTIVE,
               updatedAt: new Date()
             }
@@ -152,9 +167,29 @@ export class NegotiationService {
         threadId: result.thread.id,
         listingId: input.listingId,
         buyerId: input.buyerId,
-        sellerId: listing.userId,
+        sellerId: sellerId,
         amount: input.amount
       })
+
+      // Fire-and-forget email to seller
+      void (async () => {
+        try {
+          if (listing.User.emailNotificationsEnabled) {
+            const buyer = await db.user.findUnique({ where: { id: input.buyerId }, select: { name: true } })
+            await notifyBidPlaced({
+              sellerEmail: listing.User.email,
+              sellerName: listing.User.name,
+              sellerUserId: listing.User.id,
+              buyerName: buyer?.name ?? null,
+              listingTitle: listing.title,
+              listingId: listing.id,
+              amountCents: input.amount,
+            })
+          }
+        } catch {
+          // swallow — email must never break the main flow
+        }
+      })()
 
       return result
     } catch (error) {
@@ -267,6 +302,30 @@ export class NegotiationService {
         threadId: thread.id,
         amount: input.amount
       })
+
+      // Fire-and-forget email to the other party
+      void (async () => {
+        try {
+          const recipientId = userId === thread.buyerId ? thread.sellerId : thread.buyerId
+          const [recipient, counterparty] = await Promise.all([
+            db.user.findUnique({ where: { id: recipientId }, select: { id: true, email: true, name: true, emailNotificationsEnabled: true } }),
+            db.user.findUnique({ where: { id: userId }, select: { name: true } }),
+          ])
+          if (recipient?.emailNotificationsEnabled) {
+            await notifyBidCountered({
+              recipientEmail: recipient.email,
+              recipientName: recipient.name,
+              recipientUserId: recipient.id,
+              counterpartyName: counterparty?.name ?? null,
+              listingTitle: thread.Listing.title,
+              listingId: thread.listingId,
+              amountCents: input.amount,
+            })
+          }
+        } catch {
+          // swallow
+        }
+      })()
 
       return result
     } catch (error) {
@@ -398,6 +457,45 @@ export class NegotiationService {
         amount: bid.amount
       })
 
+      // Fire-and-forget emails: bid-accepted to buyer, order-created to both
+      void (async () => {
+        try {
+          const [buyer, seller] = await Promise.all([
+            db.user.findUnique({ where: { id: thread.buyerId }, select: { id: true, email: true, name: true, emailNotificationsEnabled: true } }),
+            db.user.findUnique({ where: { id: thread.sellerId }, select: { id: true, email: true, name: true, emailNotificationsEnabled: true } }),
+          ])
+          const sends: Promise<void>[] = []
+          if (buyer?.emailNotificationsEnabled) {
+            sends.push(notifyBidAccepted({
+              buyerEmail: buyer.email,
+              buyerName: buyer.name,
+              buyerUserId: buyer.id,
+              listingTitle: thread.Listing.title,
+              listingId: thread.listingId,
+              orderId: result.order.id,
+              amountCents: bid.amount,
+            }))
+          }
+          if (buyer && seller) {
+            sends.push(notifyOrderCreated({
+              buyerEmail: buyer.email,
+              buyerName: buyer.name,
+              buyerUserId: buyer.id,
+              buyerOptedIn: buyer.emailNotificationsEnabled,
+              sellerEmail: seller.email,
+              sellerName: seller.name,
+              sellerUserId: seller.id,
+              sellerOptedIn: seller.emailNotificationsEnabled,
+              listingTitle: thread.Listing.title,
+              orderId: result.order.id,
+            }))
+          }
+          await Promise.all(sends)
+        } catch {
+          // swallow
+        }
+      })()
+
       return result
     } catch (error) {
       logError(error, { bidId, userId })
@@ -423,7 +521,9 @@ export class NegotiationService {
       const bid = await db.bid.findUnique({
         where: { id: bidId },
         include: {
-          NegotiationThread: true
+          NegotiationThread: {
+            include: { Listing: true }
+          }
         }
       })
 
@@ -468,6 +568,24 @@ export class NegotiationService {
         threadId: thread.id
       })
 
+      // Fire-and-forget email to buyer
+      void (async () => {
+        try {
+          const buyer = await db.user.findUnique({ where: { id: thread.buyerId }, select: { id: true, email: true, name: true, emailNotificationsEnabled: true } })
+          if (buyer?.emailNotificationsEnabled) {
+            await notifyBidRejected({
+              buyerEmail: buyer.email,
+              buyerName: buyer.name,
+              buyerUserId: buyer.id,
+              listingTitle: thread.Listing.title,
+              listingId: thread.listingId,
+            })
+          }
+        } catch {
+          // swallow
+        }
+      })()
+
       return result
     } catch (error) {
       logError(error, { bidId, userId })
@@ -501,6 +619,13 @@ export class NegotiationService {
         throw new ValidationError("Cannot message an unavailable listing")
       }
 
+      const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      if (listing.agentId && !UUID_RE.test(listing.agentId)) {
+        throw new ValidationError("Seller account is not properly configured")
+      }
+
+      const sellerId = listing.agentId ?? listing.userId
+
       const result = await db.$transaction(async (tx) => {
         let thread = await tx.negotiationThread.findUnique({
           where: {
@@ -517,7 +642,7 @@ export class NegotiationService {
               id: randomUUID(),
               listingId,
               buyerId: userId,
-              sellerId: listing.userId,
+              sellerId: sellerId,
               status: ThreadStatus.ACTIVE,
               updatedAt: new Date(),
             },

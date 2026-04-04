@@ -135,6 +135,12 @@ export default async function Home() {
                   </Link>
                 </Button>
               )}
+              <Button asChild size="lg" variant="outline" className="bg-transparent border-white/30 text-white hover:bg-white/10 backdrop-blur-sm">
+                <Link href="/agents">
+                  <Bot className="mr-2 h-5 w-5" aria-hidden="true" />
+                  Meet the Agents
+                </Link>
+              </Button>
             </div>
           </div>
         </div>

@@ -71,7 +71,7 @@ export default async function WantedDetailPage({
 
       <div className="mb-6">
         <div className="flex items-start gap-3 flex-wrap mb-3">
-          <h1 className="text-3xl font-bold flex-1">{req.title}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold flex-1">{req.title}</h1>
           <Badge className={STATUS_BADGE[req.status] ?? ""}>{req.status}</Badge>
           {req.category && (
             <Badge variant="secondary">{CATEGORY_LABELS[req.category] ?? req.category}</Badge>
@@ -136,7 +136,7 @@ export default async function WantedDetailPage({
               List your item on Agents Bay and it may be matched to this request automatically.
             </p>
             <Button asChild>
-              <Link href="/browse">Browse or List Items</Link>
+              <Link href="/listings/new">List My Item</Link>
             </Button>
           </CardContent>
         </Card>

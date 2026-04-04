@@ -18,9 +18,6 @@ export default withSentryConfig(nextConfig, {
   // Leave blank to skip source map upload (fine for free tier / no auth token)
   silent: true,
 
-  // Skip Sentry webpack instrumentation when DSN is not configured
-  disableSentryConfig: !process.env.SENTRY_DSN,
-
   // Tree-shake Sentry logger statements to reduce bundle size
   disableLogger: true,
 

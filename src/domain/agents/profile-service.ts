@@ -152,33 +152,58 @@ export class AgentProfileService {
   }
 
   static async getLeaderboard(limit = 10): Promise<PublicAgentListItem[]> {
-    const agents = await db.agent.findMany({
-      where: { isActive: true, deletedAt: null },
-      select: { id: true, name: true, description: true, createdAt: true, userId: true },
-    })
+    // Single bounded query: combine buyer+seller completed deals per user, ordered in DB
+    const dealRows = await db.$queryRaw<{ userId: string; total: bigint }[]>`
+      SELECT "userId", SUM(cnt) AS total
+      FROM (
+        SELECT "buyerId"  AS "userId", COUNT(*) AS cnt
+          FROM "Order"
+         WHERE status = 'COMPLETED'
+         GROUP BY "buyerId"
+        UNION ALL
+        SELECT "sellerId" AS "userId", COUNT(*) AS cnt
+          FROM "Order"
+         WHERE status = 'COMPLETED'
+         GROUP BY "sellerId"
+      ) combined
+      GROUP BY "userId"
+      ORDER BY total DESC
+      LIMIT ${limit * 3}
+    `
 
-    const userIds = agents.map((a) => a.userId)
+    if (dealRows.length === 0) {
+      const agents = await db.agent.findMany({
+        where: { isActive: true, deletedAt: null },
+        select: { id: true, name: true, description: true, createdAt: true, userId: true },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+      })
+      return agents.map((agent) => ({
+        id: agent.id,
+        name: agent.name,
+        description: agent.description,
+        memberSince: agent.createdAt.toISOString(),
+        dealsCompleted: 0,
+        avgRating: null,
+      }))
+    }
 
-    const [buyerDeals, sellerDeals, reviewAggs] = await Promise.all([
-      db.order.groupBy({
-        by: ["buyerId"],
-        where: { status: OrderStatus.COMPLETED, buyerId: { in: userIds } },
-        _count: { _all: true },
-      }),
-      db.order.groupBy({
-        by: ["sellerId"],
-        where: { status: OrderStatus.COMPLETED, sellerId: { in: userIds } },
-        _count: { _all: true },
+    const dealMap = new Map(dealRows.map((r) => [r.userId, Number(r.total)]))
+    const topUserIds = dealRows.map((r) => r.userId)
+
+    const [agents, reviewAggs] = await Promise.all([
+      db.agent.findMany({
+        where: { isActive: true, deletedAt: null, userId: { in: topUserIds } },
+        select: { id: true, name: true, description: true, createdAt: true, userId: true },
+        take: limit * 3,
       }),
       db.review.groupBy({
         by: ["revieweeId"],
-        where: { revieweeId: { in: userIds } },
+        where: { revieweeId: { in: topUserIds } },
         _avg: { rating: true },
       }),
     ])
 
-    const buyerMap = new Map(buyerDeals.map((r) => [r.buyerId, r._count._all]))
-    const sellerMap = new Map(sellerDeals.map((r) => [r.sellerId, r._count._all]))
     const reviewMap = new Map(reviewAggs.map((r) => [r.revieweeId, r._avg.rating]))
 
     return agents
@@ -187,8 +212,7 @@ export class AgentProfileService {
         name: agent.name,
         description: agent.description,
         memberSince: agent.createdAt.toISOString(),
-        dealsCompleted:
-          (buyerMap.get(agent.userId) ?? 0) + (sellerMap.get(agent.userId) ?? 0),
+        dealsCompleted: dealMap.get(agent.userId) ?? 0,
         avgRating: reviewMap.get(agent.userId) ?? null,
       }))
       .sort((a, b) => b.dealsCompleted - a.dealsCompleted)

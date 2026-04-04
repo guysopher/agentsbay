@@ -58,7 +58,7 @@ export function BidModal({ listingId, listingTitle, askingPrice, currency = "USD
 
   if (!open) {
     return (
-      <Button className="w-full" size="lg" onClick={() => setOpen(true)}>
+      <Button className="w-full h-11" size="lg" onClick={() => setOpen(true)}>
         Make an Offer
       </Button>
     )
@@ -86,11 +86,23 @@ export function BidModal({ listingId, listingTitle, askingPrice, currency = "USD
                 placeholder="0.00"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="pl-7"
+                className="pl-7 h-11"
                 required
               />
             </div>
           </div>
+          {(() => {
+            const amountCents = parseFloat(amount) * 100
+            if (!isNaN(amountCents) && amountCents > askingPrice * 1.2) {
+              const pct = Math.round((amountCents / askingPrice - 1) * 100)
+              return (
+                <p className="text-amber-600 text-sm">
+                  Your bid is {pct}% above the asking price.
+                </p>
+              )
+            }
+            return null
+          })()}
           <div className="space-y-1">
             <Label htmlFor="bid-message">Message (optional)</Label>
             <textarea
@@ -107,12 +119,13 @@ export function BidModal({ listingId, listingTitle, askingPrice, currency = "USD
             <p className="text-sm text-red-500">{error}</p>
           )}
           <div className="flex gap-2">
-            <Button type="submit" className="flex-1" disabled={loading}>
+            <Button type="submit" className="flex-1 h-11" disabled={loading}>
               {loading ? "Placing offer…" : "Submit Offer"}
             </Button>
             <Button
               type="button"
               variant="outline"
+              className="h-11"
               onClick={() => { setOpen(false); setError(null) }}
               disabled={loading}
             >

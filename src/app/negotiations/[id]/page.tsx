@@ -59,6 +59,10 @@ export default async function ThreadPage({
   // The latest pending bid (if any) — for showing action buttons
   const pendingBid = thread.Bid.find((b) => b.status === "PENDING")
 
+  // Show re-offer CTA when buyer is at a dead end: active thread, no pending bid, buyer has bid before
+  const hasBuyerPreviousBid = thread.Bid.some((b) => b.placedByUserId === userId)
+  const showReofferCTA = isActive && isBuyer && !pendingBid && hasBuyerPreviousBid
+
   // Determine if current user should respond (the "ball is in their court")
   // Bids are sorted desc, so thread.Bid[0] is the latest
   // If latest bid has no agentId — it was a human bid. Buyer places first bid, seller counters, etc.
@@ -203,6 +207,20 @@ export default async function ThreadPage({
           {isActive && pendingBid && pendingBid.placedByUserId === userId && (
             <div className="p-4 bg-muted rounded-lg text-sm text-muted-foreground">
               Waiting for {isBuyer ? "the seller" : "the buyer"} to respond.
+            </div>
+          )}
+
+          {showReofferCTA && (
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-sm font-medium text-amber-900 mb-2">
+                Your offer was declined. You can still make a new offer.
+              </p>
+              <Link
+                href={`/listings/${thread.listingId}`}
+                className="inline-flex items-center text-sm font-medium text-amber-800 underline hover:text-amber-900"
+              >
+                Make a New Offer
+              </Link>
             </div>
           )}
 

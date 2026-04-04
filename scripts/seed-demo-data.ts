@@ -13,6 +13,8 @@
  *   DRY_RUN    — set to "true" to print the payload without calling the API
  */
 
+export {};
+
 const BASE_URL = process.env.BASE_URL?.replace(/\/$/, "") || "http://localhost:3000"
 const REF_SOURCE = process.env.REF_SOURCE || "seed_demo"
 const DRY_RUN = process.env.DRY_RUN === "true"

@@ -3,6 +3,7 @@ import { NotFoundError, ValidationError } from "@/lib/errors"
 import { DeliveryStatus, FulfillmentMethod, ListingStatus, OrderStatus } from "@prisma/client"
 import { randomUUID } from "crypto"
 import { eventBus } from "@/lib/events"
+import { notifyOrderInTransit, notifyOrderCompleted } from "@/lib/email-notifications"
 
 interface SchedulePickupInput {
   pickupLocation: string
@@ -113,7 +114,7 @@ export class OrderService {
       const order = await tx.order.findFirst({
         where: {
           id: orderId,
-          OR: [{ buyerId: actorUserId }, { sellerId: actorUserId }],
+          sellerId: actorUserId,
         },
         include: {
           Listing: true,
@@ -158,6 +159,77 @@ export class OrderService {
     })
 
     // Emit order.updated for webhook dispatch (fire-and-forget)
+    void eventBus.emit("order.updated", {
+      orderId: updated.id,
+      buyerId: updated.buyerId,
+      sellerId: updated.sellerId,
+      status: updated.status,
+    })
+
+    // Fire-and-forget email to buyer
+    void (async () => {
+      try {
+        const [buyer, listing] = await Promise.all([
+          db.user.findUnique({ where: { id: updated.buyerId }, select: { id: true, email: true, name: true, emailNotificationsEnabled: true } }),
+          db.listing.findUnique({ where: { id: updated.listingId }, select: { title: true } }),
+        ])
+        if (buyer?.emailNotificationsEnabled && listing) {
+          await notifyOrderInTransit({
+            buyerEmail: buyer.email,
+            buyerName: buyer.name,
+            buyerUserId: buyer.id,
+            listingTitle: listing.title,
+            orderId: updated.id,
+          })
+        }
+      } catch {
+        // swallow
+      }
+    })()
+
+    return updated
+  }
+
+  static async markAsPaid(orderId: string, actorUserId: string) {
+    const now = new Date()
+    const updated = await db.$transaction(async (tx) => {
+      const order = await tx.order.findFirst({
+        where: {
+          id: orderId,
+          buyerId: actorUserId,
+        },
+      })
+
+      if (!order) {
+        throw new NotFoundError("Order")
+      }
+
+      if (order.status !== OrderStatus.PENDING_PAYMENT) {
+        throw new ValidationError("Order is not awaiting payment")
+      }
+
+      const updatedOrder = await tx.order.update({
+        where: { id: orderId },
+        data: {
+          status: OrderStatus.PAID,
+          updatedAt: now,
+        },
+      })
+
+      await tx.auditLog.create({
+        data: {
+          id: randomUUID(),
+          userId: actorUserId,
+          action: "order.marked_paid",
+          entityType: "order",
+          entityId: orderId,
+          metadata: {},
+        },
+      })
+
+      return updatedOrder
+    })
+
     void eventBus.emit("order.updated", {
       orderId: updated.id,
       buyerId: updated.buyerId,
@@ -240,6 +312,33 @@ export class OrderService {
       sellerId: updated.sellerId,
       status: updated.status,
     })
+
+    // Fire-and-forget emails to buyer and seller
+    void (async () => {
+      try {
+        const [buyer, seller, listing] = await Promise.all([
+          db.user.findUnique({ where: { id: updated.buyerId }, select: { id: true, email: true, name: true, emailNotificationsEnabled: true } }),
+          db.user.findUnique({ where: { id: updated.sellerId }, select: { id: true, email: true, name: true, emailNotificationsEnabled: true } }),
+          db.listing.findUnique({ where: { id: updated.listingId }, select: { title: true } }),
+        ])
+        if (buyer && seller && listing && (buyer.emailNotificationsEnabled || seller.emailNotificationsEnabled)) {
+          await notifyOrderCompleted({
+            buyerEmail: buyer.email,
+            buyerName: buyer.name,
+            buyerUserId: buyer.id,
+            buyerOptedIn: buyer.emailNotificationsEnabled,
+            sellerEmail: seller.email,
+            sellerName: seller.name,
+            sellerUserId: seller.id,
+            sellerOptedIn: seller.emailNotificationsEnabled,
+            listingTitle: listing.title,
+            orderId: updated.id,
+          })
+        }
+      } catch {
+        // swallow
+      }
+    })()
 
     return updated
   }

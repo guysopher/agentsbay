@@ -4,6 +4,22 @@ import { ListingService } from "@/domain/listings/service"
 import { ListingCategory, ItemCondition } from "@prisma/client"
 import { calculateDistance } from "@/lib/geo"
 
+/**
+ * Compute a lat/lng bounding box from a center point and radius.
+ * Used to push geo-filtering into the DB WHERE clause instead of overfetching rows.
+ * The bounding box is an approximation; the caller still applies exact Haversine filtering.
+ */
+function boundingBox(lat: number, lng: number, radiusKm: number) {
+  const latDelta = radiusKm / 111.32
+  const lngDelta = radiusKm / (111.32 * Math.cos((lat * Math.PI) / 180))
+  return {
+    minLat: lat - latDelta,
+    maxLat: lat + latDelta,
+    minLng: lng - lngDelta,
+    maxLng: lng + lngDelta,
+  }
+}
+
 export const { GET } = createApiHandler({
   GET: async (req) => {
     try {
@@ -18,13 +34,13 @@ export const { GET } = createApiHandler({
       const query = searchParams.get("q") || undefined
       const category = searchParams.get("category") as ListingCategory | undefined
       const condition = searchParams.get("condition") as ItemCondition | undefined
-      const minPrice = searchParams.get("minPrice")
-        ? parseInt(searchParams.get("minPrice")!)
+      const minPrice = searchParams.get("priceMin") ?? searchParams.get("minPrice")
+        ? parseInt((searchParams.get("priceMin") ?? searchParams.get("minPrice"))!)
         : undefined
-      const maxPrice = searchParams.get("maxPrice")
-        ? parseInt(searchParams.get("maxPrice")!)
+      const maxPrice = searchParams.get("priceMax") ?? searchParams.get("maxPrice")
+        ? parseInt((searchParams.get("priceMax") ?? searchParams.get("maxPrice"))!)
         : undefined
-      const address = searchParams.get("address") || undefined
+      const address = searchParams.get("location") || searchParams.get("address") || undefined
       const maxDistanceKm = searchParams.get("maxDistanceKm")
         ? parseFloat(searchParams.get("maxDistanceKm")!)
         : undefined
@@ -38,6 +54,24 @@ export const { GET } = createApiHandler({
         ? (sortByRaw as "newest" | "oldest" | "price_asc" | "price_desc" | "relevance")
         : "newest"
 
+      const agent = auth.agent
+
+      // Reject distance filter when agent has no coordinates rather than silently ignoring it
+      if (maxDistanceKm !== undefined && (!agent.latitude || !agent.longitude)) {
+        return errorResponse(
+          "maxDistanceKm filter requires the agent to have latitude and longitude set",
+          400
+        )
+      }
+
+      // Compute DB-level bounding box when the caller wants a distance filter.
+      // The service applies this as a lat/lng WHERE clause so only rows inside
+      // the radius are fetched — no more 10x overfetch.
+      const bbox =
+        maxDistanceKm !== undefined && agent.latitude && agent.longitude
+          ? boundingBox(agent.latitude, agent.longitude, maxDistanceKm)
+          : undefined
+
       // Search listings
       const { items, nextCursor, hasMore } = await ListingService.search({
         query,
@@ -49,10 +83,10 @@ export const { GET } = createApiHandler({
         sortBy,
         limit,
         cursor,
+        ...bbox,
       })
 
       // Add distance calculation if agent has location set
-      const agent = auth.agent
       const listingsWithDistance = items.map((listing) => {
         let distanceKm: number | undefined
 
@@ -99,13 +133,20 @@ export const { GET } = createApiHandler({
       })
 
       // Filter by distance if specified
+      const distanceFilterApplied = maxDistanceKm !== undefined
       let filteredListings = listingsWithDistance
-      if (maxDistanceKm !== undefined && agent.latitude && agent.longitude) {
+      if (distanceFilterApplied) {
+        const beforeCount = listingsWithDistance.length
         filteredListings = listingsWithDistance.filter(
           (listing) =>
             listing.distanceKm !== undefined &&
-            listing.distanceKm <= maxDistanceKm
+            listing.distanceKm <= maxDistanceKm!
         )
+        if (beforeCount > 0 && filteredListings.length < beforeCount * 0.1) {
+          console.warn(
+            `[search] Distance filter (maxDistanceKm=${maxDistanceKm}) reduced results significantly: ${beforeCount} -> ${filteredListings.length}`
+          )
+        }
       }
 
       // Sort by distance only when caller did not explicitly specify a sortBy
@@ -117,18 +158,22 @@ export const { GET } = createApiHandler({
         })
       }
 
-      // Recalculate pagination metadata after client-side distance filtering.
-      // If the filtered page is full and the DB has more rows, keep the cursor.
-      // Otherwise treat this as the last page to avoid misleading the caller.
-      const filteredNextCursor =
-        hasMore && filteredListings.length >= limit ? nextCursor : undefined
-      const filteredHasMore = !!filteredNextCursor
+      // Trim to the requested page size
+      const pageListings = filteredListings.slice(0, limit)
+
+      // Recalculate pagination metadata after distance filtering.
+      // hasMore is true when: the overfetch produced more filtered results than the page
+      // limit (meaning we have results left in filteredListings), OR the DB has more rows
+      // to fetch. nextCursor is preserved in both cases so callers can keep paginating.
+      const filteredHasMore = filteredListings.length > limit || hasMore
+      const filteredNextCursor = filteredHasMore ? nextCursor : undefined
 
       return successResponse({
-        listings: filteredListings,
-        total: filteredListings.length,
+        listings: pageListings,
+        total: pageListings.length,
         nextCursor: filteredNextCursor,
         hasMore: filteredHasMore,
+        ...(distanceFilterApplied && { distanceFilterApplied: true, resultsFiltered: true }),
       })
     } catch (error: unknown) {
       console.error("Agent search error:", error)

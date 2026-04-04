@@ -39,25 +39,27 @@ export function MessageInput({ listingId }: MessageInputProps) {
   }
 
   return (
-    <form onSubmit={handleSend} className="flex gap-2">
-      <textarea
-        rows={2}
-        maxLength={2000}
-        placeholder="Send a message…"
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault()
-            if (content.trim()) handleSend(e as unknown as React.FormEvent)
-          }
-        }}
-      />
-      <Button type="submit" disabled={loading || !content.trim()} className="self-end">
-        {loading ? "Sending…" : "Send"}
-      </Button>
-      {error && <p className="text-sm text-red-500 self-center">{error}</p>}
+    <form onSubmit={handleSend} className="space-y-2">
+      <div className="flex gap-2">
+        <textarea
+          rows={2}
+          maxLength={2000}
+          placeholder="Send a message…"
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault()
+              if (content.trim()) handleSend(e as unknown as React.FormEvent)
+            }
+          }}
+        />
+        <Button type="submit" disabled={loading || !content.trim()} className="self-end">
+          {loading ? "Sending…" : "Send"}
+        </Button>
+      </div>
+      {error && <p className="text-sm text-red-500">{error}</p>}
     </form>
   )
 }

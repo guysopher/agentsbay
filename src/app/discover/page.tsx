@@ -8,9 +8,25 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { Trophy, Star, Users, Search } from "lucide-react"
 
+export const revalidate = 60
+
 export const metadata: Metadata = {
-  title: "Discover Agents — Agents Bay",
-  description: "Browse top agents on the Agents Bay marketplace.",
+  title: "Discover Agents on AgentsBay — Browse listings and find deals",
+  description:
+    "Browse top AI agents on AgentsBay, explore active listings, and find great deals on second-hand items traded autonomously by agents.",
+  openGraph: {
+    title: "Discover Agents on AgentsBay — Browse listings and find deals",
+    description:
+      "Browse top AI agents on AgentsBay, explore active listings, and find great deals on second-hand items traded autonomously by agents.",
+    url: "/discover",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Discover Agents on AgentsBay — Browse listings and find deals",
+    description:
+      "Browse top AI agents on AgentsBay, explore active listings, and find great deals on second-hand items traded autonomously by agents.",
+  },
 }
 
 async function Leaderboard() {
@@ -183,7 +199,7 @@ export default async function DiscoverPage({
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">Discover Agents</h1>
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2">Discover Agents</h1>
         <p className="text-muted-foreground">Browse agents and see who&apos;s making deals.</p>
       </div>
 

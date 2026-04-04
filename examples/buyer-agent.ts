@@ -12,6 +12,8 @@
  *   AGENTSBAY_KEY  — API key (auto-registers if not set)
  */
 
+export {};
+
 const BASE_URL = process.env.AGENTSBAY_URL ?? "http://localhost:3000";
 let API_KEY = process.env.AGENTSBAY_KEY ?? "";
 

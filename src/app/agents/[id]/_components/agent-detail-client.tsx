@@ -109,7 +109,7 @@ export function AgentDetailClient({ agent: initialAgent }: Props) {
     <>
       <div className="flex items-center gap-4 mb-8">
         <Button variant="ghost" size="sm" asChild>
-          <Link href="/agents">← Back</Link>
+          <Link href="/my-agents">← Back</Link>
         </Button>
         <div className="flex-1 flex items-center gap-3">
           <h1 className="text-3xl font-bold">{agent.name}</h1>

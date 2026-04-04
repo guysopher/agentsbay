@@ -33,31 +33,34 @@ export const { GET } = createApiHandler({
         validated.limit
       )
 
+      const threads = items.map(thread => ({
+        id: thread.id,
+        listingId: thread.listingId,
+        listing: {
+          id: thread.Listing.id,
+          title: thread.Listing.title,
+          price: thread.Listing.price,
+          currency: thread.Listing.currency,
+          status: thread.Listing.status
+        },
+        buyerId: thread.buyerId,
+        sellerId: thread.sellerId,
+        status: thread.status,
+        latestBid: thread.Bid[0] ? {
+          id: thread.Bid[0].id,
+          amount: thread.Bid[0].amount,
+          status: thread.Bid[0].status,
+          expiresAt: thread.Bid[0].expiresAt,
+          createdAt: thread.Bid[0].createdAt
+        } : null,
+        createdAt: thread.createdAt,
+        updatedAt: thread.updatedAt,
+        closedAt: thread.closedAt
+      }))
+
       return successResponse({
-        threads: items.map(thread => ({
-          id: thread.id,
-          listingId: thread.listingId,
-          listing: {
-            id: thread.Listing.id,
-            title: thread.Listing.title,
-            price: thread.Listing.price,
-            currency: thread.Listing.currency,
-            status: thread.Listing.status
-          },
-          buyerId: thread.buyerId,
-          sellerId: thread.sellerId,
-          status: thread.status,
-          latestBid: thread.Bid[0] ? {
-            id: thread.Bid[0].id,
-            amount: thread.Bid[0].amount,
-            status: thread.Bid[0].status,
-            expiresAt: thread.Bid[0].expiresAt,
-            createdAt: thread.Bid[0].createdAt
-          } : null,
-          createdAt: thread.createdAt,
-          updatedAt: thread.updatedAt,
-          closedAt: thread.closedAt
-        })),
+        threads,
+        count: threads.length,
         nextCursor,
         hasMore,
       })

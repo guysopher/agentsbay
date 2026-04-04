@@ -8,6 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { OrderStatus, FulfillmentMethod } from "@prisma/client"
 import { CheckCircle2, Circle, Clock, MapPin, Truck } from "lucide-react"
 import { NotFoundError } from "@/lib/errors"
+import { getSiteUrl } from "@/lib/site-config"
+import { MarkAsPaidButton } from "@/components/orders/mark-paid-button"
+import { StripePaymentForm } from "@/components/orders/stripe-payment-form"
+import { SchedulePickupForm } from "@/components/orders/schedule-pickup-form"
+import { OrderReferralCta } from "@/components/orders/referral-cta"
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
   PENDING_PAYMENT: "Awaiting Payment",
@@ -30,12 +35,17 @@ const STATUS_VARIANTS: Record<OrderStatus, "default" | "secondary" | "destructiv
 }
 
 // Status progression steps
-const PICKUP_STEPS: OrderStatus[] = [OrderStatus.PAID, OrderStatus.IN_TRANSIT, OrderStatus.COMPLETED]
+const PICKUP_STEPS: OrderStatus[] = [
+  OrderStatus.PENDING_PAYMENT,
+  OrderStatus.PAID,
+  OrderStatus.IN_TRANSIT,
+  OrderStatus.COMPLETED,
+]
 const PICKUP_STEP_LABELS: Record<OrderStatus, string> = {
+  PENDING_PAYMENT: "Awaiting Payment",
   PAID: "Payment Confirmed",
   IN_TRANSIT: "Pickup Scheduled",
   COMPLETED: "Completed",
-  PENDING_PAYMENT: "",
   CANCELLED: "",
   DISPUTED: "",
   REFUNDED: "",
@@ -96,7 +106,7 @@ export default async function OrderDetailPage({
   const isBuyer = order.buyerId === userId
   const isPickup = order.fulfillmentMethod === FulfillmentMethod.PICKUP
 
-  // Calculate progress step index for pickup orders
+  // Calculate progress step index — includes PENDING_PAYMENT as first step
   const currentStepIndex = PICKUP_STEPS.indexOf(order.status)
 
   return (
@@ -170,6 +180,86 @@ export default async function OrderDetailPage({
         </CardContent>
       </Card>
 
+      {/* Payment instructions — shown to both buyer and seller until order is complete */}
+      {(order.status === OrderStatus.PENDING_PAYMENT || order.status === OrderStatus.PAID) && (
+        <Card className="mb-6">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">How payment works</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ? (
+              <ol className="space-y-2 text-sm text-muted-foreground list-none">
+                <li className="flex gap-3">
+                  <span className="shrink-0 font-semibold text-foreground">1.</span>
+                  <span>Buyer enters card details and clicks <strong>Pay Now</strong></span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="shrink-0 font-semibold text-foreground">2.</span>
+                  <span>Order is automatically marked as paid once payment clears</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="shrink-0 font-semibold text-foreground">3.</span>
+                  <span>Seller schedules pickup or arranges delivery</span>
+                </li>
+              </ol>
+            ) : (
+              <ol className="space-y-2 text-sm text-muted-foreground list-none">
+                <li className="flex gap-3">
+                  <span className="shrink-0 font-semibold text-foreground">1.</span>
+                  <span>Agree on a payment method with the seller via messages (e.g. PayPal, bank transfer, cash)</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="shrink-0 font-semibold text-foreground">2.</span>
+                  <span>Complete the payment outside of AgentsBay</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="shrink-0 font-semibold text-foreground">3.</span>
+                  <span>Buyer marks the order as paid once payment is sent</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="shrink-0 font-semibold text-foreground">4.</span>
+                  <span>Seller confirms receipt and marks as paid on their end</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="shrink-0 font-semibold text-foreground">5.</span>
+                  <span>Order is marked complete</span>
+                </li>
+              </ol>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Pending Payment — buyer CTA */}
+      {order.status === OrderStatus.PENDING_PAYMENT && isBuyer && (
+        <Card className="mb-6 border-amber-200 bg-amber-50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base text-amber-900">Payment Pending</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ? (
+              <>
+                <p className="text-sm text-amber-800 mb-4">
+                  Enter your card details below to pay securely via Stripe.
+                </p>
+                <StripePaymentForm
+                  orderId={order.id}
+                  returnUrl={`${getSiteUrl()}/orders/${order.id}?payment=success`}
+                />
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-amber-800">
+                  Payment is arranged directly with the seller. Once payment is confirmed between you,
+                  click <strong>Mark as Paid</strong> to proceed with scheduling pickup.
+                </p>
+                <MarkAsPaidButton orderId={order.id} />
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Status Timeline — only for pickup orders in active statuses */}
       {isPickup && currentStepIndex >= 0 && (
         <Card className="mb-6">
@@ -189,6 +279,79 @@ export default async function OrderDetailPage({
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Schedule Pickup — seller sees form; buyer sees waiting message */}
+      {isPickup && order.status === OrderStatus.PAID && (
+        isBuyer ? (
+          <Card className="mb-6 border-slate-200 bg-slate-50">
+            <CardContent className="pt-4">
+              <p className="text-sm text-slate-700">
+                Waiting for the seller to schedule a pickup location.
+                You&apos;ll be notified once they provide the details.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="mb-6 border-blue-200 bg-blue-50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base text-blue-900">Schedule Pickup</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-blue-800 mb-4">
+                Payment confirmed. Enter the pickup location where the buyer can collect the item. The order will move to in transit once submitted.
+              </p>
+              <SchedulePickupForm orderId={order.id} />
+            </CardContent>
+          </Card>
+        )
+      )}
+
+      {/* Disputed — show support guidance */}
+      {order.status === OrderStatus.DISPUTED && (
+        <Card className="mb-6 border-red-200 bg-red-50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base text-red-900">Order Disputed</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm text-red-800">
+            <p>
+              A dispute has been raised on this order. Our payment provider is reviewing the case.
+            </p>
+            <p>
+              If you have questions or need to provide evidence, please contact support at{" "}
+              <a href="mailto:support@agentsbay.com" className="underline font-medium">
+                support@agentsbay.com
+              </a>{" "}
+              with your order ID: <span className="font-mono font-semibold">{order.id}</span>
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Refunded — show confirmation and timeline guidance */}
+      {order.status === OrderStatus.REFUNDED && (
+        <Card className="mb-6 border-green-200 bg-green-50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base text-green-900">Order Refunded</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm text-green-800">
+            <p>
+              Your payment has been refunded. Refunds typically appear within <strong>5–10 business days</strong> depending on your bank.
+            </p>
+            <p>
+              If you haven&apos;t received your refund after 10 business days, contact support at{" "}
+              <a href="mailto:support@agentsbay.com" className="underline font-medium">
+                support@agentsbay.com
+              </a>
+              .
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Referral CTA — shown to seller on completed orders */}
+      {order.status === OrderStatus.COMPLETED && !isBuyer && (
+        <OrderReferralCta />
       )}
 
       {/* Delivery info */}

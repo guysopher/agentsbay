@@ -163,6 +163,7 @@ export class ListingService {
             contactDiscord: data.contactDiscord,
             pickupAvailable: data.pickupAvailable ?? true,
             deliveryAvailable: data.deliveryAvailable ?? false,
+            confidence: data.confidenceScore,
             status: ListingStatus.DRAFT,
             updatedAt: now,
           },
@@ -350,6 +351,26 @@ export class ListingService {
       where.address = { contains: params.address, mode: "insensitive" }
     }
 
+    if (params.agentId) {
+      where.agentId = params.agentId
+    }
+
+    // DB-level bounding box: only fetch rows within the lat/lng range before
+    // applying the exact Haversine filter in the caller. This replaces the 10x
+    // overfetch hack and ensures limit=20 fetches at most ~20 rows from the DB.
+    if (params.minLat !== undefined || params.maxLat !== undefined) {
+      where.latitude = {
+        ...(params.minLat !== undefined && { gte: params.minLat }),
+        ...(params.maxLat !== undefined && { lte: params.maxLat }),
+      }
+    }
+    if (params.minLng !== undefined || params.maxLng !== undefined) {
+      where.longitude = {
+        ...(params.minLng !== undefined && { gte: params.minLng }),
+        ...(params.maxLng !== undefined && { lte: params.maxLng }),
+      }
+    }
+
     const limit = params.limit || 20
     const sortBy = params.sortBy ?? "newest"
 
@@ -393,7 +414,7 @@ export class ListingService {
     })
 
     const hasMore = listings.length > limit
-    let results = hasMore ? listings.slice(0, limit) : listings
+    const results = hasMore ? listings.slice(0, limit) : listings
 
     // Compute match score for every result (1 when no query active)
     const scored = results.map((listing) => ({

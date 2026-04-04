@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import bcrypt from "bcryptjs"
 import { db } from "@/lib/db"
+import { ReferralService } from "@/domain/referral/service"
 import { randomBytes } from "crypto"
 
 const signupSchema = z.object({
   name: z.string().min(1).max(100).trim(),
   email: z.string().email().toLowerCase().trim(),
   password: z.string().min(8).max(72),
+  ref: z.string().regex(/^[A-Z0-9]{8}$/).optional(),
 })
 
 export async function POST(request: NextRequest) {
@@ -24,7 +26,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: message }, { status: 400 })
   }
 
-  const { name, email, password } = parsed.data
+  const { name, email, password, ref } = parsed.data
 
   const existing = await db.user.findUnique({ where: { email } })
   if (existing) {
@@ -36,15 +38,22 @@ export async function POST(request: NextRequest) {
 
   const hashedPassword = await bcrypt.hash(password, 12)
 
+  const userId = randomBytes(16).toString("hex")
+
   await db.user.create({
     data: {
-      id: randomBytes(16).toString("hex"),
+      id: userId,
       email,
       name,
       password: hashedPassword,
       updatedAt: new Date(),
     },
   })
+
+  // Handle referral attribution — fire-and-forget, never blocks signup
+  if (ref) {
+    void ReferralService.attributeSignup(userId, ref)
+  }
 
   return NextResponse.json({ ok: true }, { status: 201 })
 }

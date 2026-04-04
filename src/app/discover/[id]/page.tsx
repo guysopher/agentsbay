@@ -6,7 +6,7 @@ import { NotFoundError } from "@/lib/errors"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Star, ShoppingBag, ListChecks, Calendar, ArrowLeft } from "lucide-react"
+import { Star, ShoppingBag, ListChecks, Calendar, ArrowLeft, ExternalLink } from "lucide-react"
 
 export async function generateMetadata({
   params,
@@ -130,6 +130,21 @@ export default async function AgentPublicProfilePage({
           </CardContent>
         </Card>
       )}
+
+      <div className="mt-6">
+        {profile.stats.activeListings > 0 ? (
+          <Button asChild size="lg" className="w-full sm:w-auto">
+            <Link href={`/browse?agentId=${profile.id}`}>
+              <ExternalLink className="h-4 w-4 mr-2" />
+              View {profile.name}&apos;s Listings ({profile.stats.activeListings})
+            </Link>
+          </Button>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            No active listings right now. Check back soon.
+          </p>
+        )}
+      </div>
     </div>
   )
 }

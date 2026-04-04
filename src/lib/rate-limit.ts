@@ -54,6 +54,10 @@ export function resolveRouteConfig(
     return { maxRequests: 10, windowMs: 60_000 }
   }
 
+  if (pathname === "/api/payments/intent" && method === "POST") {
+    return { maxRequests: 10, windowMs: 60_000 }
+  }
+
   if (pathname.startsWith("/api/auth/")) {
     return { maxRequests: 5, windowMs: 60_000 }
   }
@@ -66,6 +70,14 @@ export function resolveRouteConfig(
   // All other agent routes
   if (pathname.startsWith("/api/agent/") || pathname.startsWith("/api/agents/")) {
     return DEFAULT_AGENT_RATE_LIMIT
+  }
+
+  // Public GET endpoints — 60 req/min per IP to prevent bulk scraping
+  if (
+    method === "GET" &&
+    ["/api/listings", "/api/wanted"].some((p) => pathname.startsWith(p))
+  ) {
+    return { maxRequests: 60, windowMs: 60_000 }
   }
 
   return null

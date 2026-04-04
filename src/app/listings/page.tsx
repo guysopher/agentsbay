@@ -3,6 +3,7 @@ import { Suspense } from "react"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { auth } from "@/lib/auth"
+import { db } from "@/lib/db"
 import { ListingService } from "@/domain/listings/service"
 import { MyListingCard } from "@/components/my-listing-card"
 import { Card, CardContent } from "@/components/ui/card"
@@ -10,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { ListingStatus } from "@prisma/client"
 import { Plus } from "lucide-react"
+import { FirstRunBanner } from "@/components/first-run-banner"
 
 export const metadata: Metadata = {
   title: "My Listings",
@@ -132,10 +134,17 @@ export default async function MyListingsPage({
       ? tabParam
       : "all"
 
+  const [listingsCount, bidsCount, agentsCount] = await Promise.all([
+    db.listing.count({ where: { userId } }),
+    db.bid.count({ where: { placedByUserId: userId } }),
+    db.agent.count({ where: { userId, isActive: true } }),
+  ])
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <FirstRunBanner listingsCount={listingsCount} bidsCount={bidsCount} agentsCount={agentsCount} />
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">My Listings</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">My Listings</h1>
         <Button asChild size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
           <Link href="/listings/new">
             <Plus className="h-4 w-4 mr-1" />
