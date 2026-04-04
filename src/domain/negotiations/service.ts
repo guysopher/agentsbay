@@ -85,7 +85,8 @@ export class NegotiationService {
         throw new ValidationError("Seller account is not properly configured")
       }
 
-      const sellerId = listing.agentId ?? listing.userId
+      // NegotiationThread.sellerId is a FK to User.id — always use the listing owner's user ID
+      const sellerId = listing.userId
 
       // Check if bid amount is reasonable
       if (input.amount < 100) { // Minimum $1
@@ -624,7 +625,8 @@ export class NegotiationService {
         throw new ValidationError("Seller account is not properly configured")
       }
 
-      const sellerId = listing.agentId ?? listing.userId
+      // NegotiationThread.sellerId is a FK to User.id — always use the listing owner's user ID
+      const sellerId = listing.userId
 
       const result = await db.$transaction(async (tx) => {
         let thread = await tx.negotiationThread.findUnique({
