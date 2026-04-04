@@ -1,19 +1,11 @@
-import NextAuth from "next-auth"
-import authConfig from "@/lib/auth.config"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
 import { rateLimiter, resolveRouteConfig } from "@/lib/rate-limit"
 
-// Edge-safe auth — does NOT import Prisma, bcrypt, or any Node.js modules
-const { auth } = NextAuth(authConfig)
-
-// Pages that require a NextAuth session — unauthenticated users are redirected
-const PROTECTED_PAGES = ["/profile", "/orders", "/listings/new", "/wanted/new"]
-
 // API routes that are fully public — no credentials required
 const PUBLIC_API_PREFIXES = [
-  "/api/auth",    // NextAuth sign-in / callback / CSRF
+  "/api/auth",    // NextAuth handlers (kept for compatibility)
   "/api/health",  // Health check / uptime monitoring
   "/api/skills",  // Public skill catalog (used by OpenAI / external agents)
 ]
@@ -29,13 +21,6 @@ const PUBLIC_API_PATHS = [
 const BEARER_AUTH_PREFIXES = [
   "/api/agent/",  // All agent API routes (sk_test_* keys)
   "/api/cron/",   // Cron triggers (CRON_SECRET)
-]
-
-// API routes where GET is publicly readable but mutations require a session.
-// Listed explicitly so the intent is clear.
-const PUBLIC_GET_PREFIXES = [
-  "/api/listings", // Browse marketplace listings
-  "/api/wanted",   // Browse wanted requests
 ]
 
 function securityHeaders(response: NextResponse): NextResponse {
@@ -56,9 +41,7 @@ function unauthorizedJson(message: string): NextResponse {
   )
 }
 
-function applyRateLimit(
-  req: NextRequest & { auth?: { user?: { id?: string } } | null }
-): NextResponse | null {
+function applyRateLimit(req: NextRequest): NextResponse | null {
   const { pathname } = req.nextUrl
   const config = resolveRouteConfig(req.method, pathname)
   if (!config) return null
@@ -68,8 +51,6 @@ function applyRateLimit(
   // Agent routes (/api/agent/*): key by Bearer API key for true per-agent limiting.
   //   If no Bearer token is present, let the auth middleware handle the 401 — skip limiting.
   //
-  // Session-authenticated routes: key by userId.
-  //
   // Everything else: fall back to IP.
   //   IP trust model (Vercel deployment assumed):
   //   - x-real-ip is set by Vercel's edge infrastructure to the actual client IP
@@ -78,8 +59,6 @@ function applyRateLimit(
   //     value (last entry), which is injected by the nearest trusted proxy rather
   //     than the client. The leftmost value (split(",")[0]) is client-controlled
   //     and must never be used for rate-limit keying.
-  //   - For self-hosted / Docker deployments behind a known reverse proxy, ensure
-  //     the proxy strips and rewrites x-forwarded-for before reaching Next.js.
   let key: string
 
   if (pathname.startsWith("/api/agent/")) {
@@ -88,12 +67,11 @@ function applyRateLimit(
     if (!token) return null  // no token — let auth middleware return 401
     key = `agent:${token}:${pathname}`
   } else {
-    const userId = req.auth?.user?.id
     const ip =
       req.headers.get("x-real-ip") ??
       req.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() ??
       "unknown"
-    key = userId ? `user:${userId}:${pathname}` : `ip:${ip}:${pathname}`
+    key = `ip:${ip}:${pathname}`
   }
 
   const status = rateLimiter.checkSafe(key, config)
@@ -121,10 +99,8 @@ function applyRateLimit(
   return null
 }
 
-// `auth` wraps the middleware and injects `req.auth` (NextAuth session | null)
-export default auth((req: NextRequest & { auth?: { user?: { id?: string } } | null }) => {
+export default function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
-  const method = req.method
 
   // ── Rate limiting ────────────────────────────────────────────────────────────
   const rateLimitResponse = applyRateLimit(req)
@@ -140,15 +116,7 @@ export default auth((req: NextRequest & { auth?: { user?: { id?: string } } | nu
       return securityHeaders(NextResponse.next())
     }
 
-    // 2. Public GET — browsing is open; mutations fall through to session check below
-    if (
-      method === "GET" &&
-      PUBLIC_GET_PREFIXES.some((p) => pathname.startsWith(p))
-    ) {
-      return securityHeaders(NextResponse.next())
-    }
-
-    // 3. Bearer token routes — verify header presence only; handler validates the key
+    // 2. Bearer token routes — verify header presence only; handler validates the key
     if (BEARER_AUTH_PREFIXES.some((p) => pathname.startsWith(p))) {
       const authHeader = req.headers.get("authorization")
       if (!authHeader?.startsWith("Bearer ")) {
@@ -157,26 +125,13 @@ export default auth((req: NextRequest & { auth?: { user?: { id?: string } } | nu
       return securityHeaders(NextResponse.next())
     }
 
-    // 4. Everything else requires a NextAuth session
-    if (!req.auth) {
-      return unauthorizedJson("Authentication required")
-    }
-
+    // 3. All other API routes are public — no human session required
     return securityHeaders(NextResponse.next())
   }
 
-  // ── Page routes ─────────────────────────────────────────────────────────────
-  const isProtectedPage = PROTECTED_PAGES.some((route) =>
-    pathname.startsWith(route)
-  )
-  if (isProtectedPage && !req.auth) {
-    const signInUrl = new URL("/auth/signin", req.url)
-    signInUrl.searchParams.set("callbackUrl", pathname)
-    return NextResponse.redirect(signInUrl)
-  }
-
+  // ── Page routes — all public, no auth required ───────────────────────────────
   return securityHeaders(NextResponse.next())
-})
+}
 
 export const config = {
   matcher: [

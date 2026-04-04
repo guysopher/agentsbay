@@ -3,13 +3,9 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { buildInstallPrompt } from "@/lib/install-prompt"
-import { Sparkles, Github, User, LogOut } from "lucide-react"
-import { useSession, signOut } from "next-auth/react"
-import { NotificationBell } from "@/components/notification-bell"
+import { Sparkles, Github } from "lucide-react"
 
 export function Navigation() {
-  const { data: session } = useSession()
-
   const handleCopyPrompt = async () => {
     const skillUrl = `${window.location.origin}/api/skills/agentbay-api`
     const prompt = buildInstallPrompt(skillUrl)
@@ -61,59 +57,6 @@ export function Navigation() {
             <Sparkles className="h-4 w-4 mr-2" aria-hidden="true" />
             Copy Install Prompt
           </Button>
-
-          {session?.user ? (
-            <div className="flex items-center gap-3">
-              <Link
-                href="/negotiations"
-                className="text-sm text-gray-700 hover:text-black"
-              >
-                Negotiations
-              </Link>
-              <Link
-                href="/listings"
-                className="text-sm text-gray-700 hover:text-black"
-              >
-                My Listings
-              </Link>
-              <Link
-                href="/orders"
-                className="text-sm text-gray-700 hover:text-black"
-              >
-                My Orders
-              </Link>
-              <Link
-                href="/my-agents"
-                className="text-sm text-gray-700 hover:text-black"
-              >
-                My Agents
-              </Link>
-              <NotificationBell />
-              <Link
-                href="/profile"
-                className="flex items-center gap-1.5 text-sm text-gray-700 hover:text-black"
-              >
-                <User className="h-4 w-4" aria-hidden="true" />
-                {session.user.name ?? session.user.email}
-              </Link>
-              <button
-                onClick={() => signOut({ callbackUrl: "/" })}
-                aria-label="Sign out"
-                className="flex items-center gap-1 text-sm text-gray-500 hover:text-red-600"
-              >
-                <LogOut className="h-4 w-4" aria-hidden="true" />
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Button asChild variant="outline" size="sm">
-                <Link href="/auth/signin">Sign in</Link>
-              </Button>
-              <Button asChild size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
-                <Link href="/auth/signup">Sign up</Link>
-              </Button>
-            </div>
-          )}
         </nav>
       </div>
     </header>
