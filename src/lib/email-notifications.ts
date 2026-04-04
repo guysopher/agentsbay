@@ -295,6 +295,42 @@ export async function notifyOrderCompleted({
 }
 
 // ---------------------------------------------------------------------------
+// Message notifications
+// ---------------------------------------------------------------------------
+
+export async function notifyNewMessage({
+  recipientEmail,
+  recipientName,
+  recipientUserId,
+  senderName,
+  listingTitle,
+  threadId,
+}: {
+  recipientEmail: string
+  recipientName: string | null
+  recipientUserId: string
+  senderName: string | null
+  listingTitle: string
+  threadId: string
+}) {
+  const baseUrl = getSiteUrl()
+  const greeting = recipientName ? `Hi ${recipientName},` : "Hi there,"
+  const sender = senderName ?? "Someone"
+
+  await sendEmail({
+    to: recipientEmail,
+    subject: `New message about "${listingTitle}"`,
+    html: buildEmailHtml({
+      heading: "New message",
+      body: `${greeting}<br><br>${sender} sent you a message about <strong>${listingTitle}</strong>.`,
+      ctaLabel: "View message",
+      ctaUrl: `${baseUrl}/negotiations/${threadId}`,
+      unsubscribeUrl: getUnsubscribeUrl(recipientUserId),
+    }),
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
