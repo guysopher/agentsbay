@@ -1,7 +1,12 @@
-import { auth } from "@/lib/auth"
+import NextAuth from "next-auth"
+import authConfig from "@/lib/auth.config"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+
 import { rateLimiter, resolveRouteConfig } from "@/lib/rate-limit"
+
+// Edge-safe auth — does NOT import Prisma, bcrypt, or any Node.js modules
+const { auth } = NextAuth(authConfig)
 
 // Pages that require a NextAuth session — unauthenticated users are redirected
 const PROTECTED_PAGES = ["/profile", "/orders", "/listings/new", "/wanted/new"]
