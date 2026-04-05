@@ -538,6 +538,7 @@ describe("NegotiationService", () => {
         return fn({
           bid: {
             update: jest.fn().mockResolvedValue(rejectedBid),
+            updateMany: jest.fn().mockResolvedValue({ count: 0 }),
           },
           negotiationThread: {
             update: jest.fn().mockResolvedValue(THREAD),
@@ -564,6 +565,15 @@ describe("NegotiationService", () => {
 
       await expect(
         NegotiationService.rejectBid("bid-1", "stranger")
+      ).rejects.toThrow(ForbiddenError)
+    })
+
+    it("throws ForbiddenError when user tries to reject their own bid", async () => {
+      // BID.placedByUserId = "buyer-1"; buyer-1 tries to reject their own bid
+      jest.spyOn(db.bid, "findUnique").mockResolvedValueOnce(BID_WITH_THREAD as never)
+
+      await expect(
+        NegotiationService.rejectBid("bid-1", "buyer-1")
       ).rejects.toThrow(ForbiddenError)
     })
   })

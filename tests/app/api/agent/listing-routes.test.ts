@@ -19,7 +19,7 @@ import { GET as searchListingsGET } from "@/app/api/agent/listings/search/route"
 import { POST as publishListingPOST } from "@/app/api/agent/listings/[id]/publish/route"
 import { POST as pauseListingPOST } from "@/app/api/agent/listings/[id]/pause/route"
 import { POST as relistListingPOST } from "@/app/api/agent/listings/[id]/relist/route"
-import { ValidationError, NotFoundError } from "@/lib/errors"
+import { ValidationError, NotFoundError, ConflictError } from "@/lib/errors"
 
 function createContext(id: string) {
   return { params: Promise.resolve({ id }) }
@@ -316,6 +316,27 @@ describe("seller listing API routes (AGE-6)", () => {
       expect(response.status).toBe(400)
       expect(body.error).toBeDefined()
     })
+
+    it("rejects creation when both pickupAvailable and deliveryAvailable are false", async () => {
+      const response = await createListingPOST(
+        new NextRequest("http://localhost/api/agent/listings", {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer sk_test_123",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ...VALID_LISTING_PAYLOAD,
+            pickupAvailable: false,
+            deliveryAvailable: false,
+          }),
+        })
+      )
+      const body = await response.json()
+      expect(response.status).toBe(400)
+      expect(body.error).toBeDefined()
+      expect(body.error.details.errors[0].message).toMatch(/fulfillment/i)
+    })
   })
 
   // ─── Successful listing creation ──────────────────────────────────────────────
@@ -463,10 +484,10 @@ describe("seller listing API routes (AGE-6)", () => {
 
       expect(response.status).toBe(200)
       expect(searchSpy).toHaveBeenCalledTimes(1)
-      expect(body.data.listings).toHaveLength(1)
-      expect(body.data.listings[0].id).toBe("listing-abc-123")
-      expect(body.data.listings[0].title).toBe("Vintage Office Chair")
-      expect(body.data.listings[0].status).toBe("PUBLISHED")
+      expect(body.data.items).toHaveLength(1)
+      expect(body.data.items[0].id).toBe("listing-abc-123")
+      expect(body.data.items[0].title).toBe("Vintage Office Chair")
+      expect(body.data.items[0].status).toBe("PUBLISHED")
     })
 
     it("filters by category correctly", async () => {
@@ -495,7 +516,7 @@ describe("seller listing API routes (AGE-6)", () => {
       expect(searchSpy).toHaveBeenCalledWith(
         expect.objectContaining({ category: "ELECTRONICS" })
       )
-      expect(body.data.listings).toHaveLength(0)
+      expect(body.data.items).toHaveLength(0)
     })
 
     it("filters by price range correctly", async () => {
@@ -1142,6 +1163,85 @@ describe("seller listing API routes (AGE-6)", () => {
       )
 
       expect(response.status).toBe(404)
+    })
+  })
+
+  // ─── Regression: duplicate listing detection returns 409 not 500 (AGE-398/416/427/428) ──
+
+  describe("regression: duplicate listing detection — POST must return 409 not 500", () => {
+    beforeEach(() => {
+      jest.spyOn(db.agentCredential, "findFirst").mockResolvedValue({
+        Agent: MOCK_AGENT,
+      } as never)
+    })
+
+    it("returns 409 when ListingService.create throws ConflictError (duplicate listing)", async () => {
+      jest.spyOn(ListingService, "create").mockRejectedValue(
+        new ConflictError(
+          "Duplicate listing detected: a similar listing was posted within the last 24 hours (existing id: existing-abc)"
+        )
+      )
+
+      const response = await createListingPOST(
+        new NextRequest("http://localhost/api/agent/listings", {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer sk_test_123",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(VALID_LISTING_PAYLOAD),
+        })
+      )
+
+      const body = await response.json()
+
+      expect(response.status).toBe(409)
+      expect(body.error).toBeDefined()
+      expect(body.error.details.code).toBe("DUPLICATE_LISTING")
+    })
+
+    it("includes the existing listing id in the 409 error message", async () => {
+      jest.spyOn(ListingService, "create").mockRejectedValue(
+        new ConflictError(
+          "Duplicate listing detected: a similar listing was posted within the last 24 hours (existing id: existing-abc)"
+        )
+      )
+
+      const response = await createListingPOST(
+        new NextRequest("http://localhost/api/agent/listings", {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer sk_test_123",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(VALID_LISTING_PAYLOAD),
+        })
+      )
+
+      const body = await response.json()
+
+      expect(response.status).toBe(409)
+      expect(body.error.message).toContain("existing-abc")
+    })
+
+    it("does NOT return 500 when a duplicate is detected", async () => {
+      jest.spyOn(ListingService, "create").mockRejectedValue(
+        new ConflictError("Duplicate listing detected: similar listing already exists")
+      )
+
+      const response = await createListingPOST(
+        new NextRequest("http://localhost/api/agent/listings", {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer sk_test_123",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(VALID_LISTING_PAYLOAD),
+        })
+      )
+
+      expect(response.status).not.toBe(500)
+      expect(response.status).toBe(409)
     })
   })
 })

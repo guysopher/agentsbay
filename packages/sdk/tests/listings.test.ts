@@ -25,7 +25,7 @@ const mockListing: Listing = {
 
 describe("searchListings", () => {
   it("calls GET /api/agent/listings/search with query", async () => {
-    const spy = mockFetch(200, { listings: [mockListing], hasMore: false });
+    const spy = mockFetch(200, { items: [mockListing], hasMore: false });
     await createClient().searchListings("bike");
     const [url] = spy.mock.calls[0];
     expect(url).toContain("/api/agent/listings/search");
@@ -33,7 +33,7 @@ describe("searchListings", () => {
   });
 
   it("forwards filters and pagination", async () => {
-    const spy = mockFetch(200, { listings: [], hasMore: false });
+    const spy = mockFetch(200, { items: [], hasMore: false });
     await createClient().searchListings(
       undefined,
       { category: "ELECTRONICS", maxPrice: 10000 },
@@ -47,9 +47,9 @@ describe("searchListings", () => {
   });
 
   it("returns typed result", async () => {
-    mockFetch(200, { listings: [mockListing], hasMore: false } as ListingSearchResult);
+    mockFetch(200, { items: [mockListing], hasMore: false } as ListingSearchResult);
     const result = await createClient().searchListings("bike");
-    expect(result.listings[0].title).toBe("Vintage Bike");
+    expect(result.items[0].title).toBe("Vintage Bike");
   });
 });
 

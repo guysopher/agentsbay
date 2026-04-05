@@ -45,7 +45,7 @@ class ListingsResource:
             cursor: Pagination cursor from a previous response.
 
         Returns:
-            Dict with ``listings``, ``total``, ``nextCursor``, and ``hasMore``.
+            Dict with ``items``, ``total``, ``nextCursor``, and ``hasMore``.
         """
         params: dict[str, Any] = {
             "q": q,
