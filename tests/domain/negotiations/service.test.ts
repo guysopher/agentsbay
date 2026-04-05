@@ -376,6 +376,7 @@ describe("NegotiationService", () => {
         amount: 9000,
         status: BidStatus.PENDING,
         placedByUserId: "seller-1",
+        parentBidId: "bid-1",
       }
       jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
         return fn({
@@ -397,6 +398,29 @@ describe("NegotiationService", () => {
       expect((result as any).status).toBe(BidStatus.PENDING)
       expect((result as any).amount).toBe(9000)
       expect((result as any).threadId).toBe("thread-1")
+    })
+
+    it("sets parentBidId on the counter bid so rejectBid can revert the chain", async () => {
+      jest.spyOn(db.bid, "findUnique").mockResolvedValueOnce(BID as never)
+      let capturedCreateData: Record<string, unknown> | undefined
+      jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+        return fn({
+          bid: {
+            update: jest.fn().mockResolvedValue({ ...BID, status: BidStatus.COUNTERED }),
+            create: jest.fn().mockImplementation(({ data }: { data: Record<string, unknown> }) => {
+              capturedCreateData = data
+              return Promise.resolve({ id: "bid-counter", ...data, status: BidStatus.PENDING })
+            }),
+          },
+          negotiationThread: {
+            update: jest.fn().mockResolvedValue(THREAD),
+          },
+        })
+      })
+
+      await NegotiationService.counterBid("bid-1", "seller-1", { amount: 9000 })
+
+      expect(capturedCreateData?.parentBidId).toBe("bid-1")
     })
 
     it("throws NotFoundError when bid does not exist", async () => {
@@ -549,6 +573,67 @@ describe("NegotiationService", () => {
 
       expect((result as any).status).toBe(BidStatus.REJECTED)
       expect((result as any).id).toBe("bid-1")
+    })
+
+    // ── Regression AGE-424 — buyer rejects seller counter ─────────────────────
+    // When the buyer rejects a counter bid (parentBidId set), the parent bid must
+    // revert COUNTERED → PENDING so either party can continue the negotiation.
+
+    it("regression AGE-424: reverts parent bid COUNTERED → PENDING when buyer rejects seller counter", async () => {
+      const sellerCounter = {
+        ...BID,
+        id: "bid-counter",
+        placedByUserId: "seller-1",
+        parentBidId: "bid-1",
+        NegotiationThread: THREAD,
+      }
+      jest.spyOn(db.bid, "findUnique").mockResolvedValueOnce(sellerCounter as never)
+
+      const bidUpdateCalls: Array<{ where: Record<string, unknown>; data: Record<string, unknown> }> = []
+      jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+        return fn({
+          bid: {
+            update: jest.fn().mockImplementation(({ where, data }: { where: Record<string, unknown>; data: Record<string, unknown> }) => {
+              bidUpdateCalls.push({ where, data })
+              return Promise.resolve({ ...sellerCounter, ...data })
+            }),
+          },
+          negotiationThread: {
+            update: jest.fn().mockResolvedValue(THREAD),
+          },
+        })
+      })
+
+      await NegotiationService.rejectBid("bid-counter", "buyer-1")
+
+      // First update: counter bid → REJECTED
+      expect(bidUpdateCalls[0].where).toEqual({ id: "bid-counter" })
+      expect(bidUpdateCalls[0].data.status).toBe(BidStatus.REJECTED)
+
+      // Second update: parent bid reverts → PENDING
+      expect(bidUpdateCalls[1].where).toEqual({ id: "bid-1" })
+      expect(bidUpdateCalls[1].data.status).toBe(BidStatus.PENDING)
+    })
+
+    // ── Regression AGE-412 — non-counter bid reject has no parent revert ──────
+
+    it("regression AGE-412: does not attempt parent revert when bid has no parentBidId", async () => {
+      // A plain buyer bid (no parentBidId) rejected by seller — no parent to revert
+      jest.spyOn(db.bid, "findUnique").mockResolvedValueOnce(BID_WITH_THREAD as never)
+      const rejectedBid = { ...BID, status: BidStatus.REJECTED }
+      const bidUpdate = jest.fn().mockResolvedValue(rejectedBid)
+      jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+        return fn({
+          bid: { update: bidUpdate },
+          negotiationThread: { update: jest.fn().mockResolvedValue(THREAD) },
+        })
+      })
+
+      await NegotiationService.rejectBid("bid-1", "seller-1")
+
+      // Only one bid update — the rejected bid itself, no parent revert
+      expect(bidUpdate).toHaveBeenCalledTimes(1)
+      expect(bidUpdate.mock.calls[0][0].where).toEqual({ id: "bid-1" })
     })
 
     it("throws NotFoundError when bid does not exist", async () => {
