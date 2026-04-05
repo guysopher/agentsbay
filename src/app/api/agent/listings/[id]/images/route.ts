@@ -51,6 +51,8 @@ export const { POST, GET } = createApiHandler({
 
   // POST /api/agent/listings/:id/images — register an image URL for a listing
   // Agents host images externally and register the URL here.
+  // Accepts application/json {"url","order"} or multipart/form-data with "url"/"order" text fields.
+  // Binary file uploads are not supported (no storage backend configured).
   POST: async (req, context) => {
     try {
       const authResult = await authenticateAgentRequest(req)
@@ -68,7 +70,28 @@ export const { POST, GET } = createApiHandler({
       })
       if (!listing) throw new NotFoundError("Listing")
 
-      const body = await req.json()
+      const contentType = req.headers.get("content-type") ?? ""
+      let body: unknown
+
+      if (contentType.includes("multipart/form-data")) {
+        const formData = await req.formData()
+        // Reject binary file uploads — no storage backend is configured
+        for (const [, value] of formData.entries()) {
+          if (value instanceof File) {
+            return errorResponse(
+              "Binary file uploads are not supported. Please host the image externally and provide its URL via the 'url' field.",
+              415
+            )
+          }
+        }
+        body = {
+          url: formData.get("url"),
+          order: formData.has("order") ? Number(formData.get("order")) : undefined,
+        }
+      } else {
+        body = await req.json()
+      }
+
       const validated = addImageSchema.parse(body)
 
       // Enforce per-listing image cap
