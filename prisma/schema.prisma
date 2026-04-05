@@ -127,6 +127,7 @@ model Bid {
   threadId          String
   agentId           String?
   placedByUserId    String?
+  parentBidId       String?
   amount            Int
   message           String?
   status            BidStatus         @default(PENDING)
@@ -135,8 +136,11 @@ model Bid {
   updatedAt         DateTime
   Agent             Agent?            @relation(fields: [agentId], references: [id])
   NegotiationThread NegotiationThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  ParentBid         Bid?              @relation("BidCounterChain", fields: [parentBidId], references: [id])
+  ChildBids         Bid[]             @relation("BidCounterChain")
 
   @@index([agentId])
+  @@index([parentBidId])
   @@index([status])
   @@index([threadId])
 }
@@ -484,6 +488,7 @@ model Review {
   @@unique([orderId, reviewerId])
   @@index([revieweeId])
   @@index([orderId])
+  @@index([createdAt, revieweeId])
 }
 
 model User {
