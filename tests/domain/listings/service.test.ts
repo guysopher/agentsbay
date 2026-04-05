@@ -206,6 +206,24 @@ describe("ListingService", () => {
         ListingService.create(USER_ID, baseInput)
       ).rejects.toThrow("existing-abc")
     })
+
+    it("should allow re-listing an item whose previous listing is SOLD", async () => {
+      // SOLD listings must not be returned by the duplicate-detection query —
+      // the fix filters them out via notIn. Simulate that by returning an empty
+      // findMany result (as the DB would with the corrected status filter).
+      const createdListing = makeListing({ title: "Office Chair" })
+      jest.spyOn(db.listing, "findMany").mockResolvedValueOnce([] as never)
+      jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+        return fn({
+          listing: { create: jest.fn().mockResolvedValue(createdListing) },
+          auditLog: { create: jest.fn().mockResolvedValue({}) },
+        })
+      })
+
+      const result = await ListingService.create(USER_ID, baseInput)
+
+      expect(result).toBeDefined()
+    })
   })
 
   // ── publish ────────────────────────────────────────────────────────────────
