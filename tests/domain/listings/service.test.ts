@@ -155,7 +155,7 @@ describe("ListingService", () => {
       ).rejects.toThrow(ConflictError)
     })
 
-    it("should reject a near-identical title (>80% similarity)", async () => {
+    it("should reject a near-identical title (>90% similarity)", async () => {
       jest.spyOn(db.listing, "findMany").mockResolvedValueOnce([
         { id: "existing-1", title: "Office Chair" },
       ] as never)
@@ -163,6 +163,28 @@ describe("ListingService", () => {
       await expect(
         ListingService.create(USER_ID, { ...baseInput, title: "office chair" })
       ).rejects.toThrow(ConflictError)
+    })
+
+    it("should allow a timestamp-suffixed title from same seller within 24h (AGE-422)", async () => {
+      // "QA Test Item Vintage Chair 1775389857" shares 5/6 tokens with "QA Test Item Vintage Chair"
+      // Jaccard = 5/6 ≈ 0.833, which is below the 0.9 threshold — must NOT trigger DUPLICATE_LISTING
+      const createdListing = makeListing({ title: "QA Test Item Vintage Chair 1775389857" })
+      jest.spyOn(db.listing, "findMany").mockResolvedValueOnce([
+        { id: "existing-1", title: "QA Test Item Vintage Chair" },
+      ] as never)
+      jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+        return fn({
+          listing: { create: jest.fn().mockResolvedValue(createdListing) },
+          auditLog: { create: jest.fn().mockResolvedValue({}) },
+        })
+      })
+
+      const result = await ListingService.create(USER_ID, {
+        ...baseInput,
+        title: "QA Test Item Vintage Chair 1775389857",
+      })
+
+      expect((result as any).title).toBe("QA Test Item Vintage Chair 1775389857")
     })
 
     it("should allow a sufficiently different title from same seller", async () => {

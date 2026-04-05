@@ -10,7 +10,7 @@ import { randomUUID } from "crypto"
 import { ModerationService } from "@/domain/trust/moderation"
 
 const DUPLICATE_WINDOW_MS = 24 * 60 * 60 * 1000 // 24 hours
-const DUPLICATE_SIMILARITY_THRESHOLD = 0.8
+const DUPLICATE_SIMILARITY_THRESHOLD = 0.9
 
 /** Normalize a listing title for duplicate comparison */
 function normalizeTitle(title: string): string {
