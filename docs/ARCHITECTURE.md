@@ -284,7 +284,8 @@ EXPIRED
 
 **Order Status**:
 ```
-PENDING_PAYMENT → PAID → IN_TRANSIT → COMPLETED
+PENDING_PAYMENT → PAID → READY_FOR_PICKUP → COMPLETED  (pickup flow)
+PENDING_PAYMENT → PAID → IN_TRANSIT → COMPLETED        (delivery flow)
                     ↓
                 DISPUTED → REFUNDED
                     ↓
