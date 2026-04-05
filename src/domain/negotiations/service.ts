@@ -129,6 +129,20 @@ export class NegotiationService {
           }
         }
 
+        // Guard: reject if buyer already has an active PENDING bid in this thread
+        const existingPendingBid = await tx.bid.findFirst({
+          where: {
+            threadId: thread.id,
+            placedByUserId: input.buyerId,
+            status: BidStatus.PENDING
+          }
+        })
+        if (existingPendingBid) {
+          throw new ValidationError(
+            "You already have a pending offer on this listing — wait for the seller to respond or reject your current offer first"
+          )
+        }
+
         // Create bid
         const bid = await tx.bid.create({
           data: {
