@@ -6,7 +6,6 @@ import { randomBytes, randomUUID } from "crypto"
 
 const REFERRAL_CODE_LENGTH = 8
 const DAILY_ATTRIBUTION_LIMIT = 50
-const ATTRIBUTION_WINDOW_DAYS = 30
 const PENDING_EXPIRY_DAYS = 90
 
 const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -86,9 +85,6 @@ export class ReferralService {
       })
       if (todayCount >= DAILY_ATTRIBUTION_LIMIT) return
 
-      // Validate attribution window: code must have been issued within window
-      // (We simply check the referrer exists — window is checked at click time via cookie)
-
       await db.$transaction(async (tx) => {
         await tx.referral.create({
           data: {
@@ -118,6 +114,71 @@ export class ReferralService {
   }
 
   /**
+   * Explicitly apply a referral code for an authenticated user.
+   * Unlike attributeSignup, this throws on invalid input.
+   *
+   * Throws with a descriptive message on:
+   * - invalid / unknown code
+   * - self-referral
+   * - user already referred
+   */
+  static async applyCode(userId: string, code: string): Promise<{ referrerId: string }> {
+    const referrer = await db.user.findUnique({
+      where: { referralCode: code },
+      select: { id: true },
+    })
+    if (!referrer) {
+      throw new InvalidReferralCodeError("Invalid or unknown referral code")
+    }
+
+    if (referrer.id === userId) {
+      throw new SelfReferralError("You cannot use your own referral code")
+    }
+
+    const existing = await db.referral.findUnique({
+      where: { refereeId: userId },
+      select: { id: true },
+    })
+    if (existing) {
+      throw new AlreadyReferredError("A referral code has already been applied to your account")
+    }
+
+    // Rate-limit: max 50 attributions per code per day
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
+    const todayCount = await db.referral.count({
+      where: { code, createdAt: { gte: oneDayAgo } },
+    })
+    if (todayCount >= DAILY_ATTRIBUTION_LIMIT) {
+      throw new InvalidReferralCodeError("This referral code has reached its daily limit")
+    }
+
+    await db.$transaction(async (tx) => {
+      await tx.referral.create({
+        data: {
+          id: randomUUID(),
+          referrerId: referrer.id,
+          refereeId: userId,
+          code,
+          status: ReferralStatus.PENDING,
+          updatedAt: new Date(),
+        },
+      })
+
+      await tx.reputationEvent.create({
+        data: {
+          id: randomUUID(),
+          userId,
+          type: ReputationEventType.REFERRAL_INVITED,
+          points: 10,
+          reason: "Applied a referral code",
+        },
+      })
+    })
+
+    return { referrerId: referrer.id }
+  }
+
+  /**
    * Called when a user publishes a listing.
    * If this is their first listing AND they are a pending referee,
    * award the referrer and mark the referral REWARDED.
@@ -140,7 +201,6 @@ export class ReferralService {
       const now = new Date()
 
       await db.$transaction(async (tx) => {
-        // Mark referral as rewarded
         await tx.referral.update({
           where: { id: referral.id },
           data: {
@@ -150,7 +210,6 @@ export class ReferralService {
           },
         })
 
-        // +50 rep for the referrer (conversion)
         await tx.reputationEvent.create({
           data: {
             id: randomUUID(),
@@ -162,16 +221,73 @@ export class ReferralService {
         })
       })
 
-      // Notify referrer (fire-and-forget, outside transaction)
       await NotificationService.create({
         userId: referral.referrerId,
         type: NotificationType.REFERRAL_REWARD,
         title: "Referral reward earned!",
-        message: "Someone you referred just published their first listing. You earned +50 reputation!",
+        message:
+          "Someone you referred just published their first listing. You earned +50 reputation!",
         link: "/profile",
       })
     } catch (error) {
       console.error("[ReferralService] handleFirstListingPublished failed silently:", error)
+    }
+  }
+
+  /**
+   * Called when a buyer completes their first transaction (order reaches COMPLETED).
+   * Awards the referrer and marks the referral REWARDED.
+   * Silent on all errors — never blocks the order completion flow.
+   */
+  static async handleFirstTransactionCompleted(buyerId: string): Promise<void> {
+    try {
+      // Check if this is the buyer's first completed order
+      const completedCount = await db.order.count({
+        where: { buyerId, status: "COMPLETED" },
+      })
+      if (completedCount !== 1) return
+
+      // Look up pending referral for this buyer as referee
+      const referral = await db.referral.findUnique({
+        where: { refereeId: buyerId },
+        select: { id: true, referrerId: true, status: true },
+      })
+      if (!referral || referral.status !== ReferralStatus.PENDING) return
+
+      const now = new Date()
+
+      await db.$transaction(async (tx) => {
+        await tx.referral.update({
+          where: { id: referral.id },
+          data: {
+            status: ReferralStatus.REWARDED,
+            rewardedAt: now,
+            updatedAt: now,
+          },
+        })
+
+        // +50 rep for the referrer (conversion via first transaction)
+        await tx.reputationEvent.create({
+          data: {
+            id: randomUUID(),
+            userId: referral.referrerId,
+            type: ReputationEventType.REFERRAL_CONVERTED,
+            points: 50,
+            reason: "Your referred user completed their first transaction",
+          },
+        })
+      })
+
+      await NotificationService.create({
+        userId: referral.referrerId,
+        type: NotificationType.REFERRAL_REWARD,
+        title: "Referral reward earned!",
+        message:
+          "Someone you referred just completed their first purchase. You earned +50 reputation!",
+        link: "/profile",
+      })
+    } catch (error) {
+      console.error("[ReferralService] handleFirstTransactionCompleted failed silently:", error)
     }
   }
 
@@ -188,38 +304,48 @@ export class ReferralService {
   }
 
   /**
-   * Get referral stats for a user.
+   * Get referral stats for the authenticated user.
+   * Lazily creates a referral code if the user doesn't have one yet.
    */
   static async getStats(userId: string) {
-    const [referrals, repEvents, code] = await Promise.all([
+    const [referrals, referralCode] = await Promise.all([
       db.referral.findMany({
         where: { referrerId: userId },
-        select: { status: true, createdAt: true, rewardedAt: true },
+        select: { status: true },
       }),
-      db.reputationEvent.aggregate({
-        where: {
-          userId,
-          type: { in: [ReputationEventType.REFERRAL_CONVERTED] },
-        },
-        _sum: { points: true },
-      }),
-      db.user.findUnique({
-        where: { id: userId },
-        select: { referralCode: true },
-      }),
+      ReferralService.getOrCreateCode(userId),
     ])
 
-    const totalSignups = referrals.length
-    const totalRewarded = referrals.filter((r) => r.status === ReferralStatus.REWARDED).length
-    const totalPending = referrals.filter((r) => r.status === ReferralStatus.PENDING).length
-    const repEarned = repEvents._sum.points ?? 0
+    const referralCount = referrals.length
+    const claimedRewards = referrals.filter((r) => r.status === ReferralStatus.REWARDED).length
+    const pendingRewards = referrals.filter((r) => r.status === ReferralStatus.PENDING).length
 
     return {
-      code: code?.referralCode ?? null,
-      totalSignups,
-      totalRewarded,
-      totalPending,
-      repEarned,
+      referralCode,
+      referralCount,
+      pendingRewards,
+      claimedRewards,
     }
+  }
+}
+
+export class InvalidReferralCodeError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = "InvalidReferralCodeError"
+  }
+}
+
+export class SelfReferralError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = "SelfReferralError"
+  }
+}
+
+export class AlreadyReferredError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = "AlreadyReferredError"
   }
 }
