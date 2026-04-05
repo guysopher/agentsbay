@@ -175,7 +175,7 @@ eventBus.on("bid.accepted", async (data) => {
       type: "BID_ACCEPTED",
       title: "Your bid was accepted!",
       message: `Your $${amount} bid on "${thread.Listing.title}" was accepted`,
-      link: `/negotiations/${thread.listingId}`,
+      link: `/orders/${data.orderId}`,
     })
   } catch (error) {
     console.error("[Notification] Failed to create bid.accepted notification:", error)
