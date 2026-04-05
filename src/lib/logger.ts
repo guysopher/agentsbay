@@ -1,4 +1,5 @@
 // Simple logging utility that can be extended with Winston, Pino, etc.
+import * as Sentry from "@sentry/nextjs"
 
 type LogLevel = "debug" | "info" | "warn" | "error"
 
@@ -62,10 +63,8 @@ class Logger {
       JSON.stringify(this.formatMessage("error", message, errorContext))
     )
 
-    // TODO: Send to error tracking service in production
-    // if (process.env.NODE_ENV === 'production') {
-    //   Sentry.captureException(error, { extra: context })
-    // }
+    // Forward to Sentry when DSN is configured (no-ops otherwise)
+    Sentry.captureException(error, { extra: context })
   }
 
   // Create a child logger with additional context

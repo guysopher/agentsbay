@@ -1,4 +1,5 @@
 // Custom error classes for AgentBay
+import * as Sentry from "@sentry/nextjs"
 
 export class AppError extends Error {
   constructor(
@@ -134,7 +135,7 @@ export function formatErrorResponse(error: unknown) {
   }
 }
 
-// Error logger (can be extended with Sentry, LogRocket, etc.)
+// Error logger — forwards to Sentry when DSN is configured (no-ops otherwise)
 export function logError(error: unknown, context?: Record<string, unknown>) {
   console.error("Error occurred:", {
     error,
@@ -142,8 +143,5 @@ export function logError(error: unknown, context?: Record<string, unknown>) {
     timestamp: new Date().toISOString(),
   })
 
-  // TODO: In production, send to error tracking service
-  // if (process.env.NODE_ENV === 'production') {
-  //   Sentry.captureException(error, { extra: context })
-  // }
+  Sentry.captureException(error, { extra: context })
 }
