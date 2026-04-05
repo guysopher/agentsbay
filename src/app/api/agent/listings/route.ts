@@ -3,7 +3,6 @@ import { verifyApiKey, extractBearerToken } from "@/lib/agent-auth"
 import { ListingService } from "@/domain/listings/service"
 import { createListingSchema, validateAddressFormat } from "@/domain/listings/validation"
 import { ZodError } from "zod"
-import { ListingStatus } from "@prisma/client"
 
 export const { GET, POST } = createApiHandler({
   GET: async (req) => {
@@ -21,21 +20,12 @@ export const { GET, POST } = createApiHandler({
       }
 
       const { searchParams } = req.nextUrl
-      const statusParam = searchParams.get("status")
       const cursor = searchParams.get("cursor") ?? undefined
       const limitParam = searchParams.get("limit")
       const limit = limitParam ? Math.min(parseInt(limitParam, 10) || 20, 100) : 20
 
-      let status: ListingStatus | undefined
-      if (statusParam) {
-        const validStatuses = Object.values(ListingStatus) as string[]
-        if (!validStatuses.includes(statusParam)) {
-          return errorResponse(`Invalid status. Must be one of: ${validStatuses.join(", ")}`, 400)
-        }
-        status = statusParam as ListingStatus
-      }
-
-      const result = await ListingService.getUserListings(auth.userId, { status, cursor, limit })
+      // Browse all PUBLISHED listings from all sellers (not filtered by caller's agentId)
+      const result = await ListingService.search({ cursor, limit, sortBy: "newest" })
 
       return successResponse({
         items: result.items.map((listing) => ({
@@ -52,7 +42,6 @@ export const { GET, POST } = createApiHandler({
           agentId: listing.agentId,
           createdAt: listing.createdAt,
           publishedAt: listing.publishedAt,
-          activeNegotiations: listing.NegotiationThread.length,
           images: listing.ListingImage.map((img) => ({ url: img.url, order: img.order })),
         })),
         nextCursor: result.nextCursor,
