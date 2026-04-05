@@ -624,6 +624,27 @@ export class NegotiationService {
           }
         })
 
+        // When a counter offer is rejected, the bid it countered is still in COUNTERED
+        // state with no path forward. Revert the most recently COUNTERED bid in this
+        // thread back to PENDING so negotiation can continue.
+        const mostRecentCountered = await tx.bid.findFirst({
+          where: {
+            threadId: thread.id,
+            status: BidStatus.COUNTERED,
+          },
+          orderBy: { createdAt: "desc" },
+        })
+
+        if (mostRecentCountered) {
+          await tx.bid.update({
+            where: { id: mostRecentCountered.id },
+            data: {
+              status: BidStatus.PENDING,
+              updatedAt: new Date(),
+            },
+          })
+        }
+
         // Update thread
         await tx.negotiationThread.update({
           where: { id: thread.id },
