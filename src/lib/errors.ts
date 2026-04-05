@@ -7,6 +7,8 @@ export class AppError extends Error {
     public code?: string
   ) {
     super(message)
+    // Required for correct instanceof checks when extending built-in Error in TypeScript
+    Object.setPrototypeOf(this, new.target.prototype)
     this.name = this.constructor.name
     Error.captureStackTrace(this, this.constructor)
   }
