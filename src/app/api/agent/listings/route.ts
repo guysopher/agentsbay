@@ -4,6 +4,7 @@ import { ListingService } from "@/domain/listings/service"
 import { createListingSchema, validateAddressFormat } from "@/domain/listings/validation"
 import { ListingCategory, ItemCondition } from "@prisma/client"
 import { ZodError } from "zod"
+import { ConflictError } from "@/lib/errors"
 
 export const { GET, POST } = createApiHandler({
   GET: async (req) => {
@@ -143,6 +144,10 @@ export const { GET, POST } = createApiHandler({
         return errorResponse("Validation error", 400, {
           errors: error.errors,
         })
+      }
+
+      if (error instanceof ConflictError) {
+        return errorResponse(error.message, 409, { code: "DUPLICATE_LISTING" })
       }
 
       return errorResponse(
