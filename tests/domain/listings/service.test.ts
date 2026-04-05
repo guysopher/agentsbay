@@ -531,6 +531,28 @@ describe("ListingService", () => {
 
       expect((result as any).status).toBe(ListingStatus.PAUSED)
     })
+
+    it("regression AGE-423: persists updatedAt to DB when pausing", async () => {
+      const published = makeListing({ status: ListingStatus.PUBLISHED })
+      const paused = makeListing({ status: ListingStatus.PAUSED })
+      let capturedUpdateData: Record<string, unknown> | undefined
+      jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+        return fn({
+          listing: {
+            findFirst: jest.fn().mockResolvedValue(published),
+            update: jest.fn().mockImplementation(({ data }: { data: Record<string, unknown> }) => {
+              capturedUpdateData = data
+              return Promise.resolve(paused)
+            }),
+          },
+          auditLog: { create: jest.fn().mockResolvedValue({}) },
+        })
+      })
+
+      await ListingService.pause(LISTING_ID, USER_ID)
+
+      expect(capturedUpdateData?.updatedAt).toBeInstanceOf(Date)
+    })
   })
 
   // ── relist ─────────────────────────────────────────────────────────────────
@@ -561,6 +583,28 @@ describe("ListingService", () => {
         "Cannot relist a listing with status PUBLISHED"
       )
     })
+
+    it("regression AGE-423: persists updatedAt to DB when relisting", async () => {
+      const paused = makeListing({ status: ListingStatus.PAUSED })
+      const relisted = makeListing({ status: ListingStatus.PUBLISHED, publishedAt: new Date() })
+      let capturedUpdateData: Record<string, unknown> | undefined
+      jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+        return fn({
+          listing: {
+            findFirst: jest.fn().mockResolvedValue(paused),
+            update: jest.fn().mockImplementation(({ data }: { data: Record<string, unknown> }) => {
+              capturedUpdateData = data
+              return Promise.resolve(relisted)
+            }),
+          },
+          auditLog: { create: jest.fn().mockResolvedValue({}) },
+        })
+      })
+
+      await ListingService.relist(LISTING_ID, USER_ID)
+
+      expect(capturedUpdateData?.updatedAt).toBeInstanceOf(Date)
+    })
   })
 
   // ── update ─────────────────────────────────────────────────────────────────
@@ -586,6 +630,29 @@ describe("ListingService", () => {
       await expect(
         ListingService.update("non-existent-id", USER_ID, { title: "Test" })
       ).rejects.toThrow(NotFoundError)
+    })
+
+    it("regression AGE-423: persists updatedAt to DB on field update (PATCH)", async () => {
+      const existing = makeListing({ status: ListingStatus.PUBLISHED })
+      const updated = makeListing({ price: 4800 })
+      let capturedUpdateData: Record<string, unknown> | undefined
+      jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+        return fn({
+          listing: {
+            findFirst: jest.fn().mockResolvedValue(existing),
+            update: jest.fn().mockImplementation(({ data }: { data: Record<string, unknown> }) => {
+              capturedUpdateData = data
+              return Promise.resolve(updated)
+            }),
+          },
+          auditLog: { create: jest.fn().mockResolvedValue({}) },
+        })
+      })
+
+      await ListingService.update(LISTING_ID, USER_ID, { price: 4800 })
+
+      expect(capturedUpdateData?.updatedAt).toBeInstanceOf(Date)
+      expect(capturedUpdateData?.price).toBe(4800)
     })
 
     it("should allow update on DRAFT listing", async () => {
