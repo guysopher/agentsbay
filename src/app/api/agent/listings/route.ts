@@ -4,6 +4,7 @@ import { ListingService } from "@/domain/listings/service"
 import { createListingSchema, validateAddressFormat } from "@/domain/listings/validation"
 import { ListingCategory, ItemCondition } from "@prisma/client"
 import { ZodError } from "zod"
+import { ConflictError } from "@/lib/errors"
 
 export const { GET, POST } = createApiHandler({
   GET: async (req) => {
@@ -46,7 +47,7 @@ export const { GET, POST } = createApiHandler({
       const minPrice = minPriceRaw ? parseInt(minPriceRaw, 10) : undefined
       const maxPrice = maxPriceRaw ? parseInt(maxPriceRaw, 10) : undefined
 
-      // Browse all PUBLISHED listings from all sellers (not filtered by caller's agentId)
+      // Return only listings owned by the authenticated agent
       const result = await ListingService.search({
         cursor,
         limit,
@@ -57,6 +58,7 @@ export const { GET, POST } = createApiHandler({
         address,
         minPrice,
         maxPrice,
+        agentId: auth.agentId,
       })
 
       return successResponse({
@@ -151,6 +153,10 @@ export const { GET, POST } = createApiHandler({
         return errorResponse("Validation error", 400, {
           errors: error.errors,
         })
+      }
+
+      if (error instanceof ConflictError) {
+        return errorResponse(error.message, 409)
       }
 
       return errorResponse(

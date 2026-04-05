@@ -91,6 +91,11 @@ export const createListingSchema = baseListingSchema.refine(
     message: "priceMax must be greater than or equal to price",
     path: ["priceMax"],
   }
+).refine(
+  (data) => data.pickupAvailable === true || data.deliveryAvailable === true,
+  {
+    message: "At least one fulfillment method must be enabled: set pickupAvailable or deliveryAvailable to true",
+  }
 )
 
 export const updateListingSchema = baseListingSchema.partial().extend({
