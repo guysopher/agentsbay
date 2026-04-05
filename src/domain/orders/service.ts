@@ -1,5 +1,5 @@
 import { db } from "@/lib/db"
-import { NotFoundError, ValidationError } from "@/lib/errors"
+import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors"
 import { DeliveryStatus, FulfillmentMethod, ListingStatus, OrderStatus } from "@prisma/client"
 import { randomUUID } from "crypto"
 import { eventBus } from "@/lib/events"
@@ -125,21 +125,22 @@ export class OrderService {
     // Read + validate + write inside transaction to prevent TOCTOU race conditions
     const updated = await db.$transaction(async (tx) => {
       const order = await tx.order.findFirst({
-        where: {
-          id: orderId,
-          OR: [
-            { sellerId: actorUserId },
-            // Fallback for pre-AGE-364 orders with null sellerId column
-            { NegotiationThread: { sellerId: actorUserId } },
-          ],
-        },
+        where: { id: orderId },
         include: {
           Listing: true,
+          NegotiationThread: true,
         },
       })
 
       if (!order) {
         throw new NotFoundError("Order")
+      }
+
+      // Resolve effective sellerId (fallback for pre-AGE-364 orders with null sellerId column)
+      const effectiveSellerId = order.sellerId ?? order.NegotiationThread?.sellerId ?? null
+
+      if (effectiveSellerId !== actorUserId) {
+        throw new ForbiddenError("Only the seller can update the pickup location")
       }
 
       if (order.fulfillmentMethod !== FulfillmentMethod.PICKUP) {
