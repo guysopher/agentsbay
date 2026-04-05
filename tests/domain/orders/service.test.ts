@@ -8,6 +8,9 @@
  * 4. closeout rejects undelivered delivery order
  * 5. schedulePickup: rejects when concurrent status change inside transaction
  * 6. closeout: rejects when concurrent status change inside transaction
+ * 7. completeOrder transitions IN_TRANSIT order to COMPLETED (buyer)
+ * 8. completeOrder rejects seller (not buyer) with NotFoundError
+ * 9. completeOrder rejects order not in IN_TRANSIT status
  */
 
 import { beforeEach, describe, expect, it, jest } from "@jest/globals"
@@ -221,5 +224,58 @@ describe("OrderService", () => {
     await expect(
       OrderService.closeout(ORDER_ID, SELLER_ID)
     ).rejects.toThrow("Order cannot be closed out from current status")
+  })
+
+  it("completeOrder transitions IN_TRANSIT order to COMPLETED (buyer)", async () => {
+    const order = makeOrder({ status: OrderStatus.IN_TRANSIT })
+    const now = new Date()
+    const completedOrder = { ...order, status: OrderStatus.COMPLETED, completedAt: now }
+
+    jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+      return fn({
+        order: {
+          findFirst: jest.fn().mockResolvedValue(order),
+          update: jest.fn().mockResolvedValue(completedOrder),
+        },
+        auditLog: { create: jest.fn().mockResolvedValue({}) },
+      })
+    })
+
+    const result = await OrderService.completeOrder(ORDER_ID, BUYER_ID)
+
+    expect(result.status).toBe(OrderStatus.COMPLETED)
+    expect(result.completedAt).toBeDefined()
+  })
+
+  it("completeOrder rejects seller (not buyer) with NotFoundError", async () => {
+    jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+      return fn({
+        order: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          update: jest.fn(),
+        },
+        auditLog: { create: jest.fn() },
+      })
+    })
+
+    await expect(OrderService.completeOrder(ORDER_ID, SELLER_ID)).rejects.toThrow(NotFoundError)
+  })
+
+  it("completeOrder rejects order not in IN_TRANSIT status", async () => {
+    const order = makeOrder({ status: OrderStatus.PAID })
+
+    jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+      return fn({
+        order: {
+          findFirst: jest.fn().mockResolvedValue(order),
+          update: jest.fn(),
+        },
+        auditLog: { create: jest.fn() },
+      })
+    })
+
+    await expect(OrderService.completeOrder(ORDER_ID, BUYER_ID)).rejects.toThrow(
+      "Order must be in IN_TRANSIT status to confirm receipt"
+    )
   })
 })
