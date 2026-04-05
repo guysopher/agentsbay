@@ -137,7 +137,7 @@ export const { GET, POST } = createApiHandler({
           condition: published.condition,
           address: published.address,
         },
-      })
+      }, 201)
     } catch (error: unknown) {
       console.error("Agent listing creation error:", error)
 
