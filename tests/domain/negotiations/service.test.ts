@@ -103,7 +103,7 @@ describe("NegotiationService", () => {
       ).rejects.toThrow(NotFoundError)
     })
 
-    it("throws ValidationError when bidding on own listing", async () => {
+    it("throws ValidationError when bidding on own listing (userId match)", async () => {
       jest.spyOn(db.listing, "findUnique").mockResolvedValueOnce({
         ...LISTING,
         userId: "buyer-1",
@@ -111,6 +111,25 @@ describe("NegotiationService", () => {
 
       await expect(
         NegotiationService.placeBid({ listingId: "listing-1", buyerId: "buyer-1", amount: 8500 })
+      ).rejects.toThrow(ValidationError)
+    })
+
+    it("regression AGE-334: throws ValidationError when seller agent bids on own listing via agentId match", async () => {
+      // Seller registered with a different userId but the listing carries agentId.
+      // The userId guard alone would miss this; the agentId guard must catch it.
+      jest.spyOn(db.listing, "findUnique").mockResolvedValueOnce({
+        ...LISTING,
+        userId: "seller-user-1",
+        agentId: "seller-agent-uuid",
+      } as never)
+
+      await expect(
+        NegotiationService.placeBid({
+          listingId: "listing-1",
+          buyerId: "different-user-id", // different userId — userId guard would pass
+          buyerAgentId: "seller-agent-uuid", // same agentId — agentId guard must block
+          amount: 8500,
+        })
       ).rejects.toThrow(ValidationError)
     })
 

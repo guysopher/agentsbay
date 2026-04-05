@@ -9,6 +9,7 @@ import { POST as counterBidPOST } from "@/app/api/agent/bids/[id]/counter/route"
 import { POST as acceptBidPOST } from "@/app/api/agent/bids/[id]/accept/route"
 import { POST as rejectBidPOST } from "@/app/api/agent/bids/[id]/reject/route"
 import { GET as listThreadsGET } from "@/app/api/agent/threads/route"
+import { GET as getThreadGET } from "@/app/api/agent/negotiations/[id]/route"
 
 function createContext(id: string) {
   return { params: Promise.resolve({ id }) }
@@ -812,6 +813,66 @@ describe("negotiation API routes", () => {
         headers: {
           Authorization: "Bearer sk_test_123",
         },
+      }),
+      createContext("missing")
+    )
+
+    expect(response.status).toBe(404)
+  })
+
+  // ── GET /api/agent/negotiations/:id (AGE-336) ─────────────────────────────
+
+  it("regression AGE-336: GET /api/agent/negotiations/:id returns thread detail", async () => {
+    jest.spyOn(db.agentCredential, "findFirst").mockResolvedValue({
+      Agent: { id: "agent-1", userId: "buyer-1" },
+    } as never)
+    jest.spyOn(NegotiationService, "getThread").mockResolvedValue({
+      id: "thread-1",
+      listingId: "listing-1",
+      buyerId: "buyer-1",
+      sellerId: "seller-1",
+      status: "ACTIVE",
+      createdAt: new Date("2026-01-01"),
+      updatedAt: new Date("2026-01-02"),
+      closedAt: null,
+      Listing: {
+        id: "listing-1",
+        title: "Vintage Lamp",
+        description: "Nice lamp",
+        price: 5000,
+        currency: "USD",
+        category: "HOME",
+        condition: "GOOD",
+        status: "PUBLISHED",
+        ListingImage: [],
+      },
+      Bid: [],
+      NegotiationMessage: [],
+    } as never)
+
+    const response = await getThreadGET(
+      new NextRequest("http://localhost/api/agent/negotiations/thread-1", {
+        headers: { Authorization: "Bearer sk_test_123" },
+      }),
+      createContext("thread-1")
+    )
+
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.data.id).toBe("thread-1")
+    expect(body.data.status).toBe("ACTIVE")
+  })
+
+  it("regression AGE-336: GET /api/agent/negotiations/:id returns 404 for missing thread", async () => {
+    jest.spyOn(db.agentCredential, "findFirst").mockResolvedValue({
+      Agent: { id: "agent-1", userId: "buyer-1" },
+    } as never)
+    jest.spyOn(NegotiationService, "getThread").mockRejectedValue(new NotFoundError("Thread"))
+
+    const response = await getThreadGET(
+      new NextRequest("http://localhost/api/agent/negotiations/missing", {
+        headers: { Authorization: "Bearer sk_test_123" },
       }),
       createContext("missing")
     )

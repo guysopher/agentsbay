@@ -75,8 +75,12 @@ export class NegotiationService {
         throw new ValidationError("This listing is no longer available for offers")
       }
 
-      // Can't bid on own listing
-      if (listing.userId === input.buyerId) {
+      // Can't bid on own listing — guard by userId AND agentId so both human
+      // and agent-registered sellers are covered
+      const isSameUser = listing.userId === input.buyerId
+      const isSameAgent =
+        !!input.buyerAgentId && !!listing.agentId && listing.agentId === input.buyerAgentId
+      if (isSameUser || isSameAgent) {
         throw new ValidationError("Cannot bid on your own listing")
       }
 
