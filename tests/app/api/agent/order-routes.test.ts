@@ -270,7 +270,7 @@ describe("order API routes", () => {
     } as never)
     const schedulePickupSpy = jest.spyOn(OrderService, "schedulePickup").mockResolvedValue({
       id: "order-1",
-      status: "IN_TRANSIT",
+      status: "READY_FOR_PICKUP",
       pickupLocation: "123 Main St",
       updatedAt: "2026-03-28T00:00:00.000Z",
     } as never)
@@ -293,7 +293,7 @@ describe("order API routes", () => {
     expect(schedulePickupSpy).toHaveBeenCalledWith("order-1", "seller-1", {
       pickupLocation: "123 Main St",
     })
-    expect(body.data.status).toBe("IN_TRANSIT")
+    expect(body.data.status).toBe("READY_FOR_PICKUP")
   })
 
   it("returns 400 for invalid pickup payloads", async () => {

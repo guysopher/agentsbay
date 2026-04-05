@@ -206,6 +206,41 @@ describe("ListingService", () => {
         ListingService.create(USER_ID, baseInput)
       ).rejects.toThrow("existing-abc")
     })
+
+    it("should allow creation when matching recent listing has status SOLD (AGE-410)", async () => {
+      // SOLD listings must be excluded from the duplicate query — the DB mock
+      // returns [] because the WHERE clause filters them out
+      const createdListing = makeListing()
+      jest.spyOn(db.listing, "findMany").mockResolvedValueOnce([] as never)
+      jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+        return fn({
+          listing: { create: jest.fn().mockResolvedValue(createdListing) },
+          auditLog: { create: jest.fn().mockResolvedValue({}) },
+        })
+      })
+
+      const result = await ListingService.create(USER_ID, baseInput)
+
+      expect(result).toBeDefined()
+    })
+
+    it("should exclude SOLD listings from the duplicate detection query (AGE-410)", async () => {
+      const createdListing = makeListing()
+      const findManySpy = jest.spyOn(db.listing, "findMany").mockResolvedValueOnce([] as never)
+      jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+        return fn({
+          listing: { create: jest.fn().mockResolvedValue(createdListing) },
+          auditLog: { create: jest.fn().mockResolvedValue({}) },
+        })
+      })
+
+      await ListingService.create(USER_ID, baseInput)
+
+      const call = findManySpy.mock.calls[0][0] as { where: Record<string, unknown> }
+      const statusFilter = call.where.status as { notIn: string[] }
+      expect(statusFilter.notIn).toContain(ListingStatus.SOLD)
+      expect(statusFilter.notIn).toContain(ListingStatus.REMOVED)
+    })
   })
 
   // ── publish ────────────────────────────────────────────────────────────────

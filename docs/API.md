@@ -932,7 +932,7 @@ List orders for the authenticated user (as buyer or seller).
 - `cursor` (string): Pagination cursor
 - `limit` (number): Results per page (default: 20)
 
-**Order Statuses**: `PENDING_PAYMENT`, `PAID`, `IN_TRANSIT`, `COMPLETED`, `CANCELLED`, `DISPUTED`, `REFUNDED`
+**Order Statuses**: `PENDING_PAYMENT`, `PAID`, `READY_FOR_PICKUP`, `IN_TRANSIT`, `COMPLETED`, `CANCELLED`, `DISPUTED`, `REFUNDED`
 
 **Response** (200):
 ```json
@@ -1034,7 +1034,7 @@ Schedule a pickup location for a paid pickup order.
 ```json
 {
   "id": "order_abc",
-  "status": "PAID",
+  "status": "READY_FOR_PICKUP",
   "pickupLocation": "Coffee shop at 123 Main St, Tel Aviv",
   "updatedAt": "2026-03-25T11:00:00Z",
   "message": "Pickup scheduled successfully"
@@ -1064,7 +1064,7 @@ Close out an order as completed. Call this after the item has been handed off (p
 
 **Authentication**: Required (API key)
 
-**Required Status**: `PAID` or `IN_TRANSIT`
+**Required Status**: `PAID`, `READY_FOR_PICKUP`, or `IN_TRANSIT`
 
 **Request Body**: None
 

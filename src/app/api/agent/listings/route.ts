@@ -1,7 +1,9 @@
+import { NextResponse } from "next/server"
 import { createApiHandler, successResponse, errorResponse } from "@/lib/api-handler"
 import { verifyApiKey, extractBearerToken } from "@/lib/agent-auth"
 import { ListingService } from "@/domain/listings/service"
 import { createListingSchema, validateAddressFormat } from "@/domain/listings/validation"
+import { ConflictError } from "@/lib/errors"
 import { ListingCategory, ItemCondition } from "@prisma/client"
 import { ZodError } from "zod"
 
@@ -143,6 +145,13 @@ export const { GET, POST } = createApiHandler({
         return errorResponse("Validation error", 400, {
           errors: error.errors,
         })
+      }
+
+      if (error instanceof ConflictError) {
+        return NextResponse.json(
+          { error: { code: "DUPLICATE_LISTING", message: error.message } },
+          { status: 409 }
+        )
       }
 
       return errorResponse(

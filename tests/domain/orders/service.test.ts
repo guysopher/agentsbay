@@ -2,7 +2,7 @@
  * OrderService — unit tests with mocked Prisma
  *
  * Covers:
- * 1. schedulePickup transitions order to IN_TRANSIT (AC4)
+ * 1. schedulePickup transitions order to READY_FOR_PICKUP (AC4)
  * 2. closeout completes the order and marks listing SOLD (AC4)
  * 3. closeout rejects buyer (not seller) with NotFoundError
  * 4. closeout rejects undelivered delivery order
@@ -76,7 +76,7 @@ describe("OrderService", () => {
 
   it("schedules pickup for paid pickup order (seller only)", async () => {
     const order = makeOrder()
-    const updatedOrder = { ...order, status: OrderStatus.IN_TRANSIT, pickupLocation: "123 Main St" }
+    const updatedOrder = { ...order, status: OrderStatus.READY_FOR_PICKUP, pickupLocation: "123 Main St" }
 
     jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
       return fn({
@@ -92,7 +92,7 @@ describe("OrderService", () => {
       pickupLocation: "123 Main St",
     })
 
-    expect(result.status).toBe(OrderStatus.IN_TRANSIT)
+    expect(result.status).toBe(OrderStatus.READY_FOR_PICKUP)
     expect(result.pickupLocation).toBe("123 Main St")
   })
 
@@ -199,7 +199,7 @@ describe("OrderService", () => {
 
     await expect(
       OrderService.schedulePickup(ORDER_ID, BUYER_ID, { pickupLocation: "123 Main St" })
-    ).rejects.toThrow("Pickup can only be scheduled for pending, paid, or in-transit orders")
+    ).rejects.toThrow("Pickup can only be scheduled for pending, paid, or ready-for-pickup orders")
   })
 
   it("closeout: rejects when concurrent status change happens inside transaction", async () => {
@@ -283,7 +283,7 @@ describe("OrderService", () => {
     })
 
     await expect(OrderService.completeOrder(ORDER_ID, BUYER_ID)).rejects.toThrow(
-      "Order must be in IN_TRANSIT status to confirm receipt"
+      "Order must be in READY_FOR_PICKUP or IN_TRANSIT status to confirm receipt"
     )
   })
 })

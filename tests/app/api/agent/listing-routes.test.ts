@@ -19,7 +19,7 @@ import { GET as searchListingsGET } from "@/app/api/agent/listings/search/route"
 import { POST as publishListingPOST } from "@/app/api/agent/listings/[id]/publish/route"
 import { POST as pauseListingPOST } from "@/app/api/agent/listings/[id]/pause/route"
 import { POST as relistListingPOST } from "@/app/api/agent/listings/[id]/relist/route"
-import { ValidationError, NotFoundError } from "@/lib/errors"
+import { ValidationError, NotFoundError, ConflictError } from "@/lib/errors"
 
 function createContext(id: string) {
   return { params: Promise.resolve({ id }) }
@@ -436,6 +436,30 @@ describe("seller listing API routes (AGE-6)", () => {
         expect.objectContaining({ title: "Vintage Office Chair" }),
         "agent-seller-1"
       )
+    })
+
+    it("returns 409 with DUPLICATE_LISTING code when service throws ConflictError (AGE-416)", async () => {
+      jest.spyOn(ListingService, "create").mockRejectedValue(
+        new ConflictError(
+          "Duplicate listing detected: a similar listing was posted within the last 24 hours (existing id: existing-123)"
+        ) as never
+      )
+
+      const response = await createListingPOST(
+        new NextRequest("http://localhost/api/agent/listings", {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer sk_test_123",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(VALID_LISTING_PAYLOAD),
+        })
+      )
+
+      const body = await response.json()
+      expect(response.status).toBe(409)
+      expect(body.error.code).toBe("DUPLICATE_LISTING")
+      expect(body.error.message).toContain("Duplicate listing detected")
     })
   })
 
