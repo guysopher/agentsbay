@@ -13,6 +13,7 @@ import {
   notifyOrderCreated,
   notifyNewMessage,
 } from "@/lib/email-notifications"
+import { NotificationService } from "@/lib/notifications/service"
 
 export interface CreateBidInput {
   listingId: string
@@ -446,7 +447,38 @@ export class NegotiationService {
           }
         })
 
-        return { bid: acceptedBid, order }
+        // Close all other ACTIVE threads on the same listing and reject their PENDING bids
+        const competingThreads = await tx.negotiationThread.findMany({
+          where: {
+            listingId: thread.listingId,
+            id: { not: thread.id },
+            status: ThreadStatus.ACTIVE,
+          },
+          select: { id: true, buyerId: true },
+        })
+
+        if (competingThreads.length > 0) {
+          const competingThreadIds = competingThreads.map((t) => t.id)
+
+          await tx.negotiationThread.updateMany({
+            where: { id: { in: competingThreadIds } },
+            data: { status: ThreadStatus.CLOSED, closedAt: new Date(), updatedAt: new Date() },
+          })
+
+          await tx.bid.updateMany({
+            where: {
+              threadId: { in: competingThreadIds },
+              status: BidStatus.PENDING,
+            },
+            data: { status: BidStatus.REJECTED, updatedAt: new Date() },
+          })
+        }
+
+        return {
+          bid: acceptedBid,
+          order,
+          competingBuyers: competingThreads.map((t) => ({ threadId: t.id, buyerId: t.buyerId })),
+        }
       })
 
       // Emit event
@@ -495,6 +527,45 @@ export class NegotiationService {
           // swallow
         }
       })()
+
+      // Fire-and-forget: notify competing buyers their bids were rejected (item sold)
+      if (result.competingBuyers.length > 0) {
+        void (async () => {
+          try {
+            const uniqueBuyerIds = [...new Set(result.competingBuyers.map((b) => b.buyerId))]
+            const competingBuyerUsers = await db.user.findMany({
+              where: { id: { in: uniqueBuyerIds } },
+              select: { id: true, email: true, name: true, emailNotificationsEnabled: true },
+            })
+            const buyerMap = new Map(competingBuyerUsers.map((u) => [u.id, u]))
+
+            await Promise.all(
+              result.competingBuyers.map(async ({ buyerId }) => {
+                await NotificationService.create({
+                  userId: buyerId,
+                  type: "BID_REJECTED",
+                  title: "Item sold to another buyer",
+                  message: `Sorry, "${thread.Listing.title}" was sold to another buyer`,
+                  link: `/negotiations/${thread.listingId}`,
+                })
+
+                const buyerUser = buyerMap.get(buyerId)
+                if (buyerUser?.emailNotificationsEnabled) {
+                  await notifyBidRejected({
+                    buyerEmail: buyerUser.email,
+                    buyerName: buyerUser.name,
+                    buyerUserId: buyerUser.id,
+                    listingTitle: thread.Listing.title,
+                    listingId: thread.listingId,
+                  })
+                }
+              })
+            )
+          } catch {
+            // swallow
+          }
+        })()
+      }
 
       return result
     } catch (error) {
