@@ -114,7 +114,7 @@ export class OrderService {
       const order = await tx.order.findFirst({
         where: {
           id: orderId,
-          sellerId: actorUserId,
+          buyerId: actorUserId,
         },
         include: {
           Listing: true,
@@ -129,8 +129,12 @@ export class OrderService {
         throw new ValidationError("Order is not configured for pickup")
       }
 
-      if (order.status !== OrderStatus.PAID && order.status !== OrderStatus.IN_TRANSIT) {
-        throw new ValidationError("Pickup can only be scheduled for paid or in-transit orders")
+      if (
+        order.status !== OrderStatus.PENDING_PAYMENT &&
+        order.status !== OrderStatus.PAID &&
+        order.status !== OrderStatus.IN_TRANSIT
+      ) {
+        throw new ValidationError("Pickup can only be scheduled for pending, paid, or in-transit orders")
       }
 
       const updatedOrder = await tx.order.update({

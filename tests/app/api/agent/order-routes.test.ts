@@ -329,7 +329,7 @@ describe("order API routes", () => {
     jest
       .spyOn(OrderService, "schedulePickup")
       .mockRejectedValue(
-        new ValidationError("Pickup can only be scheduled for paid or in-transit orders")
+        new ValidationError("Pickup can only be scheduled for pending, paid, or in-transit orders")
       )
 
     const response = await pickupOrderPOST(

@@ -179,7 +179,7 @@ describe("OrderService", () => {
 
     await expect(
       OrderService.schedulePickup(ORDER_ID, BUYER_ID, { pickupLocation: "123 Main St" })
-    ).rejects.toThrow("Pickup can only be scheduled for paid or in-transit orders")
+    ).rejects.toThrow("Pickup can only be scheduled for pending, paid, or in-transit orders")
   })
 
   it("closeout: rejects when concurrent status change happens inside transaction", async () => {
