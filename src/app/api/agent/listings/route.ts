@@ -30,8 +30,16 @@ export const { GET, POST } = createApiHandler({
       const query = searchParams.get("q") || undefined
       const address = searchParams.get("address") || undefined
       const sortByRaw = searchParams.get("sortBy") || undefined
-      const sortBy = (["newest", "oldest", "price_asc", "price_desc", "relevance"].includes(sortByRaw ?? "")
-        ? sortByRaw
+      const sortOrderRaw = searchParams.get("sortOrder") || undefined
+      // Normalize sortBy=price + sortOrder=asc/desc into price_asc / price_desc
+      const resolvedSortBy =
+        sortByRaw === "price"
+          ? sortOrderRaw === "desc"
+            ? "price_desc"
+            : "price_asc"
+          : sortByRaw
+      const sortBy = (["newest", "oldest", "price_asc", "price_desc", "relevance"].includes(resolvedSortBy ?? "")
+        ? resolvedSortBy
         : "newest") as "newest" | "oldest" | "price_asc" | "price_desc" | "relevance"
       const minPriceRaw = searchParams.get("minPrice") ?? searchParams.get("priceMin")
       const maxPriceRaw = searchParams.get("maxPrice") ?? searchParams.get("priceMax")

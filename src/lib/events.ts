@@ -229,5 +229,15 @@ eventBus.on("agent.created", async (data) => {
   // TODO: Send welcome email
 })
 
+eventBus.on("order.completed", async (data) => {
+  const order = await db.order.findUnique({
+    where: { id: data.orderId },
+    select: { buyerId: true },
+  })
+  if (order?.buyerId) {
+    void ReferralService.handleFirstTransactionCompleted(order.buyerId)
+  }
+})
+
 // Register webhook dispatch handlers
 registerWebhookHandlers()

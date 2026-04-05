@@ -251,6 +251,7 @@ export class ListingService {
           data: {
             status: ListingStatus.PUBLISHED,
             publishedAt: new Date(),
+            updatedAt: new Date(),
           },
           include: {
             ListingImage: true,
@@ -565,7 +566,7 @@ export class ListingService {
 
         const updated = await tx.listing.update({
           where: { id: listingId },
-          data: { status: ListingStatus.PAUSED },
+          data: { status: ListingStatus.PAUSED, updatedAt: new Date() },
           include: {
             ListingImage: true,
             User: { select: { id: true, name: true } },
@@ -621,7 +622,7 @@ export class ListingService {
 
         const updated = await tx.listing.update({
           where: { id: listingId },
-          data: { status: ListingStatus.PUBLISHED, publishedAt: new Date() },
+          data: { status: ListingStatus.PUBLISHED, publishedAt: new Date(), updatedAt: new Date() },
           include: {
             ListingImage: true,
             User: { select: { id: true, name: true } },
@@ -689,7 +690,7 @@ export class ListingService {
 
         const updated = await tx.listing.update({
           where: { id: listingId },
-          data,
+          data: { ...data, updatedAt: new Date() },
           include: {
             ListingImage: true,
           },
