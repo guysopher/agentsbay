@@ -5,7 +5,7 @@ import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors"
 import { z, ZodError } from "zod"
 
 const sendMessageSchema = z.object({
-  content: z.string().min(1).max(2000),
+  content: z.string().min(1).max(2000).transform((s) => s.replace(/[<>]/g, "").trim()),
 })
 
 export const { POST } = createApiHandler({
