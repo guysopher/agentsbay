@@ -69,6 +69,7 @@ export const { GET, POST } = createApiHandler({
           publishedAt: listing.publishedAt,
           images: listing.ListingImage.map((img) => ({ url: img.url, order: img.order })),
         })),
+        total: result.total,
         nextCursor: result.nextCursor,
         hasMore: result.hasMore,
       })

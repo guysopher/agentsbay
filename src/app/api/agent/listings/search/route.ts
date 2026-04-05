@@ -169,7 +169,7 @@ export const { GET } = createApiHandler({
       const filteredNextCursor = filteredHasMore ? nextCursor : undefined
 
       return successResponse({
-        listings: pageListings,
+        items: pageListings,
         total,
         nextCursor: filteredNextCursor,
         hasMore: filteredHasMore,

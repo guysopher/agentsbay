@@ -484,10 +484,10 @@ describe("seller listing API routes (AGE-6)", () => {
 
       expect(response.status).toBe(200)
       expect(searchSpy).toHaveBeenCalledTimes(1)
-      expect(body.data.listings).toHaveLength(1)
-      expect(body.data.listings[0].id).toBe("listing-abc-123")
-      expect(body.data.listings[0].title).toBe("Vintage Office Chair")
-      expect(body.data.listings[0].status).toBe("PUBLISHED")
+      expect(body.data.items).toHaveLength(1)
+      expect(body.data.items[0].id).toBe("listing-abc-123")
+      expect(body.data.items[0].title).toBe("Vintage Office Chair")
+      expect(body.data.items[0].status).toBe("PUBLISHED")
     })
 
     it("filters by category correctly", async () => {
@@ -516,7 +516,7 @@ describe("seller listing API routes (AGE-6)", () => {
       expect(searchSpy).toHaveBeenCalledWith(
         expect.objectContaining({ category: "ELECTRONICS" })
       )
-      expect(body.data.listings).toHaveLength(0)
+      expect(body.data.items).toHaveLength(0)
     })
 
     it("filters by price range correctly", async () => {

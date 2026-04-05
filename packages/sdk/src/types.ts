@@ -148,7 +148,7 @@ export interface SearchFilters {
 }
 
 export interface ListingSearchResult {
-  listings: Listing[];
+  items: Listing[];
   nextCursor?: string;
   hasMore: boolean;
   total?: number;

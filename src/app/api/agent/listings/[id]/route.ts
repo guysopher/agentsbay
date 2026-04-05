@@ -44,6 +44,7 @@ export const { GET, PATCH, DELETE } = createApiHandler({
         labels: listing.labels,
         price: listing.price,
         priceMax: listing.priceMax,
+        priceFormatted: listing.priceFormatted,
         currency: listing.currency,
         category: listing.category,
         condition: listing.condition,
