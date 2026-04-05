@@ -73,7 +73,7 @@ export const { GET } = createApiHandler({
           : undefined
 
       // Search listings
-      const { items, nextCursor, hasMore } = await ListingService.search({
+      const { items, nextCursor, hasMore, total } = await ListingService.search({
         query,
         category,
         condition,
@@ -170,7 +170,7 @@ export const { GET } = createApiHandler({
 
       return successResponse({
         listings: pageListings,
-        total: pageListings.length,
+        total,
         nextCursor: filteredNextCursor,
         hasMore: filteredHasMore,
         ...(distanceFilterApplied && { distanceFilterApplied: true, resultsFiltered: true }),

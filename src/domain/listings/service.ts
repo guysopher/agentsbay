@@ -239,6 +239,12 @@ export class ListingService {
         throw new ValidationError("Listing cannot be published from current status")
       }
 
+      // Reject listings with condition=NEW — this is a second-hand marketplace;
+      // valid conditions are GOOD, LIKE_NEW, FAIR, and POOR.
+      if (listing.condition === "NEW") {
+        throw new ValidationError("Listings with condition 'NEW' cannot be published. Valid conditions are: LIKE_NEW, GOOD, FAIR, POOR.")
+      }
+
       const updated = await db.$transaction(async (tx) => {
         const updated = await tx.listing.update({
           where: { id: listingId },
@@ -394,24 +400,27 @@ export class ListingService {
         orderBy = { createdAt: "desc" }
     }
 
-    const listings = await db.listing.findMany({
-      where,
-      include: {
-        ListingImage: true,
-        User: {
-          select: {
-            id: true,
-            name: true,
+    const [listings, total] = await Promise.all([
+      db.listing.findMany({
+        where,
+        include: {
+          ListingImage: true,
+          User: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
         },
-      },
-      orderBy,
-      take: limit + 1,
-      ...(params.cursor && {
-        cursor: { id: params.cursor },
-        skip: 1,
+        orderBy,
+        take: limit + 1,
+        ...(params.cursor && {
+          cursor: { id: params.cursor },
+          skip: 1,
+        }),
       }),
-    })
+      db.listing.count({ where }),
+    ])
 
     const hasMore = listings.length > limit
     const results = hasMore ? listings.slice(0, limit) : listings
@@ -435,6 +444,7 @@ export class ListingService {
       items: scored,
       nextCursor,
       hasMore,
+      total,
     }
   }
 

@@ -40,7 +40,13 @@ export class OrderService {
 
     const orders = await db.order.findMany({
       where: {
-        OR: [{ buyerId: userId }, { sellerId: userId }],
+        OR: [
+          { buyerId: userId },
+          { sellerId: userId },
+          // Fallback for pre-AGE-364 orders with null buyerId/sellerId column
+          { NegotiationThread: { buyerId: userId } },
+          { NegotiationThread: { sellerId: userId } },
+        ],
         ...(filters.status && filters.status.length > 0 && { status: { in: filters.status } }),
       },
       include: {
@@ -84,7 +90,14 @@ export class OrderService {
     const order = await db.order.findFirst({
       where: {
         id: orderId,
-        OR: [{ buyerId: actorUserId }, { sellerId: actorUserId }],
+        OR: [
+          { buyerId: actorUserId },
+          { sellerId: actorUserId },
+          // Fallback for pre-AGE-364 orders where buyerId/sellerId column may be null:
+          // resolve buyer and seller via the associated NegotiationThread.
+          { NegotiationThread: { buyerId: actorUserId } },
+          { NegotiationThread: { sellerId: actorUserId } },
+        ],
       },
       include: {
         DeliveryRequest: true,
@@ -114,7 +127,11 @@ export class OrderService {
       const order = await tx.order.findFirst({
         where: {
           id: orderId,
-          sellerId: actorUserId,
+          OR: [
+            { sellerId: actorUserId },
+            // Fallback for pre-AGE-364 orders with null sellerId column
+            { NegotiationThread: { sellerId: actorUserId } },
+          ],
         },
         include: {
           Listing: true,
@@ -200,7 +217,11 @@ export class OrderService {
       const order = await tx.order.findFirst({
         where: {
           id: orderId,
-          buyerId: actorUserId,
+          OR: [
+            { buyerId: actorUserId },
+            // Fallback for pre-AGE-364 orders with null buyerId column
+            { NegotiationThread: { buyerId: actorUserId } },
+          ],
         },
       })
 
@@ -250,7 +271,11 @@ export class OrderService {
       const order = await tx.order.findFirst({
         where: {
           id: orderId,
-          buyerId: actorUserId,
+          OR: [
+            { buyerId: actorUserId },
+            // Fallback for pre-AGE-364 orders with null buyerId column
+            { NegotiationThread: { buyerId: actorUserId } },
+          ],
         },
       })
 
@@ -302,7 +327,11 @@ export class OrderService {
       const order = await tx.order.findFirst({
         where: {
           id: orderId,
-          sellerId: actorUserId,
+          OR: [
+            { sellerId: actorUserId },
+            // Fallback for pre-AGE-364 orders with null sellerId column
+            { NegotiationThread: { sellerId: actorUserId } },
+          ],
         },
         include: {
           DeliveryRequest: true,
