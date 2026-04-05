@@ -244,6 +244,57 @@ export class OrderService {
     return updated
   }
 
+  static async completeOrder(orderId: string, actorUserId: string) {
+    const now = new Date()
+    const updated = await db.$transaction(async (tx) => {
+      const order = await tx.order.findFirst({
+        where: {
+          id: orderId,
+          buyerId: actorUserId,
+        },
+      })
+
+      if (!order) {
+        throw new NotFoundError("Order")
+      }
+
+      if (order.status !== OrderStatus.IN_TRANSIT) {
+        throw new ValidationError("Order must be in IN_TRANSIT status to confirm receipt")
+      }
+
+      const updatedOrder = await tx.order.update({
+        where: { id: orderId },
+        data: {
+          status: OrderStatus.COMPLETED,
+          completedAt: now,
+          updatedAt: now,
+        },
+      })
+
+      await tx.auditLog.create({
+        data: {
+          id: randomUUID(),
+          userId: actorUserId,
+          action: "order.completed",
+          entityType: "order",
+          entityId: orderId,
+          metadata: {},
+        },
+      })
+
+      return updatedOrder
+    })
+
+    void eventBus.emit("order.updated", {
+      orderId: updated.id,
+      buyerId: updated.buyerId,
+      sellerId: updated.sellerId,
+      status: updated.status,
+    })
+
+    return updated
+  }
+
   static async closeout(orderId: string, actorUserId: string) {
     const now = new Date()
     // Read + validate + write inside transaction to prevent TOCTOU race conditions
