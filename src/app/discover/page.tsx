@@ -1,12 +1,16 @@
 import type { Metadata } from "next"
 import { Suspense } from "react"
 import Link from "next/link"
-import { AgentProfileService } from "@/domain/agents/profile-service"
+import {
+  AgentProfileService,
+  type LeaderboardWindow,
+  type LeaderboardSortBy,
+} from "@/domain/agents/profile-service"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
-import { Trophy, Star, Users, Search } from "lucide-react"
+import { Trophy, Star, Users, Search, DollarSign } from "lucide-react"
 
 export const revalidate = 60
 
@@ -29,20 +33,46 @@ export const metadata: Metadata = {
   },
 }
 
-async function Leaderboard() {
-  const leaders = await AgentProfileService.getLeaderboard(10)
+const WINDOW_LABELS: Record<LeaderboardWindow, string> = {
+  all: "All time",
+  "30d": "Last 30 days",
+  "7d": "Last 7 days",
+}
+
+const SORT_LABELS: Record<LeaderboardSortBy, string> = {
+  listings_sold: "Deals",
+  transaction_value: "GMV",
+  buyer_rating: "Rating",
+}
+
+async function Leaderboard({
+  window,
+  sortBy,
+}: {
+  window: LeaderboardWindow
+  sortBy: LeaderboardSortBy
+}) {
+  const leaders = await AgentProfileService.getLeaderboard({ limit: 10, window, sortBy })
+
+  const title =
+    sortBy === "transaction_value"
+      ? "Top Agents by GMV"
+      : sortBy === "buyer_rating"
+        ? "Top Agents by Rating"
+        : "Top Agents by Deals"
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Trophy className="h-5 w-5 text-yellow-500" />
-          Top Agents by Deals
+          {title}
         </CardTitle>
+        <p className="text-xs text-muted-foreground">{WINDOW_LABELS[window]}</p>
       </CardHeader>
       <CardContent>
         {leaders.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No completed deals yet.</p>
+          <p className="text-muted-foreground text-sm">No data for this period.</p>
         ) : (
           <ol className="space-y-3">
             {leaders.map((agent, idx) => (
@@ -68,7 +98,14 @@ async function Leaderboard() {
                       {agent.avgRating.toFixed(1)}
                     </Badge>
                   )}
-                  <Badge variant="outline">{agent.dealsCompleted} deals</Badge>
+                  {sortBy === "transaction_value" && agent.transactionValue != null ? (
+                    <Badge variant="outline" className="gap-1">
+                      <DollarSign className="h-3 w-3" />
+                      {agent.transactionValue.toLocaleString()}
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline">{agent.dealsCompleted} deals</Badge>
+                  )}
                 </div>
               </li>
             ))}
@@ -76,6 +113,51 @@ async function Leaderboard() {
         )}
       </CardContent>
     </Card>
+  )
+}
+
+function LeaderboardFilters({
+  window,
+  sortBy,
+  search,
+  page,
+}: {
+  window: LeaderboardWindow
+  sortBy: LeaderboardSortBy
+  search?: string
+  page: number
+}) {
+  const base = `/discover?page=${page}${search ? `&search=${encodeURIComponent(search)}` : ""}`
+  return (
+    <div className="flex gap-2 flex-wrap mt-3">
+      {(["all", "30d", "7d"] as LeaderboardWindow[]).map((w) => (
+        <Link
+          key={w}
+          href={`${base}&window=${w}&sortBy=${sortBy}`}
+          className={`text-xs px-2 py-1 rounded-md border transition-colors ${
+            w === window
+              ? "bg-primary text-primary-foreground border-primary"
+              : "border-border hover:bg-muted"
+          }`}
+        >
+          {WINDOW_LABELS[w]}
+        </Link>
+      ))}
+      <span className="mx-1 border-l border-border" />
+      {(["listings_sold", "transaction_value", "buyer_rating"] as LeaderboardSortBy[]).map((s) => (
+        <Link
+          key={s}
+          href={`${base}&window=${window}&sortBy=${s}`}
+          className={`text-xs px-2 py-1 rounded-md border transition-colors ${
+            s === sortBy
+              ? "bg-primary text-primary-foreground border-primary"
+              : "border-border hover:bg-muted"
+          }`}
+        >
+          {SORT_LABELS[s]}
+        </Link>
+      ))}
+    </div>
   )
 }
 
@@ -190,11 +272,18 @@ function ListSkeleton() {
 export default async function DiscoverPage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; page?: string }>
+  searchParams: Promise<{ search?: string; page?: string; window?: string; sortBy?: string }>
 }) {
   const params = await searchParams
   const search = params.search
   const page = Math.max(1, parseInt(params.page ?? "1", 10))
+
+  const window: LeaderboardWindow =
+    params.window === "30d" || params.window === "7d" ? params.window : "all"
+  const sortBy: LeaderboardSortBy =
+    params.sortBy === "transaction_value" || params.sortBy === "buyer_rating"
+      ? params.sortBy
+      : "listings_sold"
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
@@ -206,8 +295,9 @@ export default async function DiscoverPage({
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-1">
           <Suspense fallback={<Skeleton className="h-64 w-full" />}>
-            <Leaderboard />
+            <Leaderboard window={window} sortBy={sortBy} />
           </Suspense>
+          <LeaderboardFilters window={window} sortBy={sortBy} search={search} page={page} />
         </div>
 
         <div className="lg:col-span-2 space-y-4">
