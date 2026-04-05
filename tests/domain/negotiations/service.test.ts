@@ -435,6 +435,34 @@ describe("NegotiationService", () => {
         NegotiationService.counterBid("bid-1", "seller-1", { amount: 9000 })
       ).rejects.toThrow(ValidationError)
     })
+
+    // ── Regression AGE-433 ───────────────────────────────────────────────────
+    // Counter bids must carry parentBidId so rejectBid can revert the chain.
+
+    it("regression AGE-433: sets parentBidId on the counter bid", async () => {
+      jest.spyOn(db.bid, "findUnique").mockResolvedValueOnce(BID as never)
+
+      let capturedCreateData: Record<string, unknown> | undefined
+      jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+        return fn({
+          bid: {
+            update: jest.fn().mockResolvedValue({ ...BID, status: BidStatus.COUNTERED }),
+            create: jest.fn().mockImplementation((args: { data: Record<string, unknown> }) => {
+              capturedCreateData = args.data
+              return Promise.resolve({ id: "bid-counter", ...args.data, status: BidStatus.PENDING })
+            }),
+          },
+          negotiationThread: {
+            update: jest.fn().mockResolvedValue(THREAD),
+          },
+        })
+      })
+
+      await NegotiationService.counterBid("bid-1", "seller-1", { amount: 9000 })
+
+      // The counter bid must record which bid it countered so rejection can revert it
+      expect(capturedCreateData?.parentBidId).toBe("bid-1")
+    })
   })
 
   // ─── acceptBid ───────────────────────────────────────────────────────────────
@@ -528,7 +556,9 @@ describe("NegotiationService", () => {
   describe("rejectBid", () => {
     const BID_WITH_THREAD = {
       ...BID,
-      NegotiationThread: THREAD,
+      parentBidId: null,
+      ParentBid: null,
+      NegotiationThread: { ...THREAD, Listing: LISTING },
     }
 
     it("rejects a bid and updates the thread", async () => {
@@ -565,6 +595,78 @@ describe("NegotiationService", () => {
       await expect(
         NegotiationService.rejectBid("bid-1", "stranger")
       ).rejects.toThrow(ForbiddenError)
+    })
+
+    // ── Regression AGE-433 ───────────────────────────────────────────────────
+    // When a buyer rejects a seller counter-bid, the parent buyer bid must be
+    // reverted COUNTERED → PENDING so the seller can respond. Without this fix
+    // the thread deadlocks: no PENDING bid exists and both parties get 403.
+
+    it("regression AGE-433: reverts parent bid COUNTERED→PENDING when counter is rejected", async () => {
+      const parentBid = {
+        id: "bid-parent",
+        status: BidStatus.COUNTERED,
+      }
+      const sellerCounterBid = {
+        ...BID,
+        id: "bid-counter",
+        placedByUserId: "seller-1",
+        parentBidId: "bid-parent",
+        ParentBid: parentBid,
+        status: BidStatus.PENDING,
+        NegotiationThread: { ...THREAD, Listing: LISTING },
+      }
+
+      jest.spyOn(db.bid, "findUnique").mockResolvedValueOnce(sellerCounterBid as never)
+
+      const bidUpdateMock = jest.fn()
+        .mockResolvedValueOnce({ ...sellerCounterBid, status: BidStatus.REJECTED }) // reject counter
+        .mockResolvedValueOnce({ ...parentBid, status: BidStatus.PENDING }) // revert parent
+
+      jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+        return fn({
+          bid: {
+            update: bidUpdateMock,
+          },
+          negotiationThread: {
+            update: jest.fn().mockResolvedValue(THREAD),
+          },
+        })
+      })
+
+      await NegotiationService.rejectBid("bid-counter", "buyer-1")
+
+      // First call: reject the counter bid
+      expect(bidUpdateMock).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        where: { id: "bid-counter" },
+        data: expect.objectContaining({ status: BidStatus.REJECTED }),
+      }))
+
+      // Second call: revert parent bid to PENDING
+      expect(bidUpdateMock).toHaveBeenNthCalledWith(2, expect.objectContaining({
+        where: { id: "bid-parent" },
+        data: expect.objectContaining({ status: BidStatus.PENDING }),
+      }))
+
+      expect(bidUpdateMock).toHaveBeenCalledTimes(2)
+    })
+
+    it("regression AGE-433: does not touch parent bid when counter has no parentBidId", async () => {
+      // Original bids (not counters) have no parentBidId — must not attempt any revert
+      jest.spyOn(db.bid, "findUnique").mockResolvedValueOnce(BID_WITH_THREAD as never)
+      const bidUpdateMock = jest.fn().mockResolvedValueOnce({ ...BID, status: BidStatus.REJECTED })
+
+      jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+        return fn({
+          bid: { update: bidUpdateMock },
+          negotiationThread: { update: jest.fn().mockResolvedValue(THREAD) },
+        })
+      })
+
+      await NegotiationService.rejectBid("bid-1", "seller-1")
+
+      // Only one update call — the rejection itself, no parent revert
+      expect(bidUpdateMock).toHaveBeenCalledTimes(1)
     })
   })
 
