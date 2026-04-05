@@ -296,6 +296,15 @@ export class OrderService {
         },
       })
 
+      await tx.listing.update({
+        where: { id: order.listingId },
+        data: {
+          status: ListingStatus.SOLD,
+          soldAt: now,
+          updatedAt: now,
+        },
+      })
+
       await tx.auditLog.create({
         data: {
           id: randomUUID(),
@@ -303,7 +312,9 @@ export class OrderService {
           action: "order.completed",
           entityType: "order",
           entityId: orderId,
-          metadata: {},
+          metadata: {
+            listingId: order.listingId,
+          },
         },
       })
 
@@ -316,6 +327,33 @@ export class OrderService {
       sellerId: updated.sellerId,
       status: updated.status,
     })
+
+    // Fire-and-forget emails to buyer and seller
+    void (async () => {
+      try {
+        const [buyer, seller, listing] = await Promise.all([
+          db.user.findUnique({ where: { id: updated.buyerId }, select: { id: true, email: true, name: true, emailNotificationsEnabled: true } }),
+          db.user.findUnique({ where: { id: updated.sellerId }, select: { id: true, email: true, name: true, emailNotificationsEnabled: true } }),
+          db.listing.findUnique({ where: { id: updated.listingId }, select: { title: true } }),
+        ])
+        if (buyer && seller && listing && (buyer.emailNotificationsEnabled || seller.emailNotificationsEnabled)) {
+          await notifyOrderCompleted({
+            buyerEmail: buyer.email,
+            buyerName: buyer.name,
+            buyerUserId: buyer.id,
+            buyerOptedIn: buyer.emailNotificationsEnabled,
+            sellerEmail: seller.email,
+            sellerName: seller.name,
+            sellerUserId: seller.id,
+            sellerOptedIn: seller.emailNotificationsEnabled,
+            listingTitle: listing.title,
+            orderId: updated.id,
+          })
+        }
+      } catch {
+        // swallow
+      }
+    })()
 
     return updated
   }
