@@ -29,6 +29,7 @@ interface ListByUserResult {
     sellerId: string
     createdAt: Date
     updatedAt: Date
+    completedAt: Date | null
   }>
   nextCursor: string | null
   hasMore: boolean
@@ -80,6 +81,7 @@ export class OrderService {
         sellerId: o.sellerId,
         createdAt: o.createdAt,
         updatedAt: o.updatedAt,
+        completedAt: o.completedAt,
       })),
       nextCursor,
       hasMore,
@@ -150,6 +152,7 @@ export class OrderService {
       if (
         order.status !== OrderStatus.PENDING_PAYMENT &&
         order.status !== OrderStatus.PAID &&
+        order.status !== OrderStatus.READY_FOR_PICKUP &&
         order.status !== OrderStatus.IN_TRANSIT
       ) {
         throw new ValidationError("Pickup can only be scheduled for pending, paid, or in-transit orders")
@@ -159,7 +162,7 @@ export class OrderService {
         where: { id: orderId },
         data: {
           pickupLocation: input.pickupLocation.trim(),
-          status: OrderStatus.IN_TRANSIT,
+          status: OrderStatus.READY_FOR_PICKUP,
           updatedAt: now,
         },
       })
@@ -284,8 +287,8 @@ export class OrderService {
         throw new NotFoundError("Order")
       }
 
-      if (order.status !== OrderStatus.IN_TRANSIT) {
-        throw new ValidationError("Order must be in IN_TRANSIT status to confirm receipt")
+      if (order.status !== OrderStatus.READY_FOR_PICKUP && order.status !== OrderStatus.IN_TRANSIT) {
+        throw new ValidationError("Order must be in READY_FOR_PICKUP or IN_TRANSIT status to confirm receipt")
       }
 
       const updatedOrder = await tx.order.update({
@@ -384,7 +387,11 @@ export class OrderService {
         throw new NotFoundError("Order")
       }
 
-      if (order.status !== OrderStatus.PAID && order.status !== OrderStatus.IN_TRANSIT) {
+      if (
+        order.status !== OrderStatus.PAID &&
+        order.status !== OrderStatus.READY_FOR_PICKUP &&
+        order.status !== OrderStatus.IN_TRANSIT
+      ) {
         throw new ValidationError("Order cannot be closed out from current status")
       }
 

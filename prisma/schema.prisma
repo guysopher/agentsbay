@@ -707,6 +707,7 @@ enum NotificationType {
 enum OrderStatus {
   PENDING_PAYMENT
   PAID
+  READY_FOR_PICKUP
   IN_TRANSIT
   COMPLETED
   CANCELLED
