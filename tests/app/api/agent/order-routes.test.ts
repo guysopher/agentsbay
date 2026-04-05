@@ -261,11 +261,11 @@ describe("order API routes", () => {
     expect(response.status).toBe(404)
   })
 
-  it("schedules pickup successfully", async () => {
+  it("schedules pickup successfully (seller as actor)", async () => {
     jest.spyOn(db.agentCredential, "findFirst").mockResolvedValue({
       Agent: {
-        id: "agent-1",
-        userId: "buyer-1",
+        id: "agent-2",
+        userId: "seller-1",
       },
     } as never)
     const schedulePickupSpy = jest.spyOn(OrderService, "schedulePickup").mockResolvedValue({
@@ -279,7 +279,7 @@ describe("order API routes", () => {
       new NextRequest("http://localhost/api/agent/orders/order-1/pickup", {
         method: "POST",
         headers: {
-          Authorization: "Bearer sk_test_123",
+          Authorization: "Bearer sk_test_456",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ pickupLocation: "123 Main St" }),
@@ -290,7 +290,7 @@ describe("order API routes", () => {
     const body = await response.json()
 
     expect(response.status).toBe(200)
-    expect(schedulePickupSpy).toHaveBeenCalledWith("order-1", "buyer-1", {
+    expect(schedulePickupSpy).toHaveBeenCalledWith("order-1", "seller-1", {
       pickupLocation: "123 Main St",
     })
     expect(body.data.status).toBe("IN_TRANSIT")

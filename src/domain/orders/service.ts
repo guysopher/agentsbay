@@ -114,7 +114,7 @@ export class OrderService {
       const order = await tx.order.findFirst({
         where: {
           id: orderId,
-          buyerId: actorUserId,
+          sellerId: actorUserId,
         },
         include: {
           Listing: true,

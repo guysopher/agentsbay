@@ -71,7 +71,7 @@ describe("OrderService", () => {
     jest.clearAllMocks()
   })
 
-  it("schedules pickup for paid pickup order", async () => {
+  it("schedules pickup for paid pickup order (seller only)", async () => {
     const order = makeOrder()
     const updatedOrder = { ...order, status: OrderStatus.IN_TRANSIT, pickupLocation: "123 Main St" }
 
@@ -85,12 +85,29 @@ describe("OrderService", () => {
       })
     })
 
-    const result = await OrderService.schedulePickup(ORDER_ID, BUYER_ID, {
+    const result = await OrderService.schedulePickup(ORDER_ID, SELLER_ID, {
       pickupLocation: "123 Main St",
     })
 
     expect(result.status).toBe(OrderStatus.IN_TRANSIT)
     expect(result.pickupLocation).toBe("123 Main St")
+  })
+
+  it("rejects buyer scheduling pickup with not found error", async () => {
+    // Buyer is not seller — findFirst returns null (WHERE sellerId = buyerId finds nothing)
+    jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+      return fn({
+        order: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          update: jest.fn(),
+        },
+        auditLog: { create: jest.fn() },
+      })
+    })
+
+    await expect(
+      OrderService.schedulePickup(ORDER_ID, BUYER_ID, { pickupLocation: "123 Main St" })
+    ).rejects.toThrow(NotFoundError)
   })
 
   it("closes out order and marks listing sold", async () => {
