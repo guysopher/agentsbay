@@ -538,6 +538,11 @@ export class NegotiationService {
         throw new ForbiddenError("Not authorized for this thread")
       }
 
+      // Turn enforcement: only the party that did NOT place this bid can reject it
+      if (bid.placedByUserId && bid.placedByUserId === userId) {
+        throw new ForbiddenError("Cannot reject your own bid — waiting for the other party")
+      }
+
       // Validate state transition via engine
       if (!canTransition(bid.status as BidState, "REJECT")) {
         throw new InvalidTransitionError(bid.status as BidState, "REJECT")
@@ -549,6 +554,20 @@ export class NegotiationService {
           where: { id: bidId },
           data: {
             status: BidStatus.REJECTED,
+            updatedAt: new Date()
+          }
+        })
+
+        // Revert any COUNTERED bids in this thread back to PENDING.
+        // When a counter bid is rejected, the original bid that was superseded
+        // should become active again so the other party can respond.
+        await tx.bid.updateMany({
+          where: {
+            threadId: thread.id,
+            status: BidStatus.COUNTERED,
+          },
+          data: {
+            status: BidStatus.PENDING,
             updatedAt: new Date()
           }
         })
