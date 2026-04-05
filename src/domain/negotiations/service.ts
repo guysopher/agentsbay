@@ -270,13 +270,14 @@ export class NegotiationService {
           }
         })
 
-        // Create counter bid
+        // Create counter bid (parentBidId links back so rejectBid can revert the parent)
         const counterBid = await tx.bid.create({
           data: {
             id: randomUUID(),
             threadId: thread.id,
             agentId: input.agentId ?? null,
             placedByUserId: userId,
+            parentBidId: bidId,
             amount: input.amount,
             message: input.message,
             status: BidStatus.PENDING,
@@ -552,6 +553,18 @@ export class NegotiationService {
             updatedAt: new Date()
           }
         })
+
+        // If this is a counter bid, revert the parent bid COUNTERED → PENDING so
+        // the negotiation can continue (covers both AGE-412 and AGE-424 paths).
+        if (bid.parentBidId) {
+          await tx.bid.update({
+            where: { id: bid.parentBidId },
+            data: {
+              status: BidStatus.PENDING,
+              updatedAt: new Date()
+            }
+          })
+        }
 
         // Update thread
         await tx.negotiationThread.update({

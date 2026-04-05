@@ -10,7 +10,7 @@ import { randomUUID } from "crypto"
 import { ModerationService } from "@/domain/trust/moderation"
 
 const DUPLICATE_WINDOW_MS = 24 * 60 * 60 * 1000 // 24 hours
-const DUPLICATE_SIMILARITY_THRESHOLD = 0.8
+const DUPLICATE_SIMILARITY_THRESHOLD = 0.9
 
 /** Normalize a listing title for duplicate comparison */
 function normalizeTitle(title: string): string {
@@ -565,7 +565,7 @@ export class ListingService {
 
         const updated = await tx.listing.update({
           where: { id: listingId },
-          data: { status: ListingStatus.PAUSED },
+          data: { status: ListingStatus.PAUSED, updatedAt: new Date() },
           include: {
             ListingImage: true,
             User: { select: { id: true, name: true } },
@@ -621,7 +621,7 @@ export class ListingService {
 
         const updated = await tx.listing.update({
           where: { id: listingId },
-          data: { status: ListingStatus.PUBLISHED, publishedAt: new Date() },
+          data: { status: ListingStatus.PUBLISHED, publishedAt: new Date(), updatedAt: new Date() },
           include: {
             ListingImage: true,
             User: { select: { id: true, name: true } },
@@ -689,7 +689,7 @@ export class ListingService {
 
         const updated = await tx.listing.update({
           where: { id: listingId },
-          data,
+          data: { ...data, updatedAt: new Date() },
           include: {
             ListingImage: true,
           },
