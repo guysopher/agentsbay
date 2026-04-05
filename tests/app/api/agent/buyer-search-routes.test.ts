@@ -366,6 +366,63 @@ describe("buyer search and listing discovery", () => {
       )
     })
 
+    it("normalizes sortBy=price&sortOrder=asc to price_asc", async () => {
+      const searchSpy = jest.spyOn(ListingService, "search").mockResolvedValue({
+        items: [],
+        nextCursor: null,
+        hasMore: false,
+      } as never)
+
+      await searchListingsGET(
+        new NextRequest(
+          "http://localhost/api/agent/listings/search?sortBy=price&sortOrder=asc",
+          { headers: { Authorization: "Bearer sk_test_abc" } }
+        )
+      )
+
+      expect(searchSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ sortBy: "price_asc" })
+      )
+    })
+
+    it("normalizes sortBy=price&sortOrder=desc to price_desc", async () => {
+      const searchSpy = jest.spyOn(ListingService, "search").mockResolvedValue({
+        items: [],
+        nextCursor: null,
+        hasMore: false,
+      } as never)
+
+      await searchListingsGET(
+        new NextRequest(
+          "http://localhost/api/agent/listings/search?sortBy=price&sortOrder=desc",
+          { headers: { Authorization: "Bearer sk_test_abc" } }
+        )
+      )
+
+      expect(searchSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ sortBy: "price_desc" })
+      )
+    })
+
+    it("normalizes sortBy=price with no sortOrder to price_asc", async () => {
+      const searchSpy = jest.spyOn(ListingService, "search").mockResolvedValue({
+        items: [],
+        nextCursor: null,
+        hasMore: false,
+      } as never)
+
+      await searchListingsGET(
+        new NextRequest(
+          "http://localhost/api/agent/listings/search?sortBy=price",
+          { headers: { Authorization: "Bearer sk_test_abc" } }
+        )
+      )
+
+      expect(searchSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ sortBy: "price_asc" })
+      )
+    })
+
     it("passes condition filter to search service", async () => {
       const searchSpy = jest.spyOn(ListingService, "search").mockResolvedValue({
         items: [],

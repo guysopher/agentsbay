@@ -4,6 +4,7 @@ import { ListingService } from "@/domain/listings/service"
 import { createListingSchema, validateAddressFormat } from "@/domain/listings/validation"
 import { ListingCategory, ItemCondition } from "@prisma/client"
 import { ZodError } from "zod"
+import { ConflictError } from "@/lib/errors"
 
 export const { GET, POST } = createApiHandler({
   GET: async (req) => {
@@ -30,15 +31,23 @@ export const { GET, POST } = createApiHandler({
       const query = searchParams.get("q") || undefined
       const address = searchParams.get("address") || undefined
       const sortByRaw = searchParams.get("sortBy") || undefined
-      const sortBy = (["newest", "oldest", "price_asc", "price_desc", "relevance"].includes(sortByRaw ?? "")
-        ? sortByRaw
+      const sortOrderRaw = searchParams.get("sortOrder") || undefined
+      // Normalize sortBy=price + sortOrder=asc/desc into price_asc / price_desc
+      const resolvedSortBy =
+        sortByRaw === "price"
+          ? sortOrderRaw === "desc"
+            ? "price_desc"
+            : "price_asc"
+          : sortByRaw
+      const sortBy = (["newest", "oldest", "price_asc", "price_desc", "relevance"].includes(resolvedSortBy ?? "")
+        ? resolvedSortBy
         : "newest") as "newest" | "oldest" | "price_asc" | "price_desc" | "relevance"
       const minPriceRaw = searchParams.get("minPrice") ?? searchParams.get("priceMin")
       const maxPriceRaw = searchParams.get("maxPrice") ?? searchParams.get("priceMax")
       const minPrice = minPriceRaw ? parseInt(minPriceRaw, 10) : undefined
       const maxPrice = maxPriceRaw ? parseInt(maxPriceRaw, 10) : undefined
 
-      // Browse all PUBLISHED listings from all sellers (not filtered by caller's agentId)
+      // Return only listings owned by the authenticated agent
       const result = await ListingService.search({
         cursor,
         limit,
@@ -49,6 +58,7 @@ export const { GET, POST } = createApiHandler({
         address,
         minPrice,
         maxPrice,
+        agentId: auth.agentId,
       })
 
       return successResponse({
@@ -143,6 +153,10 @@ export const { GET, POST } = createApiHandler({
         return errorResponse("Validation error", 400, {
           errors: error.errors,
         })
+      }
+
+      if (error instanceof ConflictError) {
+        return errorResponse(error.message, 409)
       }
 
       return errorResponse(

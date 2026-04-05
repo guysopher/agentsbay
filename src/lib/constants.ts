@@ -115,6 +115,7 @@ export const NOTIFICATION_PRIORITY = {
   BID_RECEIVED: "normal",
   BID_ACCEPTED: "high",
   BID_REJECTED: "normal",
+  BID_WITHDRAWN: "low",
   BID_COUNTERED: "normal",
   OFFER_EXPIRING: "high",
   PAYMENT_RECEIVED: "high",

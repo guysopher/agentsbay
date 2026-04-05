@@ -1,7 +1,7 @@
 import { createApiHandler, errorResponse, successResponse } from "@/lib/api-handler"
 import { authenticateAgentRequest } from "@/lib/agent-auth"
 import { OrderService } from "@/domain/orders/service"
-import { NotFoundError, ValidationError } from "@/lib/errors"
+import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors"
 import { z, ZodError } from "zod"
 
 const pickupSchema = z.object({
@@ -39,6 +39,10 @@ export const { POST } = createApiHandler({
 
       if (error instanceof NotFoundError) {
         return errorResponse("Order not found", 404)
+      }
+
+      if (error instanceof ForbiddenError) {
+        return errorResponse(error.message, 403)
       }
 
       if (error instanceof ValidationError) {
