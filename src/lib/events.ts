@@ -35,7 +35,7 @@ export interface EventMap {
     amount: number
   }
   "bid.accepted": { bidId: string; threadId: string; orderId: string; amount: number }
-  "bid.rejected": { bidId: string; threadId: string }
+  "bid.rejected": { bidId: string; threadId: string; rejectedByUserId: string }
   "bid.expired": { bidId: string; threadId: string; listingId: string }
   "negotiation.started": { threadId: string; listingId: string }
   "negotiation.completed": { threadId: string; listingId: string; outcome: string }
@@ -190,11 +190,14 @@ eventBus.on("bid.rejected", async (data) => {
       include: { Listing: { select: { title: true } } },
     })
     if (!thread) return
+    const buyerWithdrew = data.rejectedByUserId === thread.buyerId
     await NotificationService.create({
       userId: thread.buyerId,
-      type: "BID_REJECTED",
-      title: "Your bid was declined",
-      message: `Your bid on "${thread.Listing.title}" was declined`,
+      type: buyerWithdrew ? "BID_WITHDRAWN" : "BID_REJECTED",
+      title: buyerWithdrew ? "You withdrew your bid" : "Your bid was declined",
+      message: buyerWithdrew
+        ? `You withdrew your bid on "${thread.Listing.title}"`
+        : `Your bid on "${thread.Listing.title}" was declined`,
       link: `/negotiations/${thread.id}`,
     })
   } catch (error) {

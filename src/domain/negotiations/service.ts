@@ -579,7 +579,8 @@ export class NegotiationService {
       // Emit event
       await eventBus.emit("bid.rejected", {
         bidId,
-        threadId: thread.id
+        threadId: thread.id,
+        rejectedByUserId: userId
       })
 
       // Fire-and-forget email to buyer
