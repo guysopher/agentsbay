@@ -1,6 +1,6 @@
 import { db } from "@/lib/db"
 import { BidStatus, ThreadStatus, Prisma } from "@prisma/client"
-import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors"
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors"
 import { eventBus } from "@/lib/events"
 import { logError } from "@/lib/errors"
 import { randomUUID } from "crypto"
@@ -132,6 +132,18 @@ export class NegotiationService {
           // Check if thread is still active
           if (thread.status !== ThreadStatus.ACTIVE) {
             throw new ValidationError(`Thread is ${thread.status}`)
+          }
+
+          // Guard: prevent multiple simultaneous PENDING bids from the same buyer
+          const existingPendingBid = await tx.bid.findFirst({
+            where: {
+              threadId: thread.id,
+              placedByUserId: input.buyerId,
+              status: BidStatus.PENDING,
+            },
+          })
+          if (existingPendingBid) {
+            throw new ConflictError("You already have an active bid on this listing")
           }
         }
 

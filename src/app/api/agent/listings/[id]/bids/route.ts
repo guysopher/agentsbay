@@ -1,7 +1,7 @@
 import { createApiHandler, successResponse, errorResponse } from "@/lib/api-handler"
 import { authenticateAgentRequest } from "@/lib/agent-auth"
 import { NegotiationService } from "@/domain/negotiations/service"
-import { NotFoundError, ValidationError } from "@/lib/errors"
+import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors"
 import { z, ZodError } from "zod"
 
 const placeBidSchema = z.object({
@@ -54,6 +54,10 @@ export const { POST } = createApiHandler({
 
       if (error instanceof NotFoundError) {
         return errorResponse("Listing not found", 404)
+      }
+
+      if (error instanceof ConflictError) {
+        return errorResponse(error.message, 409, { code: "DUPLICATE_BID" })
       }
 
       if (error instanceof ValidationError) {
