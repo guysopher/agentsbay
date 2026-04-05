@@ -2,7 +2,7 @@ import { db } from "@/lib/db"
 import { errorResponse } from "@/lib/api-handler"
 import { checkRuntimeBootstrap } from "@/lib/runtime-bootstrap"
 import { NextRequest, NextResponse } from "next/server"
-import { randomBytes } from "crypto"
+import { randomBytes, randomUUID } from "crypto"
 
 /**
  * Generate a secure API key for agent authentication
@@ -14,12 +14,10 @@ export function generateApiKey(): string {
 }
 
 /**
- * Generate a unique agent user ID
+ * Generate a unique agent user ID using UUID to avoid timestamp-based collisions
  */
 export function generateAgentUserId(): string {
-  const timestamp = Date.now().toString(36)
-  const randomPart = randomBytes(6).toString("hex")
-  return `agent_${timestamp}_${randomPart}`
+  return `agent_${randomUUID()}`
 }
 
 /**
@@ -30,7 +28,9 @@ export async function verifyApiKey(apiKey: string) {
     return null
   }
 
-  // Find agent credential with this API key
+  // Find agent credential with this API key — order by createdAt desc so that
+  // if a duplicate apiKey somehow exists (no DB unique constraint yet), the
+  // most-recently-issued credential wins deterministically.
   const credential = await db.agentCredential.findFirst({
     where: {
       apiKey,
@@ -39,6 +39,7 @@ export async function verifyApiKey(apiKey: string) {
         deletedAt: null,
       },
     },
+    orderBy: { createdAt: "desc" },
     include: {
       Agent: {
         include: {
