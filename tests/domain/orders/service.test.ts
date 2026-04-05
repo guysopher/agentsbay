@@ -226,10 +226,11 @@ describe("OrderService", () => {
     ).rejects.toThrow("Order cannot be closed out from current status")
   })
 
-  it("completeOrder transitions IN_TRANSIT order to COMPLETED (buyer)", async () => {
+  it("completeOrder transitions IN_TRANSIT order to COMPLETED (buyer) and marks listing SOLD", async () => {
     const order = makeOrder({ status: OrderStatus.IN_TRANSIT })
     const now = new Date()
     const completedOrder = { ...order, status: OrderStatus.COMPLETED, completedAt: now }
+    const listingUpdate = jest.fn().mockResolvedValue({ id: LISTING_ID, status: ListingStatus.SOLD })
 
     jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
       return fn({
@@ -237,6 +238,7 @@ describe("OrderService", () => {
           findFirst: jest.fn().mockResolvedValue(order),
           update: jest.fn().mockResolvedValue(completedOrder),
         },
+        listing: { update: listingUpdate },
         auditLog: { create: jest.fn().mockResolvedValue({}) },
       })
     })
@@ -245,6 +247,12 @@ describe("OrderService", () => {
 
     expect(result.status).toBe(OrderStatus.COMPLETED)
     expect(result.completedAt).toBeDefined()
+    expect(listingUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: LISTING_ID },
+        data: expect.objectContaining({ status: ListingStatus.SOLD }),
+      })
+    )
   })
 
   it("completeOrder rejects seller (not buyer) with NotFoundError", async () => {
