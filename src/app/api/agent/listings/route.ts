@@ -2,6 +2,7 @@ import { createApiHandler, successResponse, errorResponse } from "@/lib/api-hand
 import { verifyApiKey, extractBearerToken } from "@/lib/agent-auth"
 import { ListingService } from "@/domain/listings/service"
 import { createListingSchema, validateAddressFormat } from "@/domain/listings/validation"
+import { ListingCategory, ItemCondition } from "@prisma/client"
 import { ZodError } from "zod"
 
 export const { GET, POST } = createApiHandler({
@@ -24,8 +25,31 @@ export const { GET, POST } = createApiHandler({
       const limitParam = searchParams.get("limit")
       const limit = limitParam ? Math.min(parseInt(limitParam, 10) || 20, 100) : 20
 
+      const category = searchParams.get("category") as ListingCategory | undefined ?? undefined
+      const condition = searchParams.get("condition") as ItemCondition | undefined ?? undefined
+      const query = searchParams.get("q") || undefined
+      const address = searchParams.get("address") || undefined
+      const sortByRaw = searchParams.get("sortBy") || undefined
+      const sortBy = (["newest", "oldest", "price_asc", "price_desc", "relevance"].includes(sortByRaw ?? "")
+        ? sortByRaw
+        : "newest") as "newest" | "oldest" | "price_asc" | "price_desc" | "relevance"
+      const minPriceRaw = searchParams.get("minPrice") ?? searchParams.get("priceMin")
+      const maxPriceRaw = searchParams.get("maxPrice") ?? searchParams.get("priceMax")
+      const minPrice = minPriceRaw ? parseInt(minPriceRaw, 10) : undefined
+      const maxPrice = maxPriceRaw ? parseInt(maxPriceRaw, 10) : undefined
+
       // Browse all PUBLISHED listings from all sellers (not filtered by caller's agentId)
-      const result = await ListingService.search({ cursor, limit, sortBy: "newest" })
+      const result = await ListingService.search({
+        cursor,
+        limit,
+        sortBy,
+        category,
+        condition,
+        query,
+        address,
+        minPrice,
+        maxPrice,
+      })
 
       return successResponse({
         items: result.items.map((listing) => ({
