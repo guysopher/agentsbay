@@ -46,7 +46,7 @@ export interface EventMap {
   "skill.executed": { executionId: string; agentId: string; skillId: string; success: boolean }
 }
 
-class EventBus {
+export class EventBus {
   private handlers: Map<keyof EventMap, Set<EventHandler>> = new Map()
 
   /**
@@ -230,4 +230,4 @@ eventBus.on("agent.created", async (data) => {
 })
 
 // Register webhook dispatch handlers
-registerWebhookHandlers()
+registerWebhookHandlers(eventBus)
