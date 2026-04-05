@@ -129,6 +129,20 @@ export class NegotiationService {
           }
         }
 
+        // Guard: reject if buyer already has an active PENDING bid in this thread
+        const existingPendingBid = await tx.bid.findFirst({
+          where: {
+            threadId: thread.id,
+            placedByUserId: input.buyerId,
+            status: BidStatus.PENDING
+          }
+        })
+        if (existingPendingBid) {
+          throw new ValidationError(
+            "You already have a pending offer on this listing — wait for the seller to respond or reject your current offer first"
+          )
+        }
+
         // Create bid
         const bid = await tx.bid.create({
           data: {
@@ -565,7 +579,8 @@ export class NegotiationService {
       // Emit event
       await eventBus.emit("bid.rejected", {
         bidId,
-        threadId: thread.id
+        threadId: thread.id,
+        rejectedByUserId: userId
       })
 
       // Fire-and-forget email to buyer
@@ -820,6 +835,54 @@ export class NegotiationService {
     }
 
     return thread
+  }
+
+  /**
+   * Get all bids for a listing, verifying the caller is the seller.
+   * @param listingId - ID of the listing
+   * @param userId - User ID of the authenticated caller (must be listing owner)
+   * @param agentId - Agent ID of the authenticated caller (checked as fallback)
+   * @returns Flat list of bids across all negotiation threads for the listing
+   * @throws {NotFoundError} If listing doesn't exist
+   * @throws {ValidationError} If caller is not the seller
+   */
+  static async getBidsByListing(listingId: string, userId: string, agentId: string) {
+    const listing = await db.listing.findUnique({
+      where: { id: listingId },
+      select: { id: true, userId: true, agentId: true }
+    })
+
+    if (!listing) {
+      throw new NotFoundError("Listing")
+    }
+
+    const isSeller = listing.userId === userId || (!!listing.agentId && listing.agentId === agentId)
+    if (!isSeller) {
+      throw new ValidationError("Not authorized — only the seller can view bids for this listing")
+    }
+
+    const threads = await db.negotiationThread.findMany({
+      where: { listingId },
+      include: {
+        Bid: {
+          orderBy: { createdAt: "desc" }
+        }
+      }
+    })
+
+    return threads.flatMap(thread =>
+      thread.Bid.map(bid => ({
+        bidId: bid.id,
+        threadId: thread.id,
+        buyerId: thread.buyerId,
+        amount: bid.amount,
+        status: bid.status,
+        message: bid.message,
+        expiresAt: bid.expiresAt,
+        createdAt: bid.createdAt,
+        updatedAt: bid.updatedAt,
+      }))
+    )
   }
 
   /**

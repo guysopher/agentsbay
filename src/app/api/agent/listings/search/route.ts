@@ -44,17 +44,44 @@ export const { GET } = createApiHandler({
       const maxDistanceKm = searchParams.get("maxDistanceKm")
         ? parseFloat(searchParams.get("maxDistanceKm")!)
         : undefined
+      // Explicit lat/lng/radius params — these take precedence over agent's stored location
+      const latParam = searchParams.get("lat") ? parseFloat(searchParams.get("lat")!) : undefined
+      const lngParam = searchParams.get("lng") ? parseFloat(searchParams.get("lng")!) : undefined
+      const radiusParam = searchParams.get("radius") ? parseFloat(searchParams.get("radius")!) : undefined
       const limitRaw = searchParams.get("limit") ? parseInt(searchParams.get("limit")!) : 20
       const limit = Math.min(Math.max(1, limitRaw), 100) // clamp 1–100
       const cursor = searchParams.get("cursor") || undefined
       const sortByRaw = searchParams.get("sortBy") || undefined
+      const sortOrderRaw = searchParams.get("sortOrder") || undefined
+      // Normalize sortBy=price + sortOrder=asc/desc into price_asc / price_desc
+      const resolvedSortBy =
+        sortByRaw === "price"
+          ? sortOrderRaw === "desc"
+            ? "price_desc"
+            : "price_asc"
+          : sortByRaw
       const sortBy = ["newest", "oldest", "price_asc", "price_desc", "relevance"].includes(
-        sortByRaw ?? ""
+        resolvedSortBy ?? ""
       )
-        ? (sortByRaw as "newest" | "oldest" | "price_asc" | "price_desc" | "relevance")
+        ? (resolvedSortBy as "newest" | "oldest" | "price_asc" | "price_desc" | "relevance")
         : "newest"
 
       const agent = auth.agent
+
+      // Validate explicit lat/lng/radius params
+      if ((latParam !== undefined || lngParam !== undefined || radiusParam !== undefined) &&
+          (latParam === undefined || lngParam === undefined || radiusParam === undefined)) {
+        return errorResponse("lat, lng, and radius must all be provided together", 400)
+      }
+      if (latParam !== undefined && (isNaN(latParam) || latParam < -90 || latParam > 90)) {
+        return errorResponse("lat must be a number between -90 and 90", 400)
+      }
+      if (lngParam !== undefined && (isNaN(lngParam) || lngParam < -180 || lngParam > 180)) {
+        return errorResponse("lng must be a number between -180 and 180", 400)
+      }
+      if (radiusParam !== undefined && (isNaN(radiusParam) || radiusParam <= 0)) {
+        return errorResponse("radius must be a positive number (kilometers)", 400)
+      }
 
       // Reject distance filter when agent has no coordinates rather than silently ignoring it
       if (maxDistanceKm !== undefined && (!agent.latitude || !agent.longitude)) {
@@ -64,13 +91,17 @@ export const { GET } = createApiHandler({
         )
       }
 
+      // Determine the center + radius for geo-filtering.
+      // Explicit lat/lng/radius params take precedence over agent's stored location + maxDistanceKm.
+      const geoCenter =
+        latParam !== undefined && lngParam !== undefined && radiusParam !== undefined
+          ? { lat: latParam, lng: lngParam, radiusKm: radiusParam }
+          : maxDistanceKm !== undefined && agent.latitude && agent.longitude
+            ? { lat: agent.latitude, lng: agent.longitude, radiusKm: maxDistanceKm }
+            : undefined
+
       // Compute DB-level bounding box when the caller wants a distance filter.
-      // The service applies this as a lat/lng WHERE clause so only rows inside
-      // the radius are fetched — no more 10x overfetch.
-      const bbox =
-        maxDistanceKm !== undefined && agent.latitude && agent.longitude
-          ? boundingBox(agent.latitude, agent.longitude, maxDistanceKm)
-          : undefined
+      const bbox = geoCenter ? boundingBox(geoCenter.lat, geoCenter.lng, geoCenter.radiusKm) : undefined
 
       // Search listings
       const { items, nextCursor, hasMore, total } = await ListingService.search({
@@ -86,19 +117,18 @@ export const { GET } = createApiHandler({
         ...bbox,
       })
 
-      // Add distance calculation if agent has location set
+      // Add distance calculation using geoCenter (explicit params or agent's stored location)
       const listingsWithDistance = items.map((listing) => {
         let distanceKm: number | undefined
 
         if (
-          agent.latitude &&
-          agent.longitude &&
+          geoCenter &&
           listing.latitude &&
           listing.longitude
         ) {
           distanceKm = calculateDistance(
-            agent.latitude,
-            agent.longitude,
+            geoCenter.lat,
+            geoCenter.lng,
             listing.latitude,
             listing.longitude
           )
@@ -132,25 +162,25 @@ export const { GET } = createApiHandler({
         }
       })
 
-      // Filter by distance if specified
-      const distanceFilterApplied = maxDistanceKm !== undefined
+      // Filter by distance if a geo center is set
+      const distanceFilterApplied = geoCenter !== undefined
       let filteredListings = listingsWithDistance
       if (distanceFilterApplied) {
         const beforeCount = listingsWithDistance.length
         filteredListings = listingsWithDistance.filter(
           (listing) =>
             listing.distanceKm !== undefined &&
-            listing.distanceKm <= maxDistanceKm!
+            listing.distanceKm <= geoCenter!.radiusKm
         )
         if (beforeCount > 0 && filteredListings.length < beforeCount * 0.1) {
           console.warn(
-            `[search] Distance filter (maxDistanceKm=${maxDistanceKm}) reduced results significantly: ${beforeCount} -> ${filteredListings.length}`
+            `[search] Distance filter (radiusKm=${geoCenter!.radiusKm}) reduced results significantly: ${beforeCount} -> ${filteredListings.length}`
           )
         }
       }
 
       // Sort by distance only when caller did not explicitly specify a sortBy
-      if (agent.latitude && agent.longitude && !sortByRaw) {
+      if (geoCenter && !sortByRaw) {
         filteredListings.sort((a, b) => {
           if (a.distanceKm === undefined) return 1
           if (b.distanceKm === undefined) return -1

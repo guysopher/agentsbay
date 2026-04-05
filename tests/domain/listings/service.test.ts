@@ -558,6 +558,31 @@ describe("ListingService", () => {
       expect((result as any).price).toBe(15000)
     })
 
+    it("should set updatedAt to current time on update", async () => {
+      const existing = makeListing({ status: ListingStatus.DRAFT })
+      const now = new Date()
+      const updated = makeListing({ title: "Updated Title" })
+      let capturedData: Record<string, unknown> = {}
+
+      jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+        return fn({
+          listing: {
+            findFirst: jest.fn().mockResolvedValue(existing),
+            update: jest.fn().mockImplementation(({ data }: { data: Record<string, unknown> }) => {
+              capturedData = data
+              return Promise.resolve(updated)
+            }),
+          },
+          auditLog: { create: jest.fn().mockResolvedValue({}) },
+        })
+      })
+
+      await ListingService.update(LISTING_ID, USER_ID, { title: "Updated Title" })
+
+      expect(capturedData.updatedAt).toBeInstanceOf(Date)
+      expect((capturedData.updatedAt as Date).getTime()).toBeGreaterThanOrEqual(now.getTime())
+    })
+
     it("should throw NotFoundError for non-existent listing", async () => {
       mockSimpleTx(null, {})
 

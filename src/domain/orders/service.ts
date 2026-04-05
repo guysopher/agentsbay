@@ -1,5 +1,5 @@
 import { db } from "@/lib/db"
-import { NotFoundError, ValidationError } from "@/lib/errors"
+import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors"
 import { DeliveryStatus, FulfillmentMethod, ListingStatus, OrderStatus } from "@prisma/client"
 import { randomUUID } from "crypto"
 import { eventBus } from "@/lib/events"
@@ -29,6 +29,7 @@ interface ListByUserResult {
     sellerId: string
     createdAt: Date
     updatedAt: Date
+    completedAt: Date | null
   }>
   nextCursor: string | null
   hasMore: boolean
@@ -80,6 +81,7 @@ export class OrderService {
         sellerId: o.sellerId,
         createdAt: o.createdAt,
         updatedAt: o.updatedAt,
+        completedAt: o.completedAt,
       })),
       nextCursor,
       hasMore,
@@ -125,21 +127,22 @@ export class OrderService {
     // Read + validate + write inside transaction to prevent TOCTOU race conditions
     const updated = await db.$transaction(async (tx) => {
       const order = await tx.order.findFirst({
-        where: {
-          id: orderId,
-          OR: [
-            { sellerId: actorUserId },
-            // Fallback for pre-AGE-364 orders with null sellerId column
-            { NegotiationThread: { sellerId: actorUserId } },
-          ],
-        },
+        where: { id: orderId },
         include: {
           Listing: true,
+          NegotiationThread: true,
         },
       })
 
       if (!order) {
         throw new NotFoundError("Order")
+      }
+
+      // Resolve effective sellerId (fallback for pre-AGE-364 orders with null sellerId column)
+      const effectiveSellerId = order.sellerId ?? order.NegotiationThread?.sellerId ?? null
+
+      if (effectiveSellerId !== actorUserId) {
+        throw new ForbiddenError("Only the seller can update the pickup location")
       }
 
       if (order.fulfillmentMethod !== FulfillmentMethod.PICKUP) {
@@ -149,6 +152,7 @@ export class OrderService {
       if (
         order.status !== OrderStatus.PENDING_PAYMENT &&
         order.status !== OrderStatus.PAID &&
+        order.status !== OrderStatus.READY_FOR_PICKUP &&
         order.status !== OrderStatus.IN_TRANSIT
       ) {
         throw new ValidationError("Pickup can only be scheduled for pending, paid, or in-transit orders")
@@ -158,7 +162,7 @@ export class OrderService {
         where: { id: orderId },
         data: {
           pickupLocation: input.pickupLocation.trim(),
-          status: OrderStatus.IN_TRANSIT,
+          status: OrderStatus.READY_FOR_PICKUP,
           updatedAt: now,
         },
       })
@@ -283,8 +287,8 @@ export class OrderService {
         throw new NotFoundError("Order")
       }
 
-      if (order.status !== OrderStatus.IN_TRANSIT) {
-        throw new ValidationError("Order must be in IN_TRANSIT status to confirm receipt")
+      if (order.status !== OrderStatus.READY_FOR_PICKUP && order.status !== OrderStatus.IN_TRANSIT) {
+        throw new ValidationError("Order must be in READY_FOR_PICKUP or IN_TRANSIT status to confirm receipt")
       }
 
       const updatedOrder = await tx.order.update({
@@ -327,6 +331,8 @@ export class OrderService {
       sellerId: updated.sellerId,
       status: updated.status,
     })
+
+    void eventBus.emit("order.completed", { orderId: updated.id })
 
     // Fire-and-forget emails to buyer and seller
     void (async () => {
@@ -381,7 +387,11 @@ export class OrderService {
         throw new NotFoundError("Order")
       }
 
-      if (order.status !== OrderStatus.PAID && order.status !== OrderStatus.IN_TRANSIT) {
+      if (
+        order.status !== OrderStatus.PAID &&
+        order.status !== OrderStatus.READY_FOR_PICKUP &&
+        order.status !== OrderStatus.IN_TRANSIT
+      ) {
         throw new ValidationError("Order cannot be closed out from current status")
       }
 
