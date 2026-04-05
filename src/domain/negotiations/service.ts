@@ -270,13 +270,15 @@ export class NegotiationService {
           }
         })
 
-        // Create counter bid
+        // Create counter bid — link back to the bid being countered so
+        // rejectBid can revert it COUNTERED → PENDING if this counter is rejected
         const counterBid = await tx.bid.create({
           data: {
             id: randomUUID(),
             threadId: thread.id,
             agentId: input.agentId ?? null,
             placedByUserId: userId,
+            parentBidId: bidId,
             amount: input.amount,
             message: input.message,
             status: BidStatus.PENDING,
@@ -523,7 +525,8 @@ export class NegotiationService {
         include: {
           NegotiationThread: {
             include: { Listing: true }
-          }
+          },
+          ParentBid: true
         }
       })
 
@@ -552,6 +555,19 @@ export class NegotiationService {
             updatedAt: new Date()
           }
         })
+
+        // Revert the parent bid COUNTERED → PENDING so the other party can respond.
+        // Without this, rejecting a counter leaves no actionable bid in the thread
+        // and causes a permanent deadlock (the AGE-433 regression).
+        if (bid.parentBidId && bid.ParentBid?.status === BidStatus.COUNTERED) {
+          await tx.bid.update({
+            where: { id: bid.parentBidId },
+            data: {
+              status: BidStatus.PENDING,
+              updatedAt: new Date()
+            }
+          })
+        }
 
         // Update thread
         await tx.negotiationThread.update({

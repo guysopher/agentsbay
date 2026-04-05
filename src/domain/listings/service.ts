@@ -113,7 +113,7 @@ export class ListingService {
         where: {
           userId,
           createdAt: { gte: since },
-          status: { notIn: [ListingStatus.REMOVED] },
+          status: { notIn: [ListingStatus.REMOVED, ListingStatus.SOLD] },
           deletedAt: null,
         },
         select: { id: true, title: true },
