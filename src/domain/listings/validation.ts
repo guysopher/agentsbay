@@ -49,7 +49,7 @@ export function validateAddressFormat(address: string): {
   return { valid: true, sanitized: trimmed }
 }
 
-export const createListingSchema = z.object({
+const baseListingSchema = z.object({
   title: sanitizedString(
     z.string().min(3, "Title must be at least 3 characters").max(100)
   ),
@@ -85,9 +85,23 @@ export const createListingSchema = z.object({
   deliveryAvailable: z.boolean().default(false).optional(),
 })
 
-export const updateListingSchema = createListingSchema.partial().extend({
+export const createListingSchema = baseListingSchema.refine(
+  (data) => !data.priceMax || data.priceMax >= data.price,
+  {
+    message: "priceMax must be greater than or equal to price",
+    path: ["priceMax"],
+  }
+)
+
+export const updateListingSchema = baseListingSchema.partial().extend({
   status: z.enum(["PAUSED", "PUBLISHED"]).optional(),
-})
+}).refine(
+  (data) => !data.priceMax || !data.price || data.priceMax >= data.price,
+  {
+    message: "priceMax must be greater than or equal to price",
+    path: ["priceMax"],
+  }
+)
 
 export const SortBy = z.enum(["newest", "oldest", "price_asc", "price_desc", "relevance"])
 export type SortBy = z.infer<typeof SortBy>
