@@ -6,7 +6,7 @@ import { z, ZodError } from "zod"
 
 const placeBidSchema = z.object({
   amount: z.number().int().positive().min(100, "Minimum bid is $1.00").max(1_000_000, "Maximum bid is $10,000"),
-  message: z.string().min(1).max(500).optional(),
+  message: z.string().min(1).max(500).transform((s) => s.replace(/[<>]/g, "").trim()).optional(),
   expiresIn: z.number().int().min(3600, "Minimum expiry is 1 hour").max(7 * 24 * 60 * 60).optional() // 1 hour to 7 days
 })
 
