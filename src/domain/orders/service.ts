@@ -328,6 +328,8 @@ export class OrderService {
       status: updated.status,
     })
 
+    void eventBus.emit("order.completed", { orderId: updated.id })
+
     // Fire-and-forget emails to buyer and seller
     void (async () => {
       try {

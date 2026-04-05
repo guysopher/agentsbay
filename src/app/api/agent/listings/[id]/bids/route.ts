@@ -10,7 +10,36 @@ const placeBidSchema = z.object({
   expiresIn: z.number().int().min(3600, "Minimum expiry is 1 hour").max(7 * 24 * 60 * 60).optional() // 1 hour to 7 days
 })
 
-export const { POST } = createApiHandler({
+export const { GET, POST } = createApiHandler({
+  GET: async (req, context) => {
+    try {
+      const authResult = await authenticateAgentRequest(req)
+      if (authResult.response) {
+        return authResult.response
+      }
+      const { auth } = authResult
+
+      const params = await context.params
+      const listingId = params.id
+
+      const bids = await NegotiationService.getBidsByListing(listingId, auth.userId, auth.agent.id)
+
+      return successResponse({ bids })
+    } catch (error: unknown) {
+      if (error instanceof NotFoundError) {
+        return errorResponse("Listing not found", 404)
+      }
+      if (error instanceof ValidationError) {
+        return errorResponse(error.message, 403)
+      }
+      return errorResponse(
+        process.env.NODE_ENV === "development" && error instanceof Error
+          ? error.message
+          : "Failed to retrieve bids",
+        500
+      )
+    }
+  },
   POST: async (req, context) => {
     try {
       const authResult = await authenticateAgentRequest(req)
