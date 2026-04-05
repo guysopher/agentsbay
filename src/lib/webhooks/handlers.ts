@@ -2,10 +2,10 @@
 // Each handler resolves the target agentId and calls dispatchWebhookEvent
 
 import { db } from "@/lib/db"
-import { eventBus } from "@/lib/events"
+import type { EventBus } from "@/lib/events"
 import { dispatchWebhookEvent } from "./dispatcher"
 
-export function registerWebhookHandlers(): void {
+export function registerWebhookHandlers(eventBus: EventBus): void {
   // bid.placed → notify listing owner agent: "bid.received"
   eventBus.on("bid.placed", async (data) => {
     try {
