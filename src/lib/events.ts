@@ -195,7 +195,7 @@ eventBus.on("bid.rejected", async (data) => {
       type: "BID_REJECTED",
       title: "Your bid was declined",
       message: `Your bid on "${thread.Listing.title}" was declined`,
-      link: `/negotiations/${thread.listingId}`,
+      link: `/negotiations/${thread.id}`,
     })
   } catch (error) {
     console.error("[Notification] Failed to create bid.rejected notification:", error)
@@ -217,7 +217,7 @@ eventBus.on("bid.countered", async (data) => {
       type: "BID_COUNTERED",
       title: "Counter-offer received",
       message: `Seller countered at $${amount} on "${thread.Listing.title}"`,
-      link: `/negotiations/${thread.listingId}`,
+      link: `/negotiations/${thread.id}`,
     })
   } catch (error) {
     console.error("[Notification] Failed to create bid.countered notification:", error)

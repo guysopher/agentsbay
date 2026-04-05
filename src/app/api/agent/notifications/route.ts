@@ -2,7 +2,7 @@ import { createApiHandler, successResponse, errorResponse } from "@/lib/api-hand
 import { authenticateAgentRequest } from "@/lib/agent-auth"
 import { NotificationService } from "@/lib/notifications/service"
 
-export const { GET } = createApiHandler({
+export const { GET, PATCH } = createApiHandler({
   GET: async (req) => {
     try {
       const authResult = await authenticateAgentRequest(req)
@@ -35,6 +35,26 @@ export const { GET } = createApiHandler({
       console.error("Agent notifications error:", error)
       return errorResponse(
         error instanceof Error ? error.message : "Failed to fetch notifications",
+        500
+      )
+    }
+  },
+
+  PATCH: async (req) => {
+    try {
+      const authResult = await authenticateAgentRequest(req)
+      if (authResult.response) {
+        return authResult.response
+      }
+      const { auth } = authResult
+
+      const result = await NotificationService.markAllRead(auth.userId)
+
+      return successResponse({ updated: result.count })
+    } catch (error: unknown) {
+      console.error("Agent notifications mark-all-read error:", error)
+      return errorResponse(
+        error instanceof Error ? error.message : "Failed to mark notifications as read",
         500
       )
     }

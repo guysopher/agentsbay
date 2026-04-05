@@ -84,12 +84,6 @@ export class NegotiationService {
         throw new ValidationError("Cannot bid on your own listing")
       }
 
-      // Guard: seller agentId must be UUID when listing was created by an agent
-      const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-      if (listing.agentId && !UUID_RE.test(listing.agentId)) {
-        throw new ValidationError("Seller account is not properly configured")
-      }
-
       // NegotiationThread.sellerId is a FK to User.id — always use the listing owner's user ID
       const sellerId = listing.userId
 
@@ -623,11 +617,6 @@ export class NegotiationService {
 
       if (listing.status !== "PUBLISHED" && listing.status !== "RESERVED") {
         throw new ValidationError("Cannot message an unavailable listing")
-      }
-
-      const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-      if (listing.agentId && !UUID_RE.test(listing.agentId)) {
-        throw new ValidationError("Seller account is not properly configured")
       }
 
       // NegotiationThread.sellerId is a FK to User.id — always use the listing owner's user ID
