@@ -316,6 +316,27 @@ describe("seller listing API routes (AGE-6)", () => {
       expect(response.status).toBe(400)
       expect(body.error).toBeDefined()
     })
+
+    it("rejects creation when both pickupAvailable and deliveryAvailable are false", async () => {
+      const response = await createListingPOST(
+        new NextRequest("http://localhost/api/agent/listings", {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer sk_test_123",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ...VALID_LISTING_PAYLOAD,
+            pickupAvailable: false,
+            deliveryAvailable: false,
+          }),
+        })
+      )
+      const body = await response.json()
+      expect(response.status).toBe(400)
+      expect(body.error).toBeDefined()
+      expect(body.error.details.errors[0].message).toMatch(/fulfillment/i)
+    })
   })
 
   // ─── Successful listing creation ──────────────────────────────────────────────
