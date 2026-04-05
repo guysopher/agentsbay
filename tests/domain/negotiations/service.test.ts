@@ -43,6 +43,8 @@ const BID = {
   amount: 8500,
   status: BidStatus.PENDING,
   placedByUserId: "buyer-1",
+  parentBidId: null,
+  createdAt: new Date("2026-04-05T10:00:00Z"),
   expiresAt: new Date(Date.now() + 86400_000),
   NegotiationThread: {
     ...THREAD,
@@ -538,6 +540,7 @@ describe("NegotiationService", () => {
         return fn({
           bid: {
             update: jest.fn().mockResolvedValue(rejectedBid),
+            findFirst: jest.fn().mockResolvedValue(null),
           },
           negotiationThread: {
             update: jest.fn().mockResolvedValue(THREAD),
@@ -549,6 +552,89 @@ describe("NegotiationService", () => {
 
       expect((result as any).status).toBe(BidStatus.REJECTED)
       expect((result as any).id).toBe("bid-1")
+    })
+
+    it("reverts parent COUNTERED bid to PENDING via parentBidId when rejecting a counter", async () => {
+      // Counter bid created by seller, with parentBidId pointing to the original buyer bid
+      const counterBid = {
+        ...BID,
+        id: "counter-bid-1",
+        placedByUserId: "seller-1",
+        parentBidId: "bid-1",
+        createdAt: new Date("2026-04-05T11:00:00Z"),
+        NegotiationThread: THREAD,
+      }
+      jest.spyOn(db.bid, "findUnique").mockResolvedValueOnce(counterBid as never)
+      const rejectedBid = { ...counterBid, status: BidStatus.REJECTED }
+      const bidUpdate = jest.fn()
+        .mockResolvedValueOnce(rejectedBid)    // first call: reject the counter
+        .mockResolvedValueOnce({ id: "bid-1", status: BidStatus.PENDING })  // second call: revert parent
+
+      jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+        return fn({
+          bid: {
+            update: bidUpdate,
+            findFirst: jest.fn().mockResolvedValue(null),
+          },
+          negotiationThread: {
+            update: jest.fn().mockResolvedValue(THREAD),
+          },
+        })
+      })
+
+      const result = await NegotiationService.rejectBid("counter-bid-1", "seller-1")
+
+      expect((result as any).status).toBe(BidStatus.REJECTED)
+      // Second update call must revert the parent bid to PENDING
+      expect(bidUpdate).toHaveBeenCalledTimes(2)
+      expect(bidUpdate).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          where: { id: "bid-1" },
+          data: expect.objectContaining({ status: BidStatus.PENDING }),
+        })
+      )
+    })
+
+    it("reverts parent COUNTERED bid via fallback heuristic when parentBidId is null", async () => {
+      // Old-style counter bid without parentBidId
+      const oldCounterBid = {
+        ...BID,
+        id: "counter-old-1",
+        placedByUserId: "seller-1",
+        parentBidId: null,
+        createdAt: new Date("2026-04-05T11:00:00Z"),
+        NegotiationThread: THREAD,
+      }
+      const originalBid = { id: "bid-old-original", status: BidStatus.COUNTERED }
+      jest.spyOn(db.bid, "findUnique").mockResolvedValueOnce(oldCounterBid as never)
+      const rejectedBid = { ...oldCounterBid, status: BidStatus.REJECTED }
+      const bidUpdate = jest.fn()
+        .mockResolvedValueOnce(rejectedBid)
+        .mockResolvedValueOnce({ ...originalBid, status: BidStatus.PENDING })
+
+      jest.spyOn(db, "$transaction").mockImplementationOnce(async (fn: any) => {
+        return fn({
+          bid: {
+            update: bidUpdate,
+            findFirst: jest.fn().mockResolvedValue(originalBid),
+          },
+          negotiationThread: {
+            update: jest.fn().mockResolvedValue(THREAD),
+          },
+        })
+      })
+
+      await NegotiationService.rejectBid("counter-old-1", "seller-1")
+
+      expect(bidUpdate).toHaveBeenCalledTimes(2)
+      expect(bidUpdate).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          where: { id: "bid-old-original" },
+          data: expect.objectContaining({ status: BidStatus.PENDING }),
+        })
+      )
     })
 
     it("throws NotFoundError when bid does not exist", async () => {

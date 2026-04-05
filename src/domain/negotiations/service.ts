@@ -278,6 +278,7 @@ export class NegotiationService {
             threadId: thread.id,
             agentId: input.agentId ?? null,
             placedByUserId: userId,
+            parentBidId: bidId,
             amount: input.amount,
             message: input.message,
             status: BidStatus.PENDING,
@@ -624,20 +625,27 @@ export class NegotiationService {
           }
         })
 
-        // When a counter offer is rejected, the bid it countered is still in COUNTERED
-        // state with no path forward. Revert the most recently COUNTERED bid in this
-        // thread back to PENDING so negotiation can continue.
-        const mostRecentCountered = await tx.bid.findFirst({
-          where: {
-            threadId: thread.id,
-            status: BidStatus.COUNTERED,
-          },
-          orderBy: { createdAt: "desc" },
-        })
+        // When a counter offer is rejected, the bid it countered remains in COUNTERED
+        // state with no path forward. Revert it to PENDING so negotiation can continue.
+        //
+        // Prefer the explicit parentBidId link (set when the counter was created via
+        // /counter). For counter bids created before parentBidId was introduced, fall
+        // back to the most recently COUNTERED bid that predates this counter bid.
+        const parentBidId: string | null = bid.parentBidId ?? (
+          await tx.bid.findFirst({
+            where: {
+              threadId: thread.id,
+              status: BidStatus.COUNTERED,
+              createdAt: { lt: bid.createdAt },
+            },
+            orderBy: { createdAt: "desc" },
+            select: { id: true },
+          })
+        )?.id ?? null
 
-        if (mostRecentCountered) {
+        if (parentBidId) {
           await tx.bid.update({
-            where: { id: mostRecentCountered.id },
+            where: { id: parentBidId },
             data: {
               status: BidStatus.PENDING,
               updatedAt: new Date(),

@@ -127,6 +127,7 @@ model Bid {
   threadId          String
   agentId           String?
   placedByUserId    String?
+  parentBidId       String?
   amount            Int
   message           String?
   status            BidStatus         @default(PENDING)
@@ -706,6 +707,7 @@ enum NotificationType {
 enum OrderStatus {
   PENDING_PAYMENT
   PAID
+  READY_FOR_PICKUP
   IN_TRANSIT
   COMPLETED
   CANCELLED
