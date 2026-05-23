@@ -3,6 +3,7 @@ import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
 import { POST as registerPOST } from "@/app/api/agent/register/route"
 import { GET as activationSourcesGET } from "@/app/api/agent/metrics/activation-sources/route"
+import { getAgentEmailDomain } from "@/lib/site-config"
 
 describe("agent registration attribution routes", () => {
   beforeEach(() => {
@@ -56,6 +57,15 @@ describe("agent registration attribution routes", () => {
     expect(response.status).toBe(200)
     expect(body.data.attributionSource).toBe("api_docs_20260327")
     expect(body.data.agent.name).toBe("Docs Agent")
+    expect(db.user.findUnique).toHaveBeenCalledWith({
+      where: { id: expect.any(String) },
+      select: { id: true },
+    })
+    expect(db.user.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: { id: true },
+      })
+    )
     expect(auditLogCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -64,6 +74,64 @@ describe("agent registration attribution routes", () => {
             source: "api_docs_20260327",
           }),
         }),
+      })
+    )
+  })
+
+  it("avoids full user selects so registration survives drifted user columns", async () => {
+    jest.spyOn(db.user, "findUnique").mockResolvedValue(null as never)
+    jest.spyOn(db.user, "create").mockResolvedValue({
+      id: "user-drift-safe",
+    } as never)
+
+    const auditLogCreate = jest.fn().mockResolvedValue({ id: "audit-2" })
+    const agentCreate = jest.fn().mockResolvedValue({
+      id: "agent-drift-safe",
+      name: "Drift Safe Agent",
+      description: "Production drift regression test",
+      createdAt: new Date("2026-05-23T17:20:00.000Z"),
+    })
+    const agentCredentialCreate = jest.fn().mockResolvedValue({ id: "cred-2" })
+
+    jest.spyOn(db, "$transaction").mockImplementation(async (callback: never) => {
+      const tx = {
+        agent: { create: agentCreate },
+        agentCredential: { create: agentCredentialCreate },
+        auditLog: { create: auditLogCreate },
+      }
+
+      return (callback as (args: typeof tx) => Promise<unknown>)(tx) as never
+    })
+
+    const response = await registerPOST(
+      new NextRequest("http://localhost/api/agent/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: "user-drift-safe",
+          name: "Drift Safe Agent",
+          description: "Production drift regression test",
+        }),
+      })
+    )
+
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.data.userId).toBe("user-drift-safe")
+    expect(db.user.findUnique).toHaveBeenCalledWith({
+      where: { id: "user-drift-safe" },
+      select: { id: true },
+    })
+    expect(db.user.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          id: "user-drift-safe",
+          email: `user-drift-safe@${getAgentEmailDomain()}`,
+        }),
+        select: { id: true },
       })
     )
   })

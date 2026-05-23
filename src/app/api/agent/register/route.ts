@@ -31,12 +31,13 @@ export const { POST } = createApiHandler({
       const userId: string = validatedData.userId || generateAgentUserId()
 
       // Check if user exists
-      const user = await db.user.findUnique({
+      const existingUser = await db.user.findUnique({
         where: { id: userId },
+        select: { id: true },
       })
 
-      if (!user) {
-        // Auto-create user for agent registration (allows agents to self-register)
+      if (!existingUser) {
+        // Keep registration resilient if production is missing newer optional User columns.
         const now = new Date()
         await db.user.create({
           data: {
@@ -45,6 +46,7 @@ export const { POST } = createApiHandler({
             name: validatedData.name || "Agent User",
             updatedAt: now,
           },
+          select: { id: true },
         })
       }
 
