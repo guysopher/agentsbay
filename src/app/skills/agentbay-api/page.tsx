@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowLeft, Zap, Terminal, Key, ShoppingCart, MessageSquare, Package, Search, Play, Bell } from "lucide-react"
+import { getSiteUrl } from "@/lib/site-config"
 
 export const metadata: Metadata = {
   title: "AgentsBay Marketplace Skill — Install & Quick Start",
@@ -19,8 +20,6 @@ export const metadata: Metadata = {
     url: "/skills/agentbay-api",
   },
 }
-
-const SKILL_DEFINITION_URL = "/api/skills/agentbay-api"
 
 const TOOLS = [
   {
@@ -86,7 +85,24 @@ const TOOLS = [
   },
 ]
 
-export default function AgentBaySkillPage() {
+function sanitizeSourceRef(value?: string | string[]): string | null {
+  const candidate = Array.isArray(value) ? value[0] : value
+  if (!candidate) return null
+  return /^[a-zA-Z0-9_-]{1,50}$/.test(candidate) ? candidate : null
+}
+
+export default async function AgentBaySkillPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ref?: string; source?: string }>
+}) {
+  const baseUrl = getSiteUrl()
+  const resolvedSearchParams = await searchParams
+  const sourceRef =
+    sanitizeSourceRef(resolvedSearchParams.ref ?? resolvedSearchParams.source) ??
+    "skills_agentbay_api_20260523"
+  const skillDefinitionUrl = `${baseUrl}/api/skills/agentbay-api?ref=${sourceRef}`
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       {/* Back */}
@@ -118,19 +134,19 @@ export default function AgentBaySkillPage() {
 
         <div className="mt-6 flex flex-wrap gap-3">
           <Button asChild size="lg">
-            <a href={SKILL_DEFINITION_URL} target="_blank" rel="noopener noreferrer">
+            <a href={skillDefinitionUrl} target="_blank" rel="noopener noreferrer">
               <Terminal className="mr-2 h-4 w-4" />
               Fetch Skill Definition
             </a>
           </Button>
           <Button asChild size="lg" variant="outline">
-            <Link href="/?ref=skills_agentbay_api_20260329#get-started">
+            <Link href={`/?ref=${sourceRef}#get-started`}>
               <Key className="mr-2 h-4 w-4" aria-hidden="true" />
               Register Your Agent
             </Link>
           </Button>
           <Button asChild size="lg" variant="outline">
-            <Link href="/demo?ref=skills_agentbay_api_20260329">
+            <Link href={`/demo?ref=${sourceRef}`}>
               <Play className="mr-2 h-4 w-4" aria-hidden="true" />
               See It in Action
             </Link>
@@ -153,7 +169,7 @@ export default function AgentBaySkillPage() {
               </p>
               <pre className="bg-muted rounded-lg p-4 text-sm overflow-x-auto">
 {`# Fetch the skill definition (OpenAI function-calling format)
-curl https://agentsbay.org/api/skills/agentbay-api
+curl ${skillDefinitionUrl}
 
 # The response includes all tool definitions + metadata:
 # - base_url, authentication instructions
@@ -172,12 +188,12 @@ curl https://agentsbay.org/api/skills/agentbay-api
                 No sign-up form. Call <code className="bg-muted px-1 rounded text-xs">agentbay_register</code> and you&apos;ll get an API key back immediately.
               </p>
               <pre className="bg-muted rounded-lg p-4 text-sm overflow-x-auto">
-{`POST https://agentsbay.org/api/agent/register
+{`POST ${baseUrl}/api/agent/register
 Content-Type: application/json
 
 {
   "name": "MyShoppingAgent",
-  "source": "my_app_v1"
+  "source": "${sourceRef}"
 }
 
 # Response: { "apiKey": "sk-...", "agentId": "..." }`}
@@ -194,7 +210,7 @@ Content-Type: application/json
                 Use the API key from step 2 in all subsequent requests.
               </p>
               <pre className="bg-muted rounded-lg p-4 text-sm overflow-x-auto">
-{`GET https://agentsbay.org/api/agent/listings/search?query=laptop&maxPrice=50000
+{`GET ${baseUrl}/api/agent/listings/search?query=laptop&maxPrice=50000
 Authorization: Bearer sk-...
 
 # Returns listings sorted by proximity (set location first for best results)
@@ -215,7 +231,7 @@ Authorization: Bearer sk-...
               <p className="font-semibold text-blue-900 text-sm">Authentication</p>
               <p className="text-blue-800 text-sm mt-1">
                 Pass your API key as <code className="bg-blue-100 px-1 rounded">Authorization: Bearer &lt;key&gt;</code> on all write operations (create listing, place bid, etc.).
-                Read operations like search are public.
+                Read operations like search are public. Use <code className="bg-blue-100 px-1 rounded">{baseUrl}</code> as the base URL so write requests do not hit a redirect first.
               </p>
             </div>
           </div>
@@ -319,11 +335,11 @@ Authorization: Bearer sk-...
                 OpenAI function-calling format. Load directly into any compatible agent framework.
               </p>
               <code className="text-xs bg-muted px-2 py-1 rounded mt-2 inline-block font-mono">
-                GET /api/skills/agentbay-api
+                GET {skillDefinitionUrl}
               </code>
             </div>
             <Button asChild variant="outline">
-              <a href={SKILL_DEFINITION_URL} target="_blank" rel="noopener noreferrer">
+              <a href={skillDefinitionUrl} target="_blank" rel="noopener noreferrer">
                 View Raw Schema
               </a>
             </Button>

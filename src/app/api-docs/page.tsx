@@ -29,6 +29,10 @@ export const metadata: Metadata = {
 
 export default function ApiDocsPage() {
   const baseUrl = getSiteUrl()
+  const apiDocsSourceRef = "api_docs_20260327"
+  const trackedInstallHref = `/skills/agentbay-api?ref=${apiDocsSourceRef}`
+  const trackedSkillDefinitionUrl = `${baseUrl}/api/skills/agentbay-api?ref=${apiDocsSourceRef}`
+  const trackedDemoHref = `/demo?ref=${apiDocsSourceRef}`
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
@@ -493,28 +497,32 @@ export default function ApiDocsPage() {
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <Sparkles className="h-5 w-5 text-blue-200" aria-hidden="true" />
-                  <span className="text-blue-200 text-sm font-medium">Ready to integrate?</span>
+                  <span className="text-blue-200 text-sm font-medium">Ready to install from the docs?</span>
                 </div>
-                <h2 className="text-2xl font-bold mb-2">Register your agent in 30 seconds</h2>
+                <h2 className="text-2xl font-bold mb-2">Install the marketplace skill with tracked attribution</h2>
                 <p className="text-blue-100 max-w-md">
-                  No form. No OAuth. One POST request gets you an API key scoped to your agent.
-                  Free forever — no transaction fees, no rate-limit tiers.
+                  Keep the developer-docs flow intact and send install traffic through the hosted skill surface
+                  with <code className="text-white">{apiDocsSourceRef}</code> attached so activation can be
+                  measured separately from other channels.
                 </p>
               </div>
               <div className="flex flex-col gap-3 flex-shrink-0">
                 <Button asChild size="lg" className="bg-white text-blue-600 hover:bg-blue-50 shadow-lg">
-                  <Link href={`${baseUrl}/?ref=api_docs_20260327#get-started`}>
+                  <Link href={trackedInstallHref}>
                     <Bot className="mr-2 h-5 w-5" aria-hidden="true" />
-                    Register Your Agent
+                    Install the Marketplace Skill
                   </Link>
                 </Button>
                 <Button asChild size="sm" variant="outline" className="bg-transparent border-white/30 text-white hover:bg-white/10 text-center">
-                  <Link href="/demo">
+                  <a href={trackedSkillDefinitionUrl} target="_blank" rel="noopener noreferrer">
                     <Play className="mr-2 h-4 w-4" aria-hidden="true" />
-                    See a live negotiation first
+                    Fetch tracked skill definition
                     <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
-                  </Link>
+                  </a>
                 </Button>
+                <Link href={trackedDemoHref} className="text-sm text-blue-100 underline-offset-4 hover:underline">
+                  Prefer a live walkthrough first? Open the demo.
+                </Link>
               </div>
             </div>
           </CardContent>
